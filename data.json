@@ -1,0 +1,142 @@
+{
+ "updated": "2026-11-10",
+ "kworb_updated": "2026/10/15",
+ "monthly_listeners": 1366034,
+ "listeners_checked": "2026-11-10",
+ "total_streams": 135167602,
+ "tracks": 50,
+ "songs": [
+  {
+   "title": "VEM NO PIQUE",
+   "with": "Hwungii, Itamar Mc",
+   "versions": 6,
+   "streams": 84218525,
+   "track": "3GbduPQThq9KIJ9Ql3JEaR",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02cd4ff810982407e9b111fdc3"
+  },
+  {
+   "title": "Biométrica Nolípta",
+   "with": "",
+   "versions": 5,
+   "streams": 14417786,
+   "track": "2YPiNil6XvVRFEkQ6svhBW",
+   "cover": "https://i.scdn.co/image/ab67616d00001e020149686c84d9246b2e2fc33c"
+  },
+  {
+   "title": "VEM NO PIQUE 2",
+   "with": "Hwungii, Itamar Mc",
+   "versions": 4,
+   "streams": 8703482,
+   "track": "5trJ0fYvTlm8d0DWJnQmaX",
+   "cover": "https://i.scdn.co/image/ab67616d00001e029de4ce6e534fb9686257475f"
+  },
+  {
+   "title": "Funk Do Basics",
+   "with": "",
+   "versions": 3,
+   "streams": 5054888,
+   "track": "2HazHXgnYILlw6ePPCjvn3",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02269434aa4bc682bf1cfa4403"
+  },
+  {
+   "title": "MONTAGEM BOYFRIEND",
+   "with": "DJ KVNXD",
+   "versions": 5,
+   "streams": 3992438,
+   "track": "22Br96kE35UcXvI92adPQY",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02062e7942f49a3b285954d1dc"
+  },
+  {
+   "title": "MONTAGEM LUNAR ABYSS",
+   "with": "NTRXBRST",
+   "versions": 5,
+   "streams": 3725552,
+   "track": "2chCt6kp9o87nynVPu2JwR",
+   "cover": "https://i.scdn.co/image/ab67616d00001e022de8974beaa50f37d7515508"
+  },
+  {
+   "title": "SEM VERGONHA?",
+   "with": "",
+   "versions": 3,
+   "streams": 3116254,
+   "track": "2KEanMN5FkYI1DYyOwkDUT",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02adf9618e85d3d64caea4894c"
+  },
+  {
+   "title": "Sinos De Natal",
+   "with": "MXZHPHXNK",
+   "versions": 3,
+   "streams": 2003228,
+   "track": "5IYh0hX2MpnAeV5Na5VEqg",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02883ef649e2fbcb7b9a7fd08f"
+  },
+  {
+   "title": "Una Mas Funk",
+   "with": "",
+   "versions": 3,
+   "streams": 1956033,
+   "track": "7FPqKePJ8SwUyMqjHeiGHR",
+   "cover": "https://i.scdn.co/image/ab67616d00001e024d146f1e12e1c39ea3f372d3"
+  },
+  {
+   "title": "DON POLLO FUNK",
+   "with": "",
+   "versions": 3,
+   "streams": 1720311,
+   "track": "7sxo0c9vaahfOvhnQtwyTz",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02df17995a2bfb8e2df65628a5"
+  }
+ ],
+ "meta": {
+  "vem no pique": {
+   "title": "VEM NO PIQUE",
+   "with": "Hwungii, Itamar Mc",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02cd4ff810982407e9b111fdc3"
+  },
+  "biométrica nolípta": {
+   "title": "Biométrica Nolípta",
+   "with": "",
+   "cover": "https://i.scdn.co/image/ab67616d00001e020149686c84d9246b2e2fc33c"
+  },
+  "vem no pique 2": {
+   "title": "VEM NO PIQUE 2",
+   "with": "Hwungii, Itamar Mc",
+   "cover": "https://i.scdn.co/image/ab67616d00001e029de4ce6e534fb9686257475f"
+  },
+  "funk do basics": {
+   "title": "Funk Do Basics",
+   "with": "",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02269434aa4bc682bf1cfa4403"
+  },
+  "montagem boyfriend": {
+   "title": "MONTAGEM BOYFRIEND",
+   "with": "DJ KVNXD",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02062e7942f49a3b285954d1dc"
+  },
+  "montagem lunar abyss": {
+   "title": "MONTAGEM LUNAR ABYSS",
+   "with": "NTRXBRST",
+   "cover": "https://i.scdn.co/image/ab67616d00001e022de8974beaa50f37d7515508"
+  },
+  "sem vergonha?": {
+   "title": "SEM VERGONHA?",
+   "with": "",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02adf9618e85d3d64caea4894c"
+  },
+  "sinos de natal": {
+   "title": "Sinos De Natal",
+   "with": "MXZHPHXNK",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02883ef649e2fbcb7b9a7fd08f"
+  },
+  "una mas funk": {
+   "title": "Una Mas Funk",
+   "with": "",
+   "cover": "https://i.scdn.co/image/ab67616d00001e024d146f1e12e1c39ea3f372d3"
+  },
+  "don pollo funk": {
+   "title": "DON POLLO FUNK",
+   "with": "",
+   "cover": "https://i.scdn.co/image/ab67616d00001e02df17995a2bfb8e2df65628a5"
+  }
+ }
+}
