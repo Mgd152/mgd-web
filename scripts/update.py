@@ -51,6 +51,7 @@ def main():
     data = json.loads(PATH.read_text(encoding="utf-8"))
     before = json.dumps(data, sort_keys=True)
     today = datetime.date.today().isoformat()
+    status = {}
 
     try:
         page = get(KWORB)
@@ -75,7 +76,9 @@ def main():
         m = re.search(r"Last updated:\s*([\d/]+)", page)
         if m:
             data["kworb_updated"] = m.group(1)
+        status["kworb"] = f"ok, {len(rows)} tracks"
     except Exception as e:  # noqa: BLE001
+        status["kworb"] = f"failed: {e}"[:200]
         print("kworb update skipped:", e)
 
     try:
@@ -90,8 +93,13 @@ def main():
         if not unit or abs(n - old) > 0.06 * max(old, 1):
             data["monthly_listeners"] = int(n)
         data["listeners_checked"] = today
+        status["spotify"] = f"ok, read {raw}{unit}"
     except Exception as e:  # noqa: BLE001
+        status["spotify"] = f"failed: {e}"[:200]
         print("spotify listeners skipped:", e)
+
+    # what the last run managed to read, so a quiet failure is visible in the file
+    data["sources"] = status
 
     if json.dumps(data, sort_keys=True) != before:
         data["updated"] = today
