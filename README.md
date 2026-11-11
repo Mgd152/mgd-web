@@ -11,6 +11,6 @@ Porkbun Static Hosting publishes every commit on `main`.
 
 ## Preview
 
-`next/index.html` is the upgraded page (in-page Spotify player, fixed menu, share button, lighter images), published at
-[mgdbrfunk.com/next/](https://mgdbrfunk.com/next/) for review. It reads the same `data.json` and the shared assets in the
-repo root (`hero-*.webp`, `og.jpg`, icons, `site.webmanifest`). Once approved it replaces `index.html`.
+`next/index.html` is the current page with upgraded textures (halftone fields, pixel mosaic on the cards, line-drawn
+waves, bevelled buttons, segmented stream bars, water glints in the footer, film grain), published at
+[mgdbrfunk.com/next/](https://mgdbrfunk.com/next/) for review. Once approved it replaces `index.html`.
