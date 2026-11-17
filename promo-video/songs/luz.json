@@ -1,0 +1,21 @@
+{
+  "slug": "luz",
+  "track": "assets/luz/track.mp3",
+  "cover": "assets/luz/cover.jpg",
+  "title": "LUZ",
+  "artist": "HDN",
+  "start": 42.0,
+  "drop_at": 52.96,
+  "bpm": 110,
+  "target": 19.6,
+  "story": "0.9:3.1,2.0:6.7,10.96:9.2",
+  "particles": "maple",
+  "pal": "#4a0e0a,#e04e3c,#ffbe98,#fff3ee",
+  "leaf_colors": "#5a1208,#e0402c,#ff8a3d",
+  "atmos": 1.0,
+  "sway": 1,
+  "energy": 1.0,
+  "glitch": false,
+  "cta": "send me your funk",
+  "notes": "Clip starts at 0:42 as asked; the 'drop' is the return after the bass cut at 0:52.96. Cover is all red, so the palette is set by hand."
+}
