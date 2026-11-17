@@ -27,8 +27,9 @@ The owner writes in Vietnamese; answer in Vietnamese.
 5. `python3 make_video.py songs/<slug>.json --check`, look at `out/<slug>/check.jpg`, fix anything off, then run the full render. A full render takes about 5–7 minutes; run it in the background.
 6. **Deliver**:
    - Send `<slug>_preview.mp4` with SendUserFile.
-   - List the paths of the master and the no-audio version. The no-audio version is for pairing with the official sound on TikTok.
+   - List the paths of `<slug>_tiktok.mp4` (post this on TikTok: 60 fps CFR, ~12 Mbps, BT.709), `<slug>_tiktok_noaudio.mp4` and `<slug>_master.mp4` (Shorts / Reels).
    - Summarise the clip window, drop, BPM, palette and score story in a few lines.
+   - Remind the owner of the TikTok upload tips in the README: move the file to the phone without Zalo or Messenger (they re-compress it to 30 fps), turn on HD upload, and avoid TikTok's in-app editor.
 
 ## What the owner has already decided (keep these unless they ask otherwise)
 

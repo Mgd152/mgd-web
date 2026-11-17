@@ -35,10 +35,23 @@ Cần thêm `ffmpeg`, Node 18+ và Playwright có Chromium. Môi trường cloud
    Nếu nhiều bản phát hành trùng tên, chọn bản có ngày phát hành và hãng (label) khớp với thẻ ID3 của file mp3.
 3. Chép một file trong `songs/` thành `songs/<slug>.json` rồi sửa các trường (xem bảng bên dưới).
 4. Xem trước 6 khung hình: `python3 make_video.py songs/<slug>.json --check` → tạo ra `out/<slug>/check.jpg`
-5. Làm video: `python3 make_video.py songs/<slug>.json` → ra 3 file trong `out/<slug>/`:
-   - `<slug>_master.mp4`: có nhạc, để đăng.
-   - `<slug>_preview.mp4`: bản nhẹ để xem trên điện thoại.
-   - `<slug>_noaudio.mp4`: không tiếng, để ghép sound gốc của bài trên TikTok (lượt xem được tính cho bài).
+5. Làm video: `python3 make_video.py songs/<slug>.json` → ra 4 file trong `out/<slug>/`, tất cả 1080×1920, 60 fps cố định, màu BT.709:
+   - `<slug>_tiktok.mp4`: **bản để đăng TikTok**, chặn trần khoảng 12 Mbps.
+   - `<slug>_tiktok_noaudio.mp4`: như trên nhưng không tiếng, để ghép sound gốc của bài trong TikTok.
+   - `<slug>_master.mp4`: bitrate cao hơn, dùng cho YouTube Shorts, Reels và lưu trữ.
+   - `<slug>_preview.mp4`: bản nhẹ để xem nhanh.
+
+## Đăng TikTok sao cho đỡ bị bóp fps / chất lượng
+
+TikTok luôn nén lại mọi video và không công bố thông số chính thức. Các bước dưới đây chỉ giảm tối đa phần bị mất:
+
+1. Đăng file **`_tiktok.mp4`** (60 fps cố định, khoảng 12 Mbps). File trên khoảng 15 Mbps thường bị nén lại mạnh hơn.
+2. **Chuyển file sang điện thoại mà không bị nén**: AirDrop, Google Drive, Files hoặc cắm cáp. **Không gửi qua Zalo hay Messenger**, vì các app này nén video và thường hạ còn 30 fps trước khi bạn kịp đăng.
+3. Trong app TikTok, bật **tải lên chất lượng cao**: ở màn hình đăng, mục "Tùy chọn khác" → "Cho phép tải lên chất lượng cao" / "Upload HD", tên mục tùy phiên bản app. Tắt "Tiết kiệm dữ liệu" (Data saver).
+4. **Hạn chế chỉnh trong trình chỉnh sửa của TikTok** (thêm chữ, filter, cắt), vì app có thể render lại video. Nếu ghép sound gốc (bản `_noaudio`) mà thấy bị tụt mượt, đăng bản `_tiktok.mp4` có nhạc sẵn.
+5. Cũng có thể đăng từ máy tính (TikTok Studio) để bỏ qua khâu chuyển file sang điện thoại.
+
+Dù làm đúng hết, người xem bật tiết kiệm dữ liệu hoặc mạng yếu vẫn có thể thấy bản 30 fps. Phần này phía mình không kiểm soát được.
 
 ## Các trường trong `songs/<slug>.json`
 

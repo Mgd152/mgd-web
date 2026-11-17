@@ -4,10 +4,11 @@
     python3 make_video.py songs/luz.json            # full video
     python3 make_video.py songs/luz.json --check    # 6 still frames + a contact sheet, to check the look first
 
-Outputs go to out/<slug>/:
-    <slug>_master.mp4   1080x1920, 60 fps, with the music (post this)
-    <slug>_preview.mp4  lighter copy for a phone
-    <slug>_noaudio.mp4  same picture, no sound (pair it with the official sound on TikTok)
+Outputs go to out/<slug>/ (all 1080x1920, constant 60 fps, BT.709 colour):
+    <slug>_tiktok.mp4          post this on TikTok: ~12 Mbps cap so TikTok re-compresses it as little as possible
+    <slug>_tiktok_noaudio.mp4  same picture without sound, to pair with the song's official sound in TikTok
+    <slug>_master.mp4          higher bitrate copy for YouTube Shorts / Reels / archive
+    <slug>_preview.mp4         light copy to watch on a phone
 """
 import argparse, glob, json, os, shutil, subprocess, sys
 
@@ -19,6 +20,7 @@ p.add_argument('preset')
 p.add_argument('--check', action='store_true', help='render a few stills only')
 p.add_argument('--workers', type=int, default=4)
 p.add_argument('--keep-frames', action='store_true')
+p.add_argument('--encode-only', action='store_true', help='only re-encode the MP4s from frames kept by an earlier --keep-frames run')
 a = p.parse_args()
 
 cfg = json.load(open(a.preset, encoding='utf-8'))
@@ -43,7 +45,8 @@ for k, v in cfg.items():
             cmd.append('--' + k)
     else:
         cmd += ['--' + k, str(v)]
-run(cmd)
+if not a.encode_only:
+    run(cmd)
 
 src = open(os.path.join(build, 'features.js'), encoding='utf-8').read()
 F = json.loads(src[src.index('{'):src.rindex('}') + 1])
@@ -66,15 +69,23 @@ if a.check:
     print('check sheet:', os.path.join(out, 'check.jpg'))
     sys.exit(0)
 
-# 3) every frame, then the three encodes
-shutil.rmtree(frames, ignore_errors=True)
-run(render + [frames, '--workers', str(a.workers), '--q', '93'] + page)
-master, preview, noaudio = (os.path.join(out, f'{slug}_{n}.mp4') for n in ('master', 'preview', 'noaudio'))
-run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(fps), '-i', os.path.join(frames, '%05d.jpg'), '-i', os.path.join(build, 'clip.wav'),
-     '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '4.2',
-     '-c:a', 'aac', '-b:a', '256k', '-shortest', '-movflags', '+faststart', master])
-run(['ffmpeg', '-v', 'error', '-y', '-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-movflags', '+faststart', preview])
-run(['ffmpeg', '-v', 'error', '-y', '-i', master, '-an', '-c:v', 'copy', '-movflags', '+faststart', noaudio])
-if not a.keep_frames:
+# 3) every frame, then the four encodes
+if not a.encode_only:
     shutil.rmtree(frames, ignore_errors=True)
-print('done:', master, preview, noaudio, sep='\n  ')
+    run(render + [frames, '--workers', str(a.workers), '--q', '93'] + page)
+tiktok, tiktok_na, master, preview = (os.path.join(out, f'{slug}_{n}.mp4') for n in ('tiktok', 'tiktok_noaudio', 'master', 'preview'))
+src_in = ['-framerate', str(fps), '-i', os.path.join(frames, '%05d.jpg'), '-i', os.path.join(build, 'clip.wav')]
+# frames are full-range JPEG (BT.601): convert to limited-range BT.709 and tag it, so phones show the same colours
+colour = ['-vf', 'scale=in_range=full:out_range=tv:in_color_matrix=bt601:out_color_matrix=bt709,format=yuv420p',
+          '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv']
+steady = ['-r', str(fps), '-fps_mode', 'cfr', '-g', str(fps), '-keyint_min', str(fps), '-sc_threshold', '0']   # constant 60 fps, a keyframe every second
+h264 = ['-c:v', 'libx264', '-preset', 'slow', '-profile:v', 'high', '-level', '4.2']
+run(['ffmpeg', '-v', 'error', '-y'] + src_in + colour + h264 + ['-crf', '17', '-maxrate', '12M', '-bufsize', '24M'] + steady +
+    ['-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-shortest', '-movflags', '+faststart', tiktok])
+run(['ffmpeg', '-v', 'error', '-y', '-i', tiktok, '-an', '-c:v', 'copy', '-movflags', '+faststart', tiktok_na])
+run(['ffmpeg', '-v', 'error', '-y'] + src_in + colour + h264 + ['-crf', '18', '-maxrate', '24M', '-bufsize', '48M'] + steady +
+    ['-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest', '-movflags', '+faststart', master])
+run(['ffmpeg', '-v', 'error', '-y', '-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'copy', '-movflags', '+faststart', preview])
+if not (a.keep_frames or a.encode_only):
+    shutil.rmtree(frames, ignore_errors=True)
+print('done:', tiktok, tiktok_na, master, preview, sep='\n  ')
