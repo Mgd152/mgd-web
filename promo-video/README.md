@@ -74,6 +74,18 @@ Dù làm đúng hết, người xem bật tiết kiệm dữ liệu hoặc mạn
 | `react` | Độ nhạy bắt nhịp `"th,gain,pre"`. Mặc định `0.22,1.0,0.3`; bài ít bass có thể hạ `th`, tăng `gain`. |
 | `cta` | Chữ trên nút cuối video. |
 
+## Thử nghiệm: "60fps method" (sửa vỏ MP4)
+
+```bash
+python3 tiktok_patch.py out/<slug>/<slug>_tiktok.mp4      # -> <slug>_tiktok_60fpsmethod.mp4
+```
+
+Công cụ chỉ nhân đôi các thông số thời gian của track hình (`stts`, `ctts`, `mdhd`, `tkhd`, `elst`, `mvhd`), để file báo **30 fps với thời lượng gấp đôi**. Hình, âm thanh và dung lượng giữ nguyên, không nén lại. Đây là cách làm của các công cụ cộng đồng như tik-tok-60fps-patch và 120fps-method: TikTok tưởng đây là video 30 fps nên giữ đủ khung hình.
+
+- Mở trên máy sẽ thấy hình **chậm một nửa và dài gấp đôi**, nhạc hết giữa chừng. Đó là cách phương pháp này hoạt động.
+- Đăng thẳng, **không chỉnh hay thêm sound trong app**. Sau khi đăng, nếu TikTok phát đúng tốc độ và mượt hơn thì phương pháp đang hoạt động. Nếu TikTok phát chậm hoặc lỗi thì xoá đi, dùng lại bản `_tiktok.mp4` thường.
+- TikTok có thể thay đổi cách xử lý bất cứ lúc nào. Cố ý sửa metadata cũng có thể trái điều khoản của TikTok, nên **thử trên tài khoản phụ trước**.
+
 ## Ba bài mẫu
 
 - `songs/travessia.json`: funk, tông xanh, lá rơi, cắt quanh drop 1.
@@ -87,4 +99,5 @@ Dù làm đúng hết, người xem bật tiết kiệm dữ liệu hoặc mạn
 - `render.js`: mở template trong Chromium ẩn rồi chụp từng khung hình.
 - `make_video.py`: chạy cả ba bước trên rồi xuất 3 file video bằng ffmpeg.
 - `fetch_cover.py`: tìm và tải ảnh bìa từ Apple Music, dự phòng bằng Deezer.
+- `tiktok_patch.py`: (thử nghiệm) sửa thông số thời gian trong vỏ MP4 theo kiểu "60fps method".
 - `analyze_overview.py`: in độ mạnh từng giây và vẽ phổ kèm đường bass và treble của cả bài, để tìm drop và chọn đoạn cắt.
