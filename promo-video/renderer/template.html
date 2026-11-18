@@ -132,7 +132,7 @@
   const A = F.atmos || 1;
   const SWAY = F.sway || 0;                                                 // rhythmic pendulum sway of the card (0 = off)                                                   // atmosphere density (1 = Travessia level)
   const E = F.energy || 1;                                                   // reaction strength preset: 1 = calm/funk, ~1.6 = hard/motivation
-  const K = { shake: 10 * E, rot: 0.8 * E, scale: 0.035 * E, glow: Math.min(0.8, 0.5 * E), art: 0.16 * E, chip: 0.05 * E, bgSpeed: 3.4 * E, bgZoom: 0.06 * E, bgGain: 0.15 * E, tilt: 1.6 * E };
+  const K = { shake: 4.5 * E, rot: 0.3 * E, scale: 0.035 * E, glow: Math.min(0.8, 0.5 * E), art: 0.16 * E, chip: 0.05 * E, bgSpeed: 3.4 * E, bgZoom: 0.06 * E, bgGain: 0.15 * E, tilt: 1.6 * E };
 
   const FINAL = F.score || 8.7;
   // default score story follows the song: one step per bar after the drop, scaled by that bar's loudness
@@ -588,12 +588,15 @@
     // holographic card: slow 3D sway + small kick on hits
     const cIn = eOutCubic(prog(t, 0.1, 0.7));
     const amp = K.shake * Math.pow(hit, 1.2) + 18 * impulse(t, T_VERD + 0.15, 0.09);
-    const sx = (hash(fi * 1.7) - 0.5) * 2 * amp, sy = (hash(fi * 2.3 + 9) - 0.5) * 2 * amp;
+    // The kick moves the card along a smooth wandering path (noise at ~8 Hz), not to a new random spot every frame:
+    // per-frame jitter read as dropped frames. Most of the punch is the scale pulse, which follows the envelope.
+    const sn = (x, seed) => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(hash(i * 1.37 + seed), hash((i + 1) * 1.37 + seed), u) - 0.5; };
+    const sx = sn(t * 8, 1.7) * 2 * amp, sy = sn(t * 8, 9.3) * 2 * amp;
     // gentle dangling sway: hangs from the top edge, slow and a little irregular, plus a soft bob
     const TAU = 2 * Math.PI, sw = 0.75 * Math.sin(TAU * t / 4.6 + 0.3) + 0.25 * Math.sin(TAU * t / 2.9 + 1.1);
     const swZ = 1.4 * SWAY * sw, swY = 6 * SWAY * Math.sin(TAU * t / 3.7 + 0.8);
-    const ax = 3.2 * Math.sin(t * 0.62 + 0.4) + K.tilt * hit, ay = 5 * Math.sin(t * 0.47 + 1.3) + 2.5 * SWAY * sw + K.tilt * hit * (hash(fi) - 0.5) * 2;
-    const rz = (hash(fi * 3.1 + 5) - 0.5) * 2 * K.rot * hit;
+    const ax = 3.2 * Math.sin(t * 0.62 + 0.4) + K.tilt * hit, ay = 5 * Math.sin(t * 0.47 + 1.3) + 2.5 * SWAY * sw + K.tilt * hit * sn(t * 6, 4.1) * 2;
+    const rz = sn(t * 7, 5.5) * 2 * K.rot * hit;
     const card = $('card');
     card.style.opacity = cIn; card.style.filter = cIn < 1 ? `blur(${(1 - cIn) * 14}px)` : 'none';
     card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${0.9 * (0.94 + 0.06 * cIn) * (1 + K.scale * hit)})`;
