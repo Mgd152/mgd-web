@@ -40,7 +40,7 @@
           backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); transform-origin: 100% 100%; }
   #chip small { display: block; font-size: 19px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.75; }
   #digits { display: flex; align-items: flex-end; height: 104px; margin-top: 2px; }
-  .col { height: 104px; overflow: hidden; }
+  .col { height: 104px; overflow: hidden; padding: 0 14px; margin: 0 -14px; }
   .strip span, .dot { display: block; height: 104px; line-height: 104px; font-weight: 900; font-size: 106px; letter-spacing: -0.03em; color: var(--hot);
                       font-variation-settings: "wdth" 100; font-feature-settings: "tnum"; }
   .dot { width: 26px; text-align: center; }
@@ -197,7 +197,7 @@
   }`;
   const FS_COMP = `#version 300 es
   precision highp float; uniform sampler2D uS; uniform vec2 uRes; uniform vec3 uBase; uniform vec3 uMid; uniform vec3 uHi;
-  uniform float uGain; uniform float uT; uniform float uSeed; uniform float uHit; uniform float uAtm; out vec4 o;
+  uniform float uGain; uniform float uT; uniform float uSeed; uniform float uHit; uniform float uAtm; uniform float uDim; out vec4 o;
   float h12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
   void main(){
     vec2 fc = gl_FragCoord.xy; vec2 uv = fc / uRes; float asp = uRes.x / uRes.y;
@@ -215,6 +215,7 @@
     vec2 cq = (uv - vec2(0.5, 0.56)) * vec2(asp, 1.0);
     col += mix(uMid, uHi, 0.25) * exp(-dot(cq, cq) * 5.0) * (0.16 + 0.22 * uHit) * (1.0 + 0.5 * (uAtm - 1.0));
     vec2 v = uv - 0.5; col *= 1.0 - 0.95 * dot(v * vec2(1.0, 0.72), v * vec2(1.0, 0.72));
+    col *= uDim;
     col += (h12(fc + uSeed) - 0.5) * 0.03;                                    // fine film grain
     o = vec4(col, 1.0);
   }`;
@@ -242,7 +243,7 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); bind(pComp);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(U(pComp, 'uS'), 0);
     gl.uniform2f(U(pComp, 'uRes'), W, H); gl.uniform3f(U(pComp, 'uBase'), ...C_BASE); gl.uniform3f(U(pComp, 'uMid'), ...C_MID); gl.uniform3f(U(pComp, 'uHi'), ...C_HI);
-    gl.uniform1f(U(pComp, 'uGain'), 1.0 + K.bgGain * hit); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), A);
+    gl.uniform1f(U(pComp, 'uGain'), 1.0 + K.bgGain * hit); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), A); gl.uniform1f(U(pComp, 'uDim'), F.bgDim || 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish();
   }
 
@@ -286,7 +287,7 @@
       const dark = `rgb(${Math.round(hot[0] * 0.25)},${Math.round(hot[1] * 0.45)},${Math.round(hot[2] * 0.2)})`;
       g.addColorStop(0, dark); g.addColorStop(0.55, `rgb(${Math.round(hot[0] * 0.75)},${Math.round(hot[1] * 0.85)},${Math.round(hot[2] * 0.55)})`); g.addColorStop(1, `rgb(${hot.join(',')})`);
     }
-    if (F.particles === 'ash') { c.beginPath(); c.moveTo(-L * 0.5, -L * 0.3); c.lineTo(L * 0.45, -L * 0.45); c.lineTo(L * 0.55, L * 0.25); c.lineTo(-L * 0.35, L * 0.5); c.closePath(); c.fillStyle = `rgba(235,226,224,${0.55 + 0.4 * l.hue})`; c.fill(); }
+    if (F.particles === 'ash') { c.beginPath(); c.moveTo(-L * 0.5, -L * 0.3); c.lineTo(L * 0.45, -L * 0.45); c.lineTo(L * 0.55, L * 0.25); c.lineTo(-L * 0.35, L * 0.5); c.closePath(); if (LEAF_COL) { c.fillStyle = LEAF_COL[l.hue < 0.5 ? 1 : 2]; c.shadowColor = c.fillStyle; c.shadowBlur = 14; } else c.fillStyle = `rgba(235,226,224,${0.55 + 0.4 * l.hue})`; c.fill(); }
     else if (F.particles === 'maple') { maplePath(c, L * 1.25); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,230,210,0.22)'; c.lineWidth = Math.max(1, L / 70); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, L * 0.3); c.stroke(); }
     else { leafPath(c, L); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = Math.max(1, L / 60); c.beginPath(); c.moveTo(-L / 2, 0); c.lineTo(L * 0.45, 0); c.stroke(); }
     c.restore(); c.filter = 'none'; c.globalAlpha = 1;
@@ -527,7 +528,7 @@
     chip.style.background = final ? `rgba(${hot.join(',')},${0.9 * lockP})` : 'rgba(4,14,22,0.46)';
     chip.style.boxShadow = g > 0.03 && !final ? `0 0 ${24 + 60 * g}px rgba(${hot.join(',')},${0.55 * g})` : (final ? `0 0 ${60 * (1 - prog(t, T_VERD + 0.3, 1.2)) + 18}px rgba(${hot.join(',')},0.6)` : 'none');
     const dark = final && lockP > 0.5;
-    chip.querySelectorAll('.strip span, .dot').forEach(el => el.style.color = dark ? '#07140b' : P.hot);
+    chip.querySelectorAll('.strip span, .dot').forEach(el => { el.style.color = dark ? '#07140b' : P.hot; el.style.textShadow = dark ? 'none' : `0 0 18px ${rgbaOf(P.hot, 0.85)}, 0 0 44px ${rgbaOf(P.hot, 0.45)}, 0 2px 6px rgba(0,0,0,0.6)`; });
     chip.querySelector('.of').style.color = dark ? '#07140b' : '#fff';
     $('chipLab').textContent = final ? 'final score' : 'score'; $('chipLab').style.color = dark ? '#07140b' : '#fff';
     $('segs').style.opacity = final ? 1 - lockP : 1;
