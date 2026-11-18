@@ -369,12 +369,12 @@
       }
     }
     if (BGO.length) {   // cut-out objects (e.g. the cover's own snake heads) floating in the depth of the scene
-      const slots = [[0.86, 0.11, 1.0, -1, 0], [0.12, 0.52, 0.7, 1, 1], [0.88, 0.83, 0.85, -1, 2]];
+      const slots = [[0.8, 0.13, 1.0, -1, 0]];
       slots.forEach(([sx, sy, z, flip, oi], i) => {
-        const im = BGO[oi % BGO.length], c = fxB, ph = i * 2.1, sc = (210 + 170 * z) / im.width * (1 + 0.05 * hit);
+        const im = BGO[oi % BGO.length], c = fxB, ph = i * 2.1, sc = 560 / im.width * (1 + 0.05 * hit);
         const x = W * sx + Math.sin(t * 0.42 + ph) * 46 * z + Math.sin(ts * 0.6 + ph) * 14, y = H * sy + Math.cos(t * 0.33 + ph * 1.7) * 60 * z;
         c.save(); c.translate(x, y); c.rotate(0.16 * Math.sin(t * 0.5 + ph) + (i % 2 ? 0.25 : -0.2)); c.scale(flip * sc, sc);
-        c.globalAlpha = clamp(0.4 + 0.5 * z); c.filter = `blur(${((1 - z) * 5).toFixed(1)}px) brightness(${(0.72 + 0.25 * hit).toFixed(2)})`;
+        c.globalAlpha = 0.2 + 0.08 * hit; c.filter = `blur(3px) brightness(${(0.72 + 0.25 * hit).toFixed(2)})`;
         c.shadowColor = rgbaOf(P.hot, 0.95); c.shadowBlur = 34 + 40 * hit;
         c.drawImage(im, -im.width / 2, -im.height / 2); c.restore();
       });
