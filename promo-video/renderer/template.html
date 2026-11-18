@@ -565,6 +565,13 @@
     if (F.judge) {
       const jp = prog(t, T_STAMP + 0.45, 0.5), je = eOutBack(jp, 1.6), jg = $('judge');
       jg.style.opacity = clamp(jp * 4);
+      if (F.judgeCut) {   // clean cut-out: rises to chest height, breathes, sways, and its neon outline pulses with the music
+        jg.style.left = '10px'; jg.style.width = '520px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
+        const breathe = 1 + 0.014 * Math.sin(t * 2.6), nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1);
+        jg.style.transform = `translateY(${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) - 10 * hit}px) rotate(${3 + nod}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
+        jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
+        $('judgeSay').style.top = '1368px';
+      } else
       jg.style.transform = `translateY(${(1 - je) * 560 + 6 * Math.sin(t * 2.2)}px) rotate(${6 + 1.5 * Math.sin(t * 1.7)}deg)`;
       const sp_ = eOutBack(prog(t, T_STAMP + 0.95, 0.25), 2.2), js = $('judgeSay');
       js.style.opacity = sp_ > 0 ? 1 : 0; js.style.transform = `rotate(-4deg) scale(${sp_})`;

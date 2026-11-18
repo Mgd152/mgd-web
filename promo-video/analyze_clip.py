@@ -9,7 +9,7 @@ Outputs (in build/):
   cover_bg.jpg   dark, blurred 9:16 cover for the background aura
   cover_sq.jpg   square cover for the centre disc
 """
-import json, subprocess, colorsys, argparse
+import os, json, subprocess, colorsys, argparse
 import numpy as np, librosa
 from scipy.signal import find_peaks
 from scipy.ndimage import gaussian_filter1d
@@ -31,6 +31,7 @@ p.add_argument('--sway', type=float, default=0.0)        # rhythmic card sway: 0
 p.add_argument('--energy', type=float, default=1.0)      # reaction strength preset (1 = calm, ~1.6 = hard / motivation)
 p.add_argument('--glitch', action='store_true')         # white flash on the drop + RGB split on the strongest hits
 p.add_argument('--judge_crop', default='')               # portrait of the cover character 'x0,y0,x1,y1' (0..1): it pops up at the end and gives the score
+p.add_argument('--judge_img', default='')                # cut-out character PNG (transparent background) used instead of a crop of the cover
 p.add_argument('--judge_line', default='')               # what the character says (default: '<score>/10. trust me.')
 p.add_argument('--hook', default='rate this drop ↓')       # handwritten opening line, first ~2 s ('' = none)
 p.add_argument('--tier', default='')                     # title on the stamp; default from the score: SKIP / DECENT / REPLAY / PEAK
@@ -223,7 +224,24 @@ hsvb[..., 1] = np.clip(hsvb[..., 1] * 1.25, 0, 255); hsvb[..., 2] = hsvb[..., 2]
 bg = Image.fromarray(hsvb.astype(np.uint8), 'HSV').convert('RGB')
 bg.resize((1080, 1920), Image.BICUBIC).save(f'{OUT}/cover_bg.jpg', quality=92)
 
-if a.judge_crop:   # feathered portrait: solid in the middle, fading out at the top and sides, running off the bottom
+if a.judge_img:    # clean cut-out: crop to the bust, grade it towards the cover's palette, add a rim light
+    from PIL import ImageFilter as IF_, ImageChops
+    src_j = a.judge_img if os.path.isabs(a.judge_img) else os.path.join(os.path.dirname(os.path.abspath(__file__)), a.judge_img)
+    j = Image.open(src_j).convert('RGBA'); jw_, jh_ = j.size
+    x0, y0, x1, y1 = map(float, (a.judge_crop or '0,0,1,0.6').split(','))
+    j = j.crop((int(x0 * jw_), int(y0 * jh_), int(x1 * jw_), int(y1 * jh_)))
+    j = j.resize((560, int(560 * j.height / j.width)), Image.LANCZOS)
+    rgb = np.asarray(j.convert('RGB')).astype(float) / 255; al = np.asarray(j.split()[3]).astype(float) / 255
+    hexrgb = lambda hx: np.array([int(hx[i:i + 2], 16) for i in (1, 3, 5)]) / 255
+    cool_c, hot_c = hexrgb(pal['cool']), hexrgb(pal['hot'])
+    rgb = (rgb - 0.5) * 1.12 + 0.5                                             # a little more contrast
+    lum = rgb.mean(-1, keepdims=True)
+    rgb = rgb * (1 - 0.30) + (lum * 0.55 + 0.45 * lum * cool_c * 2.0) * 0.30   # shadows and mids lean to the cover's cool colour
+    edge = np.clip(al - np.asarray(Image.fromarray((al * 255).astype(np.uint8)).filter(IF_.GaussianBlur(7))).astype(float) / 255, 0, 1)
+    rgb = rgb + edge[..., None] * hot_c * 2.2                                   # neon rim light in the accent colour
+    out_j = np.dstack([np.clip(rgb, 0, 1) * 255, al * 255]).astype(np.uint8)
+    Image.fromarray(out_j, 'RGBA').save(f'{OUT}/judge.png')
+elif a.judge_crop:   # feathered portrait: solid in the middle, fading out at the top and sides, running off the bottom
     x0, y0, x1, y1 = map(float, a.judge_crop.split(','))
     jw = 560; jc = im.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
     jc = jc.resize((jw, int(jw * jc.height / jc.width)), Image.LANCZOS).convert('RGBA')
@@ -241,7 +259,7 @@ feat = {
     'bass': np.round(bass, 3).tolist(), 'loud': np.round(loud, 3).tolist(), 'kicks': kicks,
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
-    'judge': bool(a.judge_crop), 'judgeLine': a.judge_line,
+    'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
     'scene': a.scene, 'bgDim': a.bg_dim,
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,

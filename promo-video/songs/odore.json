@@ -18,6 +18,7 @@
   "pal": "#1a0a5e,#3b5bff,#ff5ad6,#fff0fb",
   "leaf_colors": "#1a0a5e,#ff5ad6,#5fd0ff",
   "bg_dim": 0.78,
-  "judge_crop": "0.30,0.0,0.76,0.50",
-  "judge_line": "8.7/10. nah, i'd replay."
+  "judge_crop": "0.17,0.0,0.83,0.62",
+  "judge_line": "8.7/10. nah, i'd replay.",
+  "judge_img": "assets/odore/judge.png"
 }
