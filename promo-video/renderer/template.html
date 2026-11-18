@@ -352,6 +352,19 @@
   function drawAtmos(fi, t, ts, hit, cardRect) {
     fxB.clearRect(0, 0, W, H); fxF.clearRect(0, 0, W, H);
     if (F.scene === 'garden') drawGarden(t, hit);
+    if (F.bgFx === 'slash') {   // blade cuts of light behind the card, one per strong hit after the drop
+      if (!drawAtmos.sl) { const R2 = rng(77), sl = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.28) { last = i; const side = sl.length % 2 ? 1 : -1; sl.push({ f: i, x: W * (0.5 + side * (0.08 + 0.3 * R2())), y: H * (0.12 + 0.76 * R2()), ang: side * (0.5 + 0.75 * R2()) + (R2() < 0.3 ? Math.PI / 2 : 0), len: 900 + 900 * R2(), w: 7 + 9 * R2() }); } } drawAtmos.sl = sl; }
+      for (const s of drawAtmos.sl) {
+        const dt = (fi - s.f) / FPS; if (dt < 0 || dt > 0.55) continue;
+        const grow = clamp(dt / 0.07), fade = Math.pow(1 - dt / 0.55, 1.6), L = s.len * (0.25 + 0.75 * grow), wd = s.w * fade * 1.4;
+        const c = fxB; c.save(); c.translate(s.x, s.y); c.rotate(s.ang); c.globalCompositeOperation = 'lighter';
+        c.shadowColor = rgbaOf(P.hot, 1); c.shadowBlur = 46;
+        for (const [k, col] of [[1, rgbaOf(P.hot, 0.75 * fade)], [0.36, `rgba(255,244,244,${0.95 * fade})`]]) {
+          c.fillStyle = col; c.beginPath(); c.moveTo(-L / 2, 0); c.quadraticCurveTo(0, -wd * k, L / 2, 0); c.quadraticCurveTo(0, wd * k, -L / 2, 0); c.fill();
+        }
+        c.restore();
+      }
+    }
     // warm embers rising, a short streak each; brighter and faster on the hits
     for (const e of embers) {
       const c = e.front ? fxF : fxB;
