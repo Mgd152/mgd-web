@@ -558,8 +558,10 @@
   { let w = 0, target = 0, hold = -1, last = -9, prev = 0;
     for (let i = 0; i < NF; i++) {
       const t = i / FPS, h = hitAt(i), near = STORY.some(st => t >= st[0] - 0.1 && t < st[0] + 0.9);
-      if (h > 0.55 && prev <= 0.55 && t - last > 4.0 && !near && t < T_VERD - 0.5 && t > STORY[0][0] + 0.8 && hash(i * 3.7) < 0.6) {
-        const opts = [-0.1, 0.1]; target = opts[Math.floor(hash(i * 7.3) * opts.length)]; hold = t + 0.45 + 0.4 * hash(i * 1.9); last = t;
+      const wk = (F.wobble || [1, 1])[t < T_DROP ? 0 : 1];                 // how restless the score is before / after the drop (1 = the usual rare +-0.1)
+      const trig = t < T_DROP ? F.env[i] > 0.4 && F.env[Math.max(0, i - 1)] <= 0.4 : h > 0.55 && prev <= 0.55;   // before the drop the reactions are damped, so listen to the raw envelope
+      if (wk > 0 && trig && t - last > 4.0 / wk && !near && t < T_VERD - 0.5 && t > STORY[0][0] + 0.8 && hash(i * 3.7) < 0.6 * Math.max(1, wk)) {
+        const opts = wk >= 2 ? [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3] : [-0.1, 0.1]; target = opts[Math.floor(hash(i * 7.3) * opts.length)]; hold = t + 0.45 + 0.4 * hash(i * 1.9); last = t;
       }
       if (t > hold || near || t >= T_VERD) target = 0;
       w += (target - w) * (1 - Math.exp(-(1 / FPS) / 0.07)); wob[i] = w; prev = h;
