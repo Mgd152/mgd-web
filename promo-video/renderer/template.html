@@ -379,6 +379,30 @@
         c.drawImage(im, -im.width / 2, -im.height / 2); c.restore();
       });
     }
+    if ((F.bgFx || '').includes('chains')) {   // a few heavy chains hanging across the scene behind the card, swaying slightly
+      const CH = [[-0.08, 0.02, 0.62, -0.03, 230, 46, 1.0], [0.42, 1.04, 1.1, 0.5, 200, 38, 0.8], [-0.1, 0.62, 0.38, 1.05, 150, 30, 0.6]];
+      if (!drawAtmos.chc) { drawAtmos.chc = document.createElement('canvas'); drawAtmos.chc.width = W; drawAtmos.chc.height = H; }
+      const oc = drawAtmos.chc, c = oc.getContext('2d');
+      CH.forEach(([ax, ay, bx, by, sag, sz, z], ci) => {   // links are drawn plain on a spare canvas, then composited once with blur and glow (fast)
+        const x0 = ax * W, y0 = ay * H, x1 = bx * W, y1 = by * H, sg = sag * (1 + 0.06 * Math.sin(t * 0.7 + ci * 2)) + 10 * hit, sw = Math.sin(t * 0.55 + ci * 1.9) * 26 * z;
+        const P_ = u => [x0 + (x1 - x0) * u + sw * 4 * u * (1 - u), y0 + (y1 - y0) * u + sg * 4 * u * (1 - u)];
+        const N = Math.round(Math.hypot(x1 - x0, y1 - y0) * 1.06 / (sz * 0.86));
+        c.clearRect(0, 0, W, H); c.lineCap = 'round';
+        for (let i = 0; i <= N; i++) {
+          const [x, y] = P_(i / N), [xn, yn] = P_((i + 0.5) / N), [xp, yp] = P_((i - 0.5) / N), ang = Math.atan2(yn - yp, xn - xp);
+          c.save(); c.translate(x, y); c.rotate(ang);
+          [[sz * 0.3, '#12051c'], [sz * 0.19, i % 2 ? '#8c6bb0' : '#b79ad6'], [sz * 0.06, 'rgba(255,240,255,0.75)']].forEach(([lw, col], k) => {
+            c.strokeStyle = col; c.lineWidth = lw; c.beginPath();
+            if (i % 2) { c.moveTo(-sz * 0.5, k === 2 ? -sz * 0.04 : 0); c.lineTo(sz * 0.5, k === 2 ? -sz * 0.04 : 0); }
+            else if (k === 2) c.ellipse(0, 0, sz * 0.62, sz * 0.36, 0, Math.PI * 1.08, Math.PI * 1.75);
+            else c.ellipse(0, 0, sz * 0.62, sz * 0.36, 0, 0, 6.3);
+            c.stroke();
+          });
+          c.restore();
+        }
+        fxB.save(); fxB.globalAlpha = 0.34 + 0.4 * z; fxB.filter = `blur(${((1 - z) * 6).toFixed(1)}px) drop-shadow(0 0 ${Math.round(14 + 20 * hit)}px ${rgbaOf(P.hot, 0.8)})`; fxB.drawImage(oc, 0, 0); fxB.restore();
+      });
+    }
     if ((F.bgFx || '').includes('snakes')) {   // a few pale snakes gliding slowly through the depth of the scene
       if (!drawAtmos.sn) { const R4 = rng(4242), sn = []; for (let i = 0; i < 3; i++) { const z = 0.5 + 0.6 * (i / 2); sn.push({ z, y0: H * (0.16 + 0.34 * i + 0.06 * R4()), dir: i % 2 ? -1 : 1, sp: 70 + 50 * R4(), len: 620 + 420 * z, amp: 60 + 50 * R4(), wl: 300 + 160 * R4(), ph: R4() * 6.28, tilt: (R4() - 0.5) * 0.5, off: R4() }); } drawAtmos.sn = sn; }
       for (const k of drawAtmos.sn) {
