@@ -15,7 +15,7 @@
 
   #scene { position: absolute; inset: 0; perspective: 1900px; perspective-origin: 540px 820px; }
   /* card: tinted glass, artwork on top */
-  #card { position: absolute; left: 210px; top: 330px; width: 660px; padding: 26px; box-sizing: border-box; border-radius: 42px;
+  #card { position: absolute; left: 210px; top: 372px; width: 660px; padding: 26px; box-sizing: border-box; border-radius: 42px;
           background: linear-gradient(180deg, var(--glassA), var(--glassB)); border: 1.5px solid var(--edge);
           backdrop-filter: blur(28px) saturate(1.3); -webkit-backdrop-filter: blur(28px) saturate(1.3);
           transform-origin: 330px 480px; }
@@ -65,9 +65,9 @@
            padding: 16px 30px; border-radius: 16px; letter-spacing: -0.005em; box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
   /* the cover character pops up from the corner at the end and gives the score */
   #judge { position: absolute; left: -34px; top: 1330px; width: 470px; transform-origin: 30% 100%; opacity: 0; filter: drop-shadow(0 0 26px rgba(0,0,0,0.55)); }
-  #judgeSay { position: absolute; left: 40px; top: 1292px; transform-origin: 20% 100%; opacity: 0; background: #fff; color: #111; font-weight: 700; font-size: 40px;
+  #judgeSay { position: absolute; left: 110px; top: 1292px; transform-origin: 20% 100%; opacity: 0; background: #fff; color: #111; font-weight: 700; font-size: 40px;
               padding: 10px 20px 12px; border-radius: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
-  #hook { left: 0; width: 1080px; top: 196px; text-align: center; font-size: 104px; color: #fff; text-shadow: 0 3px 16px rgba(0,0,0,0.6); opacity: 0; }
+  #hook { left: 0; width: 1080px; top: 286px; text-align: center; font-size: 104px; color: #fff; text-shadow: 0 3px 16px rgba(0,0,0,0.6); opacity: 0; }
   .delta { font-size: 92px; color: #fff; text-shadow: 0 3px 14px rgba(0,0,0,0.7); }
 </style>
 </head>
@@ -504,7 +504,7 @@
     const rz = (hash(fi * 3.1 + 5) - 0.5) * 2 * K.rot * hit;
     const card = $('card');
     card.style.opacity = cIn; card.style.filter = cIn < 1 ? `blur(${(1 - cIn) * 14}px)` : 'none';
-    card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${(0.94 + 0.06 * cIn) * (1 + K.scale * hit)})`;
+    card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${0.9 * (0.94 + 0.06 * cIn) * (1 + K.scale * hit)})`;
     const g = live ? hit : 0;
     card.style.boxShadow = `0 40px 110px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 ${36 + 100 * g}px ${3 * g}px rgba(${hot.join(',')},${K.glow * g})`;
     card.style.borderColor = g > 0.03 ? `rgba(${hot.join(',')},${0.35 + 0.55 * g})` : '';
@@ -568,7 +568,7 @@
       const jp = jr, je = jio + (jr >= 1 ? settle : 0), jg = $('judge');
       jg.style.opacity = clamp(jp * 4);
       if (F.judgeCut) {   // clean cut-out: rises to chest height, breathes, sways, and its neon outline pulses with the music
-        jg.style.left = '10px'; jg.style.width = '520px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
+        jg.style.left = '70px'; jg.style.width = '500px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
         const breathe = 1 + 0.014 * Math.sin(t * 2.6), nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1);
         jg.style.transform = `translate(${-60 * (1 - jio)}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * jio - 10 * hit}px) rotate(${3 + 12 * (1 - jio) + nod * jio}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
         jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
