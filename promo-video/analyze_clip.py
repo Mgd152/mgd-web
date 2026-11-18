@@ -95,11 +95,15 @@ subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{start:.3f}', '-t', f'{d
 if not a.no_stamp_sfx:
     from scipy.io import wavfile
     wsr, wav = wavfile.read(f'{OUT}/clip.wav'); wav = wav.astype(np.float64)
-    n = int(0.45 * wsr); tt_ = np.arange(n) / wsr; rg = np.random.default_rng(7)
-    thud = np.sin(2 * np.pi * (48 * tt_ + (95 - 48) * 0.05 * (1 - np.exp(-tt_ / 0.05)))) * np.exp(-tt_ / 0.11)      # low body, pitch falling
-    click = rg.standard_normal(n) * np.exp(-tt_ / 0.012); click = np.diff(click, prepend=0)                           # hard contact
-    ring = np.sin(2 * np.pi * 190 * tt_) * np.exp(-tt_ / 0.05) * 0.35                                                 # wooden knock
-    sfx = (thud * 1.0 + click * 0.35 + ring); sfx = sfx / np.abs(sfx).max() * 32767 * 0.8
+    from scipy.signal import butter, sosfilt
+    n = int(0.6 * wsr); tt_ = np.arange(n) / wsr; rg = np.random.default_rng(3)
+    lp = lambda x, hi: sosfilt(butter(2, hi, btype='low', fs=wsr, output='sos'), x)
+    bp = lambda x, lo, hi: sosfilt(butter(2, [lo, hi], btype='band', fs=wsr, output='sos'), x)
+    dec = lambda d: np.exp(-tt_ / d)
+    # "impact": sub boom + noise body + contact + short tail (the variant the owner picked)
+    sfx = (np.sin(2 * np.pi * 52 * tt_) * dec(0.16) + lp(rg.standard_normal(n), 400) * dec(0.09) * 0.9
+           + bp(rg.standard_normal(n), 800, 4000) * dec(0.02) * 0.35 + lp(rg.standard_normal(n), 1800) * dec(0.22) * 0.12)
+    sfx = sfx / np.abs(sfx).max() * 32767 * 0.85
     at = int((scan_end + 0.15) * wsr); seg = wav[at:at + n]; seg += sfx[:len(seg), None]
     wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav, -32767, 32767).astype(np.int16))
     wavfile.write(f'{OUT}/stamp_sfx.wav', wsr, sfx.astype(np.int16))
