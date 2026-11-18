@@ -1,0 +1,19 @@
+{
+  "slug": "sofple",
+  "track": "assets/sofple/track.mp3",
+  "cover": "assets/sofple/cover.jpg",
+  "title": "MONTAGEM SOFPLE",
+  "artist": "Khv",
+  "start": 0,
+  "target": 20,
+  "particles": "leaves",
+  "leaf_colors": "#3a2a08,#ffb52e,#bfe8cf",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.2,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#06120c,#5fa88c,#ffb52e,#f6ffe9",
+  "bg_dim": 0.8,
+  "notes": "DRAFT, waiting for the mp3: drop_at, bpm, story and score still to set. Forest at golden hour from the cover: teal glass, gold accent, falling leaves."
+}
