@@ -41,6 +41,6 @@ The owner writes in Vietnamese; answer in Vietnamese.
 - **No RGB split**: the chromatic split on hits is removed from the template; `glitch` only adds the white flash on the drop.
 - **No sparkle stars**: the four-point sparkles are off by default (the owner finds them fake and dry). Do not turn `stars` on.
 - **Smooth hits, calm mids**: defaults `smooth 1`, `mids 0.65`; bass and kick react at full strength.
-- **Clip window**: ask or infer whether the clip runs from 0:00 (`start 0` + `drop_at`) or is cut around the drop; confirm the drop time with the owner when unsure.
+- **Clip window**: the music runs from 0:00 (`start 0`) and you measure drop 1 yourself (`drop_at`): the first big slam of bass after the intro, usually right after a short silence. Check the low-band envelope at 20-40 ms; do not take a later thickening of the mix for the drop. Tell the owner the time you measured.
 - **Background objects**: at most a few, faint (`bg_fx`: blades / chains / slash, or `bg_objs` with a cut-out from the cover). Show a `--check` sheet and wait for the OK before the full render; one render at a time.
 - **Approval**: when the owner asks for a new look, show still mockups first (`--check`) and render the video only after they approve.
