@@ -38,6 +38,7 @@ p.add_argument('--tier', default='')                     # title on the stamp; d
 p.add_argument('--no_stamp_sfx', action='store_true')    # skip the signature stamp thud in the audio
 p.add_argument('--scene', default='')                    # scenery from the cover's world: garden (grass + hanging vines) | ''
 p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), snakes (gliding pale snakes), slash (blade cuts of light on the hits)
+p.add_argument('--bg_objs', default='')                  # cut-out PNGs (comma list) that float in the background (bg_fx: objs)
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
 p.add_argument('--leaf_colors', default='')              # dark,mid,bright hex for the leaf motif
@@ -253,6 +254,10 @@ elif a.judge_crop:   # feathered portrait: solid in the middle, fading out at th
     arr = np.asarray(jc).copy(); arr[..., 3] = (al * 255).astype(np.uint8)
     Image.fromarray(arr, 'RGBA').save(f'{OUT}/judge.png')
 
+bg_objs = [x for x in a.bg_objs.split(',') if x]
+for i_, x_ in enumerate(bg_objs):
+    Image.open(x_ if os.path.isabs(x_) else os.path.join(os.path.dirname(os.path.abspath(__file__)), x_)).convert('RGBA').save(f'{OUT}/bgobj{i_}.png')
+
 feat = {
     'fps': FPS, 'nframes': NF, 'dur': dur, 'drop': drop, 'scanEnd': scan_end, 'bar': BAR,
     'bpm': a.bpm, 'clipStart': start, 'title': a.title, 'genre': a.genre, 'label': a.label,
@@ -261,7 +266,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx,
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,

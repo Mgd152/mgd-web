@@ -368,6 +368,17 @@
         c.restore();
       }
     }
+    if (BGO.length) {   // cut-out objects (e.g. the cover's own snake heads) floating in the depth of the scene
+      const slots = [[0.86, 0.11, 1.0, -1, 0], [0.12, 0.52, 0.7, 1, 1], [0.88, 0.83, 0.85, -1, 2]];
+      slots.forEach(([sx, sy, z, flip, oi], i) => {
+        const im = BGO[oi % BGO.length], c = fxB, ph = i * 2.1, sc = (210 + 170 * z) / im.width * (1 + 0.05 * hit);
+        const x = W * sx + Math.sin(t * 0.42 + ph) * 46 * z + Math.sin(ts * 0.6 + ph) * 14, y = H * sy + Math.cos(t * 0.33 + ph * 1.7) * 60 * z;
+        c.save(); c.translate(x, y); c.rotate(0.16 * Math.sin(t * 0.5 + ph) + (i % 2 ? 0.25 : -0.2)); c.scale(flip * sc, sc);
+        c.globalAlpha = clamp(0.4 + 0.5 * z); c.filter = `blur(${((1 - z) * 5).toFixed(1)}px) brightness(${(0.72 + 0.25 * hit).toFixed(2)})`;
+        c.shadowColor = rgbaOf(P.hot, 0.95); c.shadowBlur = 34 + 40 * hit;
+        c.drawImage(im, -im.width / 2, -im.height / 2); c.restore();
+      });
+    }
     if ((F.bgFx || '').includes('snakes')) {   // a few pale snakes gliding slowly through the depth of the scene
       if (!drawAtmos.sn) { const R4 = rng(4242), sn = []; for (let i = 0; i < 3; i++) { const z = 0.5 + 0.6 * (i / 2); sn.push({ z, y0: H * (0.16 + 0.34 * i + 0.06 * R4()), dir: i % 2 ? -1 : 1, sp: 70 + 50 * R4(), len: 620 + 420 * z, amp: 60 + 50 * R4(), wl: 300 + 160 * R4(), ph: R4() * 6.28, tilt: (R4() - 0.5) * 0.5, off: R4() }); } drawAtmos.sn = sn; }
       for (const k of drawAtmos.sn) {
@@ -467,6 +478,7 @@
   await document.fonts.ready;
   $('art').src = BUILD + '/cover_sq.jpg';
   if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
+  const BGO = []; for (let i = 0; i < (F.bgObjs || 0); i++) { const im = new Image(); im.src = BUILD + '/bgobj' + i + '.png'; await im.decode(); BGO.push(im); }
   await Promise.all([...document.images].map(im => im.decode()));
 
   $('cTitle').textContent = F.title;
