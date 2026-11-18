@@ -67,6 +67,7 @@
   #judge { position: absolute; left: -34px; top: 1330px; width: 470px; transform-origin: 30% 100%; opacity: 0; filter: drop-shadow(0 0 26px rgba(0,0,0,0.55)); }
   #judgeSay { position: absolute; left: 40px; top: 1292px; transform-origin: 20% 100%; opacity: 0; background: #fff; color: #111; font-weight: 700; font-size: 40px;
               padding: 10px 20px 12px; border-radius: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+  #hook { left: 0; width: 1080px; top: 196px; text-align: center; font-size: 104px; color: #fff; text-shadow: 0 3px 16px rgba(0,0,0,0.6); opacity: 0; }
   .delta { font-size: 92px; color: #fff; text-shadow: 0 3px 14px rgba(0,0,0,0.7); }
 </style>
 </head>
@@ -106,6 +107,7 @@
     </div>
   </div>
   <canvas id="fxFront" class="layer" width="1080" height="1920"></canvas>
+  <div class="abs hand" id="hook"></div>
   <div class="abs hand delta" id="d1"></div>
   <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
@@ -376,7 +378,11 @@
   $('judgeSay').textContent = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
   document.documentElement.style.setProperty('--ink', P.hot);
   $('stScore').textContent = (F.score ?? STORY[STORY.length - 1][1]).toFixed(1);
+  $('hook').textContent = F.hook || '';
   $('stBot').textContent = (F.stampLine || [(F.artist || '').split(/,|&/)[0].trim(), (F.title || '').replace(/\s*\(.*\)\s*/g, '')].filter(Boolean).join(' · ')).toUpperCase();
+  { const sc_ = F.score ?? STORY[STORY.length - 1][1];                    // the channel's own rating titles
+    $('stBot').textContent = F.tier || (sc_ >= 9 ? 'PEAK' : sc_ >= 7.5 ? 'REPLAY' : sc_ >= 6 ? 'DECENT' : 'SKIP');
+    $('stBot').style.fontSize = '34px'; $('stBot').style.fontWeight = 900; }
   for (const el of [$('stTop'), $('stBot')]) { el.style.whiteSpace = 'nowrap'; el.style.display = 'inline-block'; const w = el.scrollWidth; if (w > 290) el.style.transform = `scale(${290 / w})`; }
   { const mc = document.createElement('canvas'); mc.width = 344; mc.height = 214; const m = mc.getContext('2d'), RR = rng(77);
     m.fillStyle = '#fff'; m.fillRect(0, 0, 344, 214); m.globalCompositeOperation = 'destination-out';
@@ -518,6 +524,8 @@
     }
 
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
+    { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
+      hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
     // hard tracks: white flash on the drop, short RGB split on the strongest hits
     $('flash').style.opacity = F.glitch ? 0.6 * impulse(t, T_DROP, 0.06) : 0;
     const gl_ = F.glitch && live ? 22 * impulse(t, T_DROP, 0.12) + (hit > 0.82 ? 9 * (hit - 0.82) / 0.18 : 0) : 0;

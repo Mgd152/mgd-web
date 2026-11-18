@@ -32,6 +32,9 @@ p.add_argument('--energy', type=float, default=1.0)      # reaction strength pre
 p.add_argument('--glitch', action='store_true')         # white flash on the drop + RGB split on the strongest hits
 p.add_argument('--judge_crop', default='')               # portrait of the cover character 'x0,y0,x1,y1' (0..1): it pops up at the end and gives the score
 p.add_argument('--judge_line', default='')               # what the character says (default: '<score>/10. trust me.')
+p.add_argument('--hook', default='rate this drop ↓')       # handwritten opening line, first ~2 s ('' = none)
+p.add_argument('--tier', default='')                     # title on the stamp; default from the score: SKIP / DECENT / REPLAY / PEAK
+p.add_argument('--no_stamp_sfx', action='store_true')    # skip the signature stamp thud in the audio
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
 p.add_argument('--leaf_colors', default='')              # dark,mid,bright hex for the leaf motif
 p.add_argument('--bars_intro', type=int, default=1)
@@ -87,6 +90,19 @@ print(f'clip {start:.3f} -> {start + dur:.3f} ({dur:.3f}s, {NF} frames), drop at
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{start:.3f}', '-t', f'{dur:.3f}', '-i', a.track,
                 '-af', f'afade=t=in:d=0.03,afade=t=out:st={dur - 0.6:.3f}:d=0.6',
                 '-ar', '48000', '-ac', '2', f'{OUT}/clip.wav'], check=True)
+
+# ---------- signature stamp sound, mixed in where the stamp lands ----------
+if not a.no_stamp_sfx:
+    from scipy.io import wavfile
+    wsr, wav = wavfile.read(f'{OUT}/clip.wav'); wav = wav.astype(np.float64)
+    n = int(0.45 * wsr); tt_ = np.arange(n) / wsr; rg = np.random.default_rng(7)
+    thud = np.sin(2 * np.pi * (48 * tt_ + (95 - 48) * 0.05 * (1 - np.exp(-tt_ / 0.05)))) * np.exp(-tt_ / 0.11)      # low body, pitch falling
+    click = rg.standard_normal(n) * np.exp(-tt_ / 0.012); click = np.diff(click, prepend=0)                           # hard contact
+    ring = np.sin(2 * np.pi * 190 * tt_) * np.exp(-tt_ / 0.05) * 0.35                                                 # wooden knock
+    sfx = (thud * 1.0 + click * 0.35 + ring); sfx = sfx / np.abs(sfx).max() * 32767 * 0.8
+    at = int((scan_end + 0.15) * wsr); seg = wav[at:at + n]; seg += sfx[:len(seg), None]
+    wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav, -32767, 32767).astype(np.int16))
+    wavfile.write(f'{OUT}/stamp_sfx.wav', wsr, sfx.astype(np.int16))
 
 # ---------- analysis on the clip (+ a little context for smoothing) ----------
 pad = 1.0
@@ -220,6 +236,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop), 'judgeLine': a.judge_line,
+    'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
     'score': a.score if a.score is not None else (float(a.story.split(',')[-1].split(':')[1]) if a.story else None),
