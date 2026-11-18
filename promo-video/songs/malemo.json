@@ -18,7 +18,7 @@
   "pal": "#140004,#b00018,#ff2b3d,#fff1f1",
   "leaf_colors": "#3a0008,#ff2b3d,#ffd9d9",
   "bg_dim": 0.8,
-  "bg_fx": "slash",
+  "bg_fx": "blades,slash",
   "judge_img": "assets/malemo/judge.png",
   "judge_crop": "0.1,0.14,0.92,0.64",
   "judge_line": "9.5/10. clean cut.",
