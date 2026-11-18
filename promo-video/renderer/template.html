@@ -132,7 +132,7 @@
   const A = F.atmos || 1;
   const SWAY = F.sway || 0;                                                 // rhythmic pendulum sway of the card (0 = off)                                                   // atmosphere density (1 = Travessia level)
   const E = F.energy || 1;                                                   // reaction strength preset: 1 = calm/funk, ~1.6 = hard/motivation
-  const K = { shake: 6.5 * E, rot: 0.52 * E, scale: 0.035 * E, glow: Math.min(0.8, 0.5 * E), art: 0.16 * E, chip: 0.05 * E, bgSpeed: 3.4 * E, bgZoom: 0.06 * E, bgGain: 0.15 * E, tilt: 1.6 * E };
+  const K = { shake: 8.5 * E, rot: 0.4 * E, scale: 0.035 * E, glow: Math.min(0.8, 0.5 * E), art: 0.16 * E, chip: 0.05 * E, bgSpeed: 3.4 * E, bgZoom: 0.06 * E, bgGain: 0.15 * E, tilt: 1.6 * E };
 
   const FINAL = F.score || 8.7;
   // default score story follows the song: one step per bar after the drop, scaled by that bar's loudness
