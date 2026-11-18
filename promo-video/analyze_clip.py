@@ -76,6 +76,8 @@ else:
     scan_end = dur - a.bars_out * BAR
     if a.drop_at is not None:
         drop = a.drop_at - start
+        scan_end = drop + max(1, round((scan_end - drop) / BAR)) * BAR   # keep the verdict on the bar grid of the drop
+        dur = scan_end + a.bars_out * BAR
     else:   # biggest rise of low-end energy inside the clip, snapped to the bar grid from the start
         yc, _ = librosa.load(a.track, sr=SR, mono=True, offset=start, duration=dur)
         Sc = np.abs(librosa.stft(yc, n_fft=2048, hop_length=256)); fc = librosa.fft_frequencies(sr=SR, n_fft=2048)
