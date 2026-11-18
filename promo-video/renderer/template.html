@@ -63,6 +63,10 @@
   #cta { left: 0; width: 1080px; text-align: center; }
   #cta i { font-style: normal; display: inline-block; background: var(--hot); color: #07140b; font-weight: 800; font-size: 34px;
            padding: 16px 30px; border-radius: 16px; letter-spacing: -0.005em; box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
+  /* the cover character pops up from the corner at the end and gives the score */
+  #judge { position: absolute; left: -34px; top: 1330px; width: 470px; transform-origin: 30% 100%; opacity: 0; filter: drop-shadow(0 0 26px rgba(0,0,0,0.55)); }
+  #judgeSay { position: absolute; left: 40px; top: 1292px; transform-origin: 20% 100%; opacity: 0; background: #fff; color: #111; font-weight: 700; font-size: 40px;
+              padding: 10px 20px 12px; border-radius: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
   .delta { font-size: 92px; color: #fff; text-shadow: 0 3px 14px rgba(0,0,0,0.7); }
 </style>
 </head>
@@ -103,6 +107,7 @@
   </div>
   <canvas id="fxFront" class="layer" width="1080" height="1920"></canvas>
   <div class="abs hand delta" id="d1"></div>
+  <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
   <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
@@ -364,9 +369,11 @@
   await document.fonts.load('400 60px "Nanum Pen Script"');
   await document.fonts.ready;
   $('art').src = BUILD + '/cover_sq.jpg';
+  if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
   await Promise.all([...document.images].map(im => im.decode()));
 
   $('cTitle').textContent = F.title;
+  $('judgeSay').textContent = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
   document.documentElement.style.setProperty('--ink', P.hot);
   $('stScore').textContent = (F.score ?? STORY[STORY.length - 1][1]).toFixed(1);
   $('stBot').textContent = (F.stampLine || [(F.artist || '').split(/,|&/)[0].trim(), (F.title || '').replace(/\s*\(.*\)\s*/g, '')].filter(Boolean).join(' · ')).toUpperCase();
@@ -501,7 +508,14 @@
 
     const ctaP = eOutBack(prog(t, T_CTA, 0.35), 2);
     const cta = $('cta'); cta.style.top = (cr.bottom + 46) + 'px'; cta.style.opacity = clamp(ctaP * 3);
-    cta.style.transform = `translateY(${(1 - clamp(ctaP)) * 24}px)`;
+    cta.style.transform = `translate(${F.judge ? 200 : 0}px, ${(1 - clamp(ctaP)) * 24}px)`;
+    if (F.judge) {
+      const jp = prog(t, T_STAMP + 0.45, 0.5), je = eOutBack(jp, 1.6), jg = $('judge');
+      jg.style.opacity = clamp(jp * 4);
+      jg.style.transform = `translateY(${(1 - je) * 560 + 6 * Math.sin(t * 2.2)}px) rotate(${6 + 1.5 * Math.sin(t * 1.7)}deg)`;
+      const sp_ = eOutBack(prog(t, T_STAMP + 0.95, 0.25), 2.2), js = $('judgeSay');
+      js.style.opacity = sp_ > 0 ? 1 : 0; js.style.transform = `rotate(-4deg) scale(${sp_})`;
+    }
 
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
     // hard tracks: white flash on the drop, short RGB split on the strongest hits

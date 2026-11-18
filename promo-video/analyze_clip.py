@@ -30,6 +30,8 @@ p.add_argument('--atmos', type=float, default=1.0)       # atmosphere density: 1
 p.add_argument('--sway', type=float, default=0.0)        # rhythmic card sway: 0 = off, 1 = pendulum swing per bar
 p.add_argument('--energy', type=float, default=1.0)      # reaction strength preset (1 = calm, ~1.6 = hard / motivation)
 p.add_argument('--glitch', action='store_true')         # white flash on the drop + RGB split on the strongest hits
+p.add_argument('--judge_crop', default='')               # portrait of the cover character 'x0,y0,x1,y1' (0..1): it pops up at the end and gives the score
+p.add_argument('--judge_line', default='')               # what the character says (default: '<score>/10. trust me.')
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
 p.add_argument('--leaf_colors', default='')              # dark,mid,bright hex for the leaf motif
 p.add_argument('--bars_intro', type=int, default=1)
@@ -199,6 +201,17 @@ hsvb[..., 1] = np.clip(hsvb[..., 1] * 1.25, 0, 255); hsvb[..., 2] = hsvb[..., 2]
 bg = Image.fromarray(hsvb.astype(np.uint8), 'HSV').convert('RGB')
 bg.resize((1080, 1920), Image.BICUBIC).save(f'{OUT}/cover_bg.jpg', quality=92)
 
+if a.judge_crop:   # feathered portrait: solid in the middle, fading out at the top and sides, running off the bottom
+    x0, y0, x1, y1 = map(float, a.judge_crop.split(','))
+    jw = 560; jc = im.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
+    jc = jc.resize((jw, int(jw * jc.height / jc.width)), Image.LANCZOS).convert('RGBA')
+    jh = jc.height; vv, uu = np.mgrid[0:jh, 0:jw]
+    u = (uu / (jw - 1)) * 2 - 1; v = (vv / (jh - 1)) * 2 - 1
+    d = np.where(v < 0.15, (np.abs(u) ** 3 + np.abs((v - 0.15) / 1.15) ** 3) ** (1 / 3), np.abs(u))
+    al = np.clip((1.0 - d) / 0.30, 0, 1); al = al * al * (3 - 2 * al)
+    arr = np.asarray(jc).copy(); arr[..., 3] = (al * 255).astype(np.uint8)
+    Image.fromarray(arr, 'RGBA').save(f'{OUT}/judge.png')
+
 feat = {
     'fps': FPS, 'nframes': NF, 'dur': dur, 'drop': drop, 'scanEnd': scan_end, 'bar': BAR,
     'bpm': a.bpm, 'clipStart': start, 'title': a.title, 'genre': a.genre, 'label': a.label,
@@ -206,6 +219,7 @@ feat = {
     'bass': np.round(bass, 3).tolist(), 'loud': np.round(loud, 3).tolist(), 'kicks': kicks,
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
+    'judge': bool(a.judge_crop), 'judgeLine': a.judge_line,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
     'score': a.score if a.score is not None else (float(a.story.split(',')[-1].split(':')[1]) if a.story else None),
