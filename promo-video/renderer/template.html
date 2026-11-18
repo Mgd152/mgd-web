@@ -553,6 +553,11 @@
     }
     viz.shadowBlur = 0;
   }
+  // kick 'bounce' (AVEE-style): the card is a mass on a spring pulled by the hit envelope. Same direction every time,
+  // a continuous curve from frame to frame, so it reads as a bounce and never as dropped frames.
+  const BNC = new Float32Array(NF);
+  { let x = 0, v = 0; const w = 2 * Math.PI * 7.5, zeta = 0.42, sub = 8, dt = 1 / FPS / sub;
+    for (let i = 0; i < NF; i++) { const tgt = hitAt(i); for (let k = 0; k < sub; k++) { v += (w * w * (tgt - x) - 2 * zeta * w * v) * dt; x += v * dt; } BNC[i] = x; } }
   const T_STAMP = T_VERD + 0.15;                                            // the moment the stamp hits
   const wob = new Float32Array(NF);
   { let w = 0, target = 0, hold = -1, last = -9, prev = 0;
@@ -589,15 +594,16 @@
     const cIn = eOutCubic(prog(t, 0.1, 0.7));
     const amp = K.shake * Math.pow(hit, 1.2) + 18 * impulse(t, T_VERD + 0.15, 0.09);
     // the card jumps to a new spot every frame while a hit lasts (the owner tried a smooth glide: it had no punch)
-    const sx = (hash(fi * 1.7) - 0.5) * 2 * amp, sy = (hash(fi * 2.3 + 9) - 0.5) * 2 * amp;
+    const BO = F.kick === 'bounce', bn = BNC[fi], st_ = 18 * impulse(t, T_VERD + 0.15, 0.09);
+    const sx = BO ? (hash(fi * 1.7) - 0.5) * 2 * st_ : (hash(fi * 1.7) - 0.5) * 2 * amp, sy = BO ? (hash(fi * 2.3 + 9) - 0.5) * 2 * st_ - 1.6 * K.shake * bn : (hash(fi * 2.3 + 9) - 0.5) * 2 * amp;
     // gentle dangling sway: hangs from the top edge, slow and a little irregular, plus a soft bob
     const TAU = 2 * Math.PI, sw = 0.75 * Math.sin(TAU * t / 4.6 + 0.3) + 0.25 * Math.sin(TAU * t / 2.9 + 1.1);
     const swZ = 1.4 * SWAY * sw, swY = 6 * SWAY * Math.sin(TAU * t / 3.7 + 0.8);
-    const ax = 3.2 * Math.sin(t * 0.62 + 0.4) + K.tilt * hit, ay = 5 * Math.sin(t * 0.47 + 1.3) + 2.5 * SWAY * sw + K.tilt * hit * (hash(fi) - 0.5) * 2;
-    const rz = (hash(fi * 3.1 + 5) - 0.5) * 2 * K.rot * hit;
+    const ax = 3.2 * Math.sin(t * 0.62 + 0.4) + K.tilt * (BO ? bn : hit), ay = 5 * Math.sin(t * 0.47 + 1.3) + 2.5 * SWAY * sw + (BO ? 0 : K.tilt * hit * (hash(fi) - 0.5) * 2);
+    const rz = BO ? 0 : (hash(fi * 3.1 + 5) - 0.5) * 2 * K.rot * hit;
     const card = $('card');
     card.style.opacity = cIn; card.style.filter = cIn < 1 ? `blur(${(1 - cIn) * 14}px)` : 'none';
-    card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${0.9 * (0.94 + 0.06 * cIn) * (1 + K.scale * hit)})`;
+    card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${0.9 * (0.94 + 0.06 * cIn) * (1 + (BO ? 1.9 * K.scale * bn : K.scale * hit))})`;
     const g = live ? hit : 0;
     card.style.boxShadow = `0 40px 110px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 ${36 + 100 * g}px ${3 * g}px rgba(${hot.join(',')},${K.glow * g})`;
     card.style.borderColor = g > 0.03 ? `rgba(${hot.join(',')},${0.35 + 0.55 * g})` : '';
