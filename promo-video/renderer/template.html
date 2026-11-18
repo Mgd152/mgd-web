@@ -368,6 +368,25 @@
         c.restore();
       }
     }
+    if ((F.bgFx || '').includes('snakes')) {   // a few pale snakes gliding slowly through the depth of the scene
+      if (!drawAtmos.sn) { const R4 = rng(4242), sn = []; for (let i = 0; i < 3; i++) { const z = 0.5 + 0.6 * (i / 2); sn.push({ z, y0: H * (0.16 + 0.34 * i + 0.06 * R4()), dir: i % 2 ? -1 : 1, sp: 70 + 50 * R4(), len: 620 + 420 * z, amp: 60 + 50 * R4(), wl: 300 + 160 * R4(), ph: R4() * 6.28, tilt: (R4() - 0.5) * 0.5, off: R4() }); } drawAtmos.sn = sn; }
+      for (const k of drawAtmos.sn) {
+        const c = fxB, span = W + k.len * 2 + 300, head = ((k.off * span + (t * k.sp + ts * k.sp * 0.5) * k.z) % span) - k.len - 150, N = 46, th = 15 + 17 * k.z;
+        const pt = u => { const d = head - u * k.len; return [d, Math.sin(d / k.wl * 6.283 + k.ph + t * 1.6) * k.amp * (0.45 + 0.55 * u)]; };
+        c.save(); c.translate(W / 2, k.y0); c.rotate(k.tilt); c.scale(k.dir, 1); c.translate(-W / 2, 0);
+        c.globalAlpha = clamp(0.35 + 0.6 * k.z); c.filter = `blur(${(Math.abs(1.0 - k.z) * 6).toFixed(1)}px)`; c.lineCap = 'round';
+        c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = 20 + 24 * hit;
+        for (let i = N - 1; i >= 0; i--) {   // tail first, so the head is drawn on top
+          const u0 = i / N, u1 = (i + 1) / N, [x0, y0] = pt(u0), [x1, y1] = pt(u1), w = th * (u0 < 0.08 ? 0.8 + 2.5 * u0 : Math.pow(1 - u0, 0.7) * 1.05 + 0.06);
+          c.strokeStyle = i % 5 === 2 ? rgbaOf(P.hot, 0.9) : (i % 2 ? '#eef7e6' : '#cfe3c6'); c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x0, y0); c.stroke(); if (i === 4) c.shadowBlur = 0;
+        }
+        const [hx, hy] = pt(0), [nx, ny] = pt(0.03), ha = Math.atan2(hy - ny, hx - nx);
+        c.translate(hx, hy); c.rotate(ha); c.fillStyle = '#f3faec'; c.beginPath(); c.moveTo(-th * 0.5, -th * 0.62); c.quadraticCurveTo(th * 0.9, -th * 0.8, th * 1.5, 0); c.quadraticCurveTo(th * 0.9, th * 0.8, -th * 0.5, th * 0.62); c.closePath(); c.fill();
+        c.fillStyle = rgbaOf(P.hot, 1); c.shadowColor = c.fillStyle; c.shadowBlur = 12; for (const sg of [-1, 1]) { c.beginPath(); c.ellipse(th * 0.55, sg * th * 0.36, th * 0.2, th * 0.11, sg * 0.4, 0, 6.3); c.fill(); }
+        const fl = Math.sin(t * 5 + k.ph) > 0.55 ? 1 : 0; if (fl) { c.strokeStyle = '#ff4466'; c.shadowBlur = 0; c.lineWidth = Math.max(2, th * 0.1); c.beginPath(); c.moveTo(th * 1.45, 0); c.lineTo(th * 2.1, 0); c.lineTo(th * 2.5, -th * 0.22); c.moveTo(th * 2.1, 0); c.lineTo(th * 2.5, th * 0.22); c.stroke(); }
+        c.restore();
+      }
+    }
     if ((F.bgFx || '').includes('slash')) {   // blade cuts of light behind the card, one per strong hit after the drop
       if (!drawAtmos.sl) { const R2 = rng(77), sl = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.28) { last = i; const side = sl.length % 2 ? 1 : -1; sl.push({ f: i, x: W * (0.5 + side * (0.08 + 0.3 * R2())), y: H * (0.12 + 0.76 * R2()), ang: side * (0.5 + 0.75 * R2()) + (R2() < 0.3 ? Math.PI / 2 : 0), len: 900 + 900 * R2(), w: 7 + 9 * R2() }); } } drawAtmos.sl = sl; }
       for (const s of drawAtmos.sl) {

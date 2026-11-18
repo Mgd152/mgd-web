@@ -37,7 +37,7 @@ p.add_argument('--hook', default='rate this drop ↓')       # handwritten openi
 p.add_argument('--tier', default='')                     # title on the stamp; default from the score: SKIP / DECENT / REPLAY / PEAK
 p.add_argument('--no_stamp_sfx', action='store_true')    # skip the signature stamp thud in the audio
 p.add_argument('--scene', default='')                    # scenery from the cover's world: garden (grass + hanging vines) | ''
-p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), slash (blade cuts of light on the hits)
+p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), snakes (gliding pale snakes), slash (blade cuts of light on the hits)
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
 p.add_argument('--leaf_colors', default='')              # dark,mid,bright hex for the leaf motif
