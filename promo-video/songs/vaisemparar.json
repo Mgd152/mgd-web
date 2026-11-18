@@ -1,0 +1,19 @@
+{
+  "slug": "vaisemparar",
+  "track": "assets/vaisemparar/track.mp3",
+  "cover": "assets/vaisemparar/cover.jpg",
+  "title": "VAI SEM PARAR (SUPER SLOWED)",
+  "artist": "ThVinh & yatashi",
+  "drop_at": 24.60,
+  "bpm": 79.8,
+  "bars_intro": 2,
+  "bars_main": 2,
+  "bars_out": 2,
+  "particles": "ash",
+  "atmos": 1.2,
+  "sway": 1,
+  "energy": 1.0,
+  "glitch": false,
+  "cta": "send me your funk",
+  "notes": "Super slowed, ~80 BPM (3 s per bar). Drop at 0:24.60 after a bass cut. Icy blue cover; white flakes read as snow."
+}
