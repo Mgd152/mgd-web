@@ -4,7 +4,7 @@
   "cover": "assets/malemo/cover.jpg",
   "title": "MALEMO (SLOWED)",
   "artist": "Zericxxn & vultury",
-  "drop_at": 17.76,
+  "drop_at": 10.46,
   "bpm": 98,
   "bars_out": 2,
   "particles": "ash",
@@ -20,9 +20,9 @@
   "judge_img": "assets/malemo/judge.png",
   "judge_crop": "0.1,0.14,0.92,0.64",
   "judge_line": "9.5/10. clean cut.",
-  "story": "0.9:7.5,17.76:9.5",
+  "story": "0.9:7.5,10.46:9.5",
   "score": 9.5,
-  "notes": "Clip runs from 0:00 (owner's request); drop at 0:17.76, 2 bars of drop, then the stamp. Bar 2.45 s (~98 BPM). Maki cut-out regraded to the cover's black/white/red. Background: 3 drifting katanas + blade cuts of light on the hits.",
+  "notes": "Clip runs from 0:00 (owner's request); drop at 0:10.46 (slam after a quiet gap; owner corrected an earlier 0:17.76 pick), 3 bars of drop, then the stamp. Bar 2.45 s (~98 BPM). Maki cut-out regraded to the cover's black/white/red. Background: 3 drifting katanas + blade cuts of light on the hits.",
   "start": 0,
-  "target": 27.5
+  "target": 22.7
 }
