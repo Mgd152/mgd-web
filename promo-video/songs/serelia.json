@@ -1,0 +1,20 @@
+{
+  "slug": "serelia",
+  "track": "assets/serelia/track.mp3",
+  "cover": "assets/serelia/cover.jpg",
+  "title": "MONTAGEM SERELIA ZAKKU",
+  "artist": "LXZVA, Hwungii, NITRXM, -Prey",
+  "start": 0,
+  "target": 20,
+  "drop_at": 5.0,
+  "particles": "ash",
+  "leaf_colors": "#2a0a4a,#c45cff,#ff5a3c",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#14041f,#8a2be2,#d98cff,#fbf0ff",
+  "bg_dim": 0.8,
+  "notes": "DRAFT, waiting for the mp3 (Slowed version; owner says the drop is at ~0:05, runs from 0:00). To set: exact drop_at, bpm, story, score."
+}
