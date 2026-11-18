@@ -353,7 +353,7 @@
     fxB.clearRect(0, 0, W, H); fxF.clearRect(0, 0, W, H);
     if (F.scene === 'garden') drawGarden(t, hit);
     if ((F.bgFx || '').includes('blades')) {   // katanas drifting in the depth of the scene, slowly turning; rim lit in the accent colour
-      if (!drawAtmos.bl) { const R3 = rng(1213), bl = []; for (let i = 0; i < 6; i++) { const z = 0.35 + 0.85 * (i / 5); bl.push({ z, x: W * ((i * 0.37 + 0.12 + 0.1 * R3()) % 1), y: H * R3(), a0: R3() * 6.28, w: (R3() - 0.5) * 0.5, vy: 26 + 40 * R3(), len: 330 + 520 * z, ph: R3() * 6.28 }); } drawAtmos.bl = bl; }
+      if (!drawAtmos.bl) { const R3 = rng(1213), bl = []; for (let i = 0; i < 3; i++) { const z = 0.45 + 0.7 * (i / 2); bl.push({ z, x: W * ((i * 0.37 + 0.12 + 0.1 * R3()) % 1), y: H * R3(), a0: R3() * 6.28, w: (R3() - 0.5) * 0.5, vy: 26 + 40 * R3(), len: 330 + 520 * z, ph: R3() * 6.28 }); } drawAtmos.bl = bl; }
       for (const b of drawAtmos.bl) {
         const c = fxB, L = b.len, x = b.x + Math.sin(t * 0.35 + b.ph) * 40 * b.z, y = wrap(b.y + (t * b.vy + ts * b.vy * 0.5) * b.z, H, L * 0.7);
         c.save(); c.translate(x, y); c.rotate(b.a0 + t * b.w + 0.12 * Math.sin(t * 0.8 + b.ph)); c.globalAlpha = clamp(0.3 + 0.62 * b.z); c.filter = `blur(${(Math.abs(0.95 - b.z) * 7).toFixed(1)}px)`;
