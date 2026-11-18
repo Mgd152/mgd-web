@@ -38,6 +38,7 @@ The owner writes in Vietnamese; answer in Vietnamese.
 - **Reactions**: follow the audio signal like AVEE Player (bass plus mid-band hits), not "AI detection". A hit pushes the background faster, and it slows down until the next hit. Keep jolts moderate for funk.
 - **Score**: the score rolls like an odometer and shows handwritten +/− deltas. It wobbles ±0.1–0.2 only occasionally. At the end, an ink rubber stamp "FINAL SCORE x.x/10 · ARTIST · TITLE" slams onto the artwork.
 - **Sway**: a gentle dangling sway, pivoting from the top edge. Not a left-right rocking on the beat.
+- **No RGB split**: the chromatic split on hits is removed from the template; `glitch` only adds the white flash on the drop.
 - **No sparkle stars**: the four-point sparkles are off by default (the owner finds them fake and dry). Do not turn `stars` on.
 - **Smooth hits, calm mids**: defaults `smooth 1`, `mids 0.65`; bass and kick react at full strength.
 - **Clip window**: ask or infer whether the clip runs from 0:00 (`start 0` + `drop_at`) or is cut around the drop; confirm the drop time with the owner when unsure.

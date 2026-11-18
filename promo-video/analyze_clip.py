@@ -29,7 +29,7 @@ p.add_argument('--react', default='')                    # sensitivity 'th,gain,
 p.add_argument('--atmos', type=float, default=1.0)       # atmosphere density: 1 = base; higher = more fog, rays, particles, embers, haze
 p.add_argument('--sway', type=float, default=0.0)        # rhythmic card sway: 0 = off, 1 = pendulum swing per bar
 p.add_argument('--energy', type=float, default=1.0)      # reaction strength preset (1 = calm, ~1.6 = hard / motivation)
-p.add_argument('--glitch', action='store_true')         # white flash on the drop + RGB split on the strongest hits
+p.add_argument('--glitch', action='store_true')         # white flash on the drop (the RGB split was removed)
 p.add_argument('--judge_crop', default='')               # portrait of the cover character 'x0,y0,x1,y1' (0..1): it pops up at the end and gives the score
 p.add_argument('--judge_img', default='')                # cut-out character PNG (transparent background) used instead of a crop of the cover
 p.add_argument('--judge_line', default='')               # what the character says (default: '<score>/10. trust me.')

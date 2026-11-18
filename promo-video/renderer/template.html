@@ -674,7 +674,7 @@
       hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
     // hard tracks: white flash on the drop, short RGB split on the strongest hits
     $('flash').style.opacity = F.glitch ? 0.6 * impulse(t, T_DROP, 0.06) : 0;
-    const gl_ = F.glitch && live ? 22 * impulse(t, T_DROP, 0.12) + (hit > 0.82 ? 9 * (hit - 0.82) / 0.18 : 0) : 0;
+    const gl_ = 0;   // RGB split on the hits removed for good (owner: the cyan fringe looks bad); glitch now only means the white flash on the drop
     if (gl_ > 0.8) { $('stage').style.filter = 'url(#rgb)'; $('rOff').setAttribute('dx', gl_); $('gbOff').setAttribute('dx', -gl_); }
     else $('stage').style.filter = 'none';
   };
