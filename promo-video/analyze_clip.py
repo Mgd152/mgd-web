@@ -39,6 +39,7 @@ p.add_argument('--no_stamp_sfx', action='store_true')    # skip the signature st
 p.add_argument('--scene', default='')                    # scenery from the cover's world: garden (grass + hanging vines) | ''
 p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), snakes (gliding pale snakes), slash (blade cuts of light on the hits)
 p.add_argument('--bg_objs', default='')                  # cut-out PNGs (comma list) that float in the background (bg_fx: objs)
+p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
 p.add_argument('--leaf_colors', default='')              # dark,mid,bright hex for the leaf motif
@@ -164,7 +165,7 @@ logm = np.log1p(100 * S[mid] / np.percentile(S[mid], 99))
 flux = to_frames(np.maximum(0, np.diff(logm, axis=1, prepend=logm[:, :1])).sum(0), 'max')
 fl_lo, fl_hi = np.percentile(flux, 50), np.percentile(flux, 99.5)
 env_perc = release(np.clip((flux - fl_lo) / (fl_hi - fl_lo), 0, 1) ** 1.2, 0.12)
-env = np.clip(np.maximum(env_low, 0.85 * env_perc) + 0.25 * np.minimum(env_low, env_perc), 0, 1)
+env = np.clip(np.maximum(env_low, 0.85 * a.mids * env_perc) + 0.25 * a.mids * np.minimum(env_low, env_perc), 0, 1)   # bass / kick at full strength, mid hits scaled by --mids
 
 NBANDS = 48
 band_edges = np.geomspace(35, 11000, NBANDS + 1)
