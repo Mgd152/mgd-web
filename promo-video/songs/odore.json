@@ -19,6 +19,8 @@
   "leaf_colors": "#1a0a5e,#ff5ad6,#5fd0ff",
   "bg_dim": 0.78,
   "judge_crop": "0.17,0.0,0.83,0.62",
-  "judge_line": "8.7/10. nah, i'd replay.",
-  "judge_img": "assets/odore/judge.png"
+  "judge_line": "9.2/10. yeah, that's peak.",
+  "judge_img": "assets/odore/judge.png",
+  "story": "0.9:3.1,4.36:7.6,8.73:9.2",
+  "score": 9.2
 }
