@@ -35,15 +35,15 @@ const server = http.createServer((req, res) => {
   const list = pick ? pick.split(',').map(Number) : [...Array(N).keys()];
   const pages = [first];
   for (let w = 1; w < Math.min(workers, list.length); w++) pages.push(await open());
-  const t0 = Date.now(); let done = 0;
+  const t0 = Date.now(); let done = 0, tDraw = 0, tShot = 0;
   await Promise.all(pages.map(async (page, w) => {
     for (let j = w; j < list.length; j += pages.length) {
       const i = list[j];
-      await page.evaluate(i => window.renderFrame(i), i);
-      await page.screenshot({ path: path.join(outDir, String(i).padStart(5, '0') + '.jpg'), type: 'jpeg', quality });
+      let tm = Date.now(); await page.evaluate(i => window.renderFrame(i), i); tDraw += Date.now() - tm; tm = Date.now();
+      await page.screenshot({ path: path.join(outDir, String(i).padStart(5, '0') + '.jpg'), type: 'jpeg', quality }); tShot += Date.now() - tm;
       if (++done % 60 === 0) console.log(`${done}/${list.length} frames, ${((Date.now() - t0) / done).toFixed(0)} ms/frame`);
     }
   }));
-  console.log(`done ${list.length} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  console.log(`done ${list.length} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s (per frame: draw ${(tDraw / list.length).toFixed(0)} ms, screenshot ${(tShot / list.length).toFixed(0)} ms)`);
   await browser.close(); server.close();
 })().catch(e => { console.error(e); process.exit(1); });
