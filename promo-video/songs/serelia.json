@@ -23,5 +23,7 @@
   "bg_fx": "chains",
   "judge_img": "assets/serelia/judge.png",
   "judge_crop": "0.0,0.0,1.0,0.66",
-  "judge_line": "9.0/10. as planned."
+  "judge_line": "9.0/10. as planned.",
+  "judge_at": "start",
+  "judge_open": "i'll be the judge."
 }

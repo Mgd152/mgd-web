@@ -43,6 +43,8 @@ p.add_argument('--smooth', type=float, default=1.0)      # how round the hits ar
 p.add_argument('--stars', action='store_true')           # four-point sparkles in the air (off by default: the owner finds them fake)
 p.add_argument('--wobble', default='1,1')                 # 'pre,post': how restless the score is before / after the drop (1 = rare +-0.1, 3 = often and up to +-0.3, 0 = still)
 p.add_argument('--kick', default='bounce')                # how the card takes a hit: bounce = spring pop like AVEE Player (scale + lift) plus 60% of the shake (owner's choice); jump = the old random offset per frame
+p.add_argument('--judge_at', default='')                  # 'start' = the judge rises in the first second and stays; '' = rises after the stamp
+p.add_argument('--judge_open', default='')                # what the judge says at the start (judge_at start); the final line comes with the stamp
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -276,7 +278,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
