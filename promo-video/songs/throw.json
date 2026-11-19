@@ -1,0 +1,20 @@
+{
+  "slug": "throw",
+  "track": "assets/throw/track.mp3",
+  "cover": "assets/throw/cover.jpg",
+  "title": "MTG THROW",
+  "artist": "hxresy, Hwungii, Jynxx & Matra",
+  "start": 0,
+  "target": 20,
+  "drop_at": 12.0,
+  "particles": "ash",
+  "leaf_colors": "#1a0640,#c04dff,#5fd8ff",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#0c0320,#7a2cf0,#ff7ad9,#fdf0ff",
+  "bg_dim": 0.78,
+  "notes": "DRAFT, waiting for the mp3. Owner says drop 1 is at ~0:12; measure it, then choose the start (intro length), set bpm, story and score. Purple / pink / cyan from the cover."
+}
