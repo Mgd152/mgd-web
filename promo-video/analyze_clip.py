@@ -48,6 +48,7 @@ p.add_argument('--judge_open', default='')                # what the judge says 
 p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
 p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
 p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
+p.add_argument('--watermark', default='mxzhphxnk')         # small channel mark in the top right corner of every video ('' = none)
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -107,6 +108,13 @@ print(f'clip {start:.3f} -> {start + dur:.3f} ({dur:.3f}s, {NF} frames), drop at
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{start:.3f}', '-t', f'{dur:.3f}', '-i', a.track,
                 '-af', f'afade=t=in:d=0.03,afade=t=out:st={dur - 0.6:.3f}:d=0.6',
                 '-ar', '48000', '-ac', '2', f'{OUT}/clip.wav'], check=True)
+
+# ---------- quiet masters: bring the peak up to about -1 dB so every video plays at a similar level ----------
+if True:
+    from scipy.io import wavfile
+    wsr, wav = wavfile.read(f'{OUT}/clip.wav'); pk = np.abs(wav.astype(np.float64)).max() / 32767
+    if 0 < pk < 0.7:
+        wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav.astype(np.float64) * (0.89 / pk), -32767, 32767).astype(np.int16)); print(f'audio peak {20 * np.log10(pk):.1f} dB -> -1 dB')
 
 # ---------- the judge's spoken line at the start ----------
 voice_at = voice_dur = 0.0
@@ -297,7 +305,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,

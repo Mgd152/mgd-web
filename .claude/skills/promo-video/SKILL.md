@@ -38,6 +38,8 @@ The owner writes in Vietnamese; answer in Vietnamese.
 - **Reactions**: follow the audio signal like AVEE Player (bass plus mid-band hits), not "AI detection". A hit pushes the background faster, and it slows down until the next hit. Keep jolts moderate for funk.
 - **Score**: the score rolls like an odometer and shows handwritten +/− deltas. It wobbles ±0.1–0.2 only occasionally. At the end, an ink rubber stamp "FINAL SCORE x.x/10 · ARTIST · TITLE" slams onto the artwork.
 - **Sway**: a gentle dangling sway, pivoting from the top edge. Not a left-right rocking on the beat.
+- **Watermark**: every video carries a small `@mxzhphxnk` mark in the top right corner (`watermark`, on by default). The owner asked for it on all videos.
+- **Loudness**: quiet masters are peak-normalised to about -1 dB automatically.
 - **Halftone dots**: on by default (`dots 0.55`): a diagonal grid of dots over the fog, bigger towards the top and bottom edges, faded out behind the card. Approved by the owner on stills of Serelia Zakku and Funk Mandala. (An earlier dot filter was removed long ago; this subtler one is wanted.)
 - **Judge timing**: the judge rises after the stamp. `judge_at start` (judge present from the first second) was tried on Serelia Zakku and dropped by the owner; leave it off.
 - **Card kick**: default `kick bounce`, approved by the owner on Funk Mandala: a spring pop on each hit (scale up + lift, like AVEE Player) plus 60% of the old random shake and half its rotation. Rejected along the way: a smooth glide (no punch) and the bounce without any shake (not enough force). `kick jump` is the old look.

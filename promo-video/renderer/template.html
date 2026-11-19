@@ -109,6 +109,7 @@
   </div>
   <canvas id="fxFront" class="layer" width="1080" height="1920"></canvas>
   <div class="abs hand" id="hook"></div>
+  <div class="abs" id="wm" style="left: auto; right: 44px; top: 214px; font-size: 27px; font-weight: 700; letter-spacing: 0.06em; color: #fff; opacity: 0.5; text-shadow: 0 2px 8px rgba(0,0,0,0.7);"></div>
   <div class="abs hand delta" id="d1"></div>
   <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
@@ -741,6 +742,7 @@
       if (rad > 0.6) { d.beginPath(); d.arc(x, y, rad, 0, 6.3); d.fill(); }
     }
   }
+  $('wm').textContent = F.watermark ? '@' + F.watermark : '';
   window.NFRAMES = NF;
   window.READY = true;
 })().catch(e => { console.error('INIT', e.message); });
