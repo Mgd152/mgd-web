@@ -46,6 +46,8 @@ p.add_argument('--kick', default='bounce')                # how the card takes a
 p.add_argument('--judge_at', default='')                  # 'start' = the judge rises in the first second and stays; '' = rises after the stamp
 p.add_argument('--judge_open', default='')                # what the judge says at the start (judge_at start); the final line comes with the stamp
 p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
+p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
+p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -105,6 +107,22 @@ print(f'clip {start:.3f} -> {start + dur:.3f} ({dur:.3f}s, {NF} frames), drop at
 subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', f'{start:.3f}', '-t', f'{dur:.3f}', '-i', a.track,
                 '-af', f'afade=t=in:d=0.03,afade=t=out:st={dur - 0.6:.3f}:d=0.6',
                 '-ar', '48000', '-ac', '2', f'{OUT}/clip.wav'], check=True)
+
+# ---------- the judge's spoken line at the start ----------
+voice_at = voice_dur = 0.0
+if a.voice:
+    from scipy.io import wavfile
+    vsrc = a.voice if os.path.isabs(a.voice) else os.path.join(os.path.dirname(os.path.abspath(__file__)), a.voice)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', vsrc, '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse',
+                    '-ar', '48000', '-ac', '1', f'{OUT}/voice.wav'], check=True)
+    wsr, wav = wavfile.read(f'{OUT}/clip.wav'); wav = wav.astype(np.float64)
+    _, vo = wavfile.read(f'{OUT}/voice.wav'); vo = vo.astype(np.float64); vo = vo / max(np.abs(vo).max(), 1) * 32767 * 0.9
+    voice_at, voice_dur = a.voice_at, len(vo) / wsr
+    tw = np.arange(len(wav)) / wsr
+    duck = 1 - 0.6 * np.clip((tw - (voice_at - 0.25)) / 0.25, 0, 1) * np.clip((voice_at + voice_dur + 0.35 - tw) / 0.35, 0, 1)   # music down to 40% under the voice
+    wav *= duck[:, None]; i0 = int(voice_at * wsr); seg = wav[i0:i0 + len(vo)]; seg += vo[:len(seg), None]
+    wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav, -32767, 32767).astype(np.int16))
+    print(f'voice {voice_dur:.2f}s at {voice_at:.2f}s')
 
 # ---------- signature stamp sound, mixed in where the stamp lands ----------
 if not a.no_stamp_sfx:
@@ -279,7 +297,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,

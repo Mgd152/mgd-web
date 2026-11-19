@@ -666,12 +666,15 @@
       const JS0 = F.judgeAt === 'start', TJ = JS0 ? 0.35 : T_STAMP + 0.45;   // judge_at start: the judge is there from the first second and watches the whole clip
       const jr = prog(t, TJ, 1.0), jio = jr < 0.5 ? 4 * jr * jr * jr : 1 - Math.pow(-2 * jr + 2, 3) / 2;   // ease in-out rise
       const tj = Math.max(0, t - (TJ + 1.0)), settle = 0.03 * Math.exp(-tj / 0.25) * Math.sin(tj * 9);             // soft settle after arriving
-      const jp = jr, je = jio + (jr >= 1 ? settle : 0), jg = $('judge');
+      // judge_at intro: she rises for her spoken line, goes back down when it ends, and returns after the stamp as usual
+      const INTRO = F.judgeAt === 'intro', iA = Math.max(0.1, (F.voiceAt || 0.7) - 0.55), iB = (F.voiceAt || 0.7) + (F.voiceDur || 3) + 0.25;
+      const eio = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, ji = INTRO ? eio(prog(t, iA, 0.75)) * (1 - eio(prog(t, iB, 0.7))) : 0;
+      const jp = Math.max(jr, ji), je = Math.max(jio + (jr >= 1 ? settle : 0), ji), jg = $('judge');
       jg.style.opacity = clamp(jp * 4);
       if (F.judgeCut) {   // clean cut-out: rises to chest height, breathes, sways, and its neon outline pulses with the music
         jg.style.left = '70px'; jg.style.width = '500px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
         const breathe = 1 + 0.014 * Math.sin(t * 2.6), nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1);
-        jg.style.transform = `translate(${-60 * (1 - jio)}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * jio - 10 * hit}px) rotate(${3 + 12 * (1 - jio) + nod * jio}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
+        jg.style.transform = `translate(${-60 * (1 - Math.max(jio, ji))}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * Math.max(jio, ji) - 10 * hit}px) rotate(${3 + 12 * (1 - Math.max(jio, ji)) + nod * Math.max(jio, ji)}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
         jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
         $('judgeSay').style.top = '1368px';
       } else
@@ -679,6 +682,7 @@
       const js = $('judgeSay'), FINAL = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
       let sp_ = eOutBack(prog(t, JS0 ? T_STAMP + 0.5 : T_STAMP + 1.5, 0.3), 2.2), say = FINAL;
       if (JS0 && t < T_STAMP + 0.5) { say = F.judgeOpen || "let's hear it."; sp_ = eOutBack(prog(t, 1.3, 0.3), 2.2) * (1 - prog(t, 3.6, 0.2)); }   // a short opening line, gone before the drop matters
+      if (INTRO && t < iB + 0.2) { say = F.judgeOpen || ''; sp_ = say ? eOutBack(prog(t, iA + 0.6, 0.3), 2.2) * (1 - prog(t, iB - 0.15, 0.2)) : 0; }
       if (js.textContent !== say) js.textContent = say;
       js.style.opacity = sp_ > 0 ? 1 : 0; js.style.transform = `rotate(-4deg) scale(${sp_})`;
     }
