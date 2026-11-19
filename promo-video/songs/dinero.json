@@ -1,0 +1,22 @@
+{
+  "slug": "dinero",
+  "track": "assets/dinero/track.mp3",
+  "cover": "assets/dinero/cover.jpg",
+  "title": "DINERO FUNK",
+  "artist": "NXGHT!, Sayfalse & SEKIMANE",
+  "start": 9.1,
+  "target": 20.4,
+  "drop_at": 18.14,
+  "bpm": 106.2,
+  "particles": "ash",
+  "leaf_colors": "#3a0010,#ff2a4a,#b65cff",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#14020a,#b0122e,#ff3b57,#fff0f2",
+  "bg_dim": 0.8,
+  "bg_fx": "chains",
+  "notes": "DRAFT. Drop 1 at 0:18.14 (owner said ~0:18), beat 0.565 s. Long quiet intro, so the clip starts 4 bars before the drop (0:09.1). Waiting for: Makima image, her voice line (owner makes it in Fish Audio), score. Plan: judge_at start with the voice line mixed over the intro."
+}
