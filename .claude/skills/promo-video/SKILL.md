@@ -38,7 +38,7 @@ The owner writes in Vietnamese; answer in Vietnamese.
 - **Reactions**: follow the audio signal like AVEE Player (bass plus mid-band hits), not "AI detection". A hit pushes the background faster, and it slows down until the next hit. Keep jolts moderate for funk.
 - **Score**: the score rolls like an odometer and shows handwritten +/− deltas. It wobbles ±0.1–0.2 only occasionally. At the end, an ink rubber stamp "FINAL SCORE x.x/10 · ARTIST · TITLE" slams onto the artwork.
 - **Sway**: a gentle dangling sway, pivoting from the top edge. Not a left-right rocking on the beat.
-- **Card kick**: keep the original kick (`K.shake 10`, `K.rot 0.8`, per-frame random offset). The owner tried a smooth glide (no punch) and weaker amplitudes, then chose to keep the original; do not change it unless asked.
+- **Card kick**: default `kick bounce`, approved by the owner on Funk Mandala: a spring pop on each hit (scale up + lift, like AVEE Player) plus 60% of the old random shake and half its rotation. Rejected along the way: a smooth glide (no punch) and the bounce without any shake (not enough force). `kick jump` is the old look.
 - **No RGB split**: the chromatic split on hits is removed from the template; `glitch` only adds the white flash on the drop.
 - **No sparkle stars**: the four-point sparkles are off by default (the owner finds them fake and dry). Do not turn `stars` on.
 - **Smooth hits, calm mids**: defaults `smooth 1`, `mids 0.65`; bass and kick react at full strength.

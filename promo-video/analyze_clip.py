@@ -42,7 +42,7 @@ p.add_argument('--bg_objs', default='')                  # cut-out PNGs (comma l
 p.add_argument('--smooth', type=float, default=1.0)      # how round the hits are: 0 = the old hard jump on each kick, 1 = soft attack and a longer tail
 p.add_argument('--stars', action='store_true')           # four-point sparkles in the air (off by default: the owner finds them fake)
 p.add_argument('--wobble', default='1,1')                 # 'pre,post': how restless the score is before / after the drop (1 = rare +-0.1, 3 = often and up to +-0.3, 0 = still)
-p.add_argument('--kick', default='')                      # how the card takes a hit: '' = jump (random offset per frame), bounce = spring pop like AVEE Player (scale + lift, smooth)
+p.add_argument('--kick', default='bounce')                # how the card takes a hit: bounce = spring pop like AVEE Player (scale + lift) plus 60% of the shake (owner's choice); jump = the old random offset per frame
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
