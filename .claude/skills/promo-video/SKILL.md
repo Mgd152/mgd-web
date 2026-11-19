@@ -33,11 +33,12 @@ The owner writes in Vietnamese; answer in Vietnamese.
 
 ## What the owner has already decided (keep these unless they ask otherwise)
 
-- **Base look**: dark atmospheric background coloured from the cover: soft fog, light rays, dust, bokeh, sparkles and a cover motif. No halftone dots and no circles as design elements.
+- **Base look**: dark atmospheric background coloured from the cover: soft fog, light rays, dust, bokeh, sparkles and a cover motif. No circles as design elements.
 - **Card**: a holographic glass card with the artwork on top, the score chip in the artwork's corner, title, and the artist line (the artist only, no genre or BPM). Below that, a single-row spectrum, low → high, which lights up left to right as the video plays. There is no separate progress bar, no tagline at the top and no verdict text.
 - **Reactions**: follow the audio signal like AVEE Player (bass plus mid-band hits), not "AI detection". A hit pushes the background faster, and it slows down until the next hit. Keep jolts moderate for funk.
 - **Score**: the score rolls like an odometer and shows handwritten +/− deltas. It wobbles ±0.1–0.2 only occasionally. At the end, an ink rubber stamp "FINAL SCORE x.x/10 · ARTIST · TITLE" slams onto the artwork.
 - **Sway**: a gentle dangling sway, pivoting from the top edge. Not a left-right rocking on the beat.
+- **Halftone dots**: on by default (`dots 0.55`): a diagonal grid of dots over the fog, bigger towards the top and bottom edges, faded out behind the card. Approved by the owner on stills of Serelia Zakku and Funk Mandala. (An earlier dot filter was removed long ago; this subtler one is wanted.)
 - **Judge timing**: the judge rises after the stamp. `judge_at start` (judge present from the first second) was tried on Serelia Zakku and dropped by the owner; leave it off.
 - **Card kick**: default `kick bounce`, approved by the owner on Funk Mandala: a spring pop on each hit (scale up + lift, like AVEE Player) plus 60% of the old random shake and half its rotation. Rejected along the way: a smooth glide (no punch) and the bounce without any shake (not enough force). `kick jump` is the old look.
 - **No RGB split**: the chromatic split on hits is removed from the template; `glitch` only adds the white flash on the drop.

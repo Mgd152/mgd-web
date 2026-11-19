@@ -45,7 +45,7 @@ p.add_argument('--wobble', default='1,1')                 # 'pre,post': how rest
 p.add_argument('--kick', default='bounce')                # how the card takes a hit: bounce = spring pop like AVEE Player (scale + lift) plus 60% of the shake (owner's choice); jump = the old random offset per frame
 p.add_argument('--judge_at', default='')                  # 'start' = the judge rises in the first second and stays; '' = rises after the stamp
 p.add_argument('--judge_open', default='')                # what the judge says at the start (judge_at start); the final line comes with the stamp
-p.add_argument('--dots', type=float, default=0.0)        # halftone dot layer over the background, 0 = off, ~0.5 = visible
+p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
