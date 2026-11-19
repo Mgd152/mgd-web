@@ -255,7 +255,7 @@
   const bokeh = Array.from({ length: Math.round(16 * A) }, () => ({ x: R() * W, y: R() * H, z: 0.5 + R() * 0.5, ph: R() * 6.28, r: 10 + R() * 26, tint: R() }));
   const sparks = Array.from({ length: F.stars ? Math.round(30 * A) : 0 }, () => ({ x: 40 + R() * (W - 80), y: 120 + R() * (H - 360), ph: R() * 5, per: 1.5 + R() * 1.8, size: 16 + R() * 34, front: R() < 0.4, tint: R() }));
   const leaves = Array.from({ length: Math.round(18 * A) }, (_, i) => ({ x: R() * W, y: R() * H, z: i < Math.round(6 * A) ? 1 : 0.35 + R() * 0.45, len: 0, vx: 18 + R() * 40, vy: 60 + R() * 70, rot: R() * 6.28, spin: (R() - 0.5) * 2.4, ph: R() * 6.28, hue: R() }));
-  leaves.forEach(l => { l.len = (l.z >= 1 ? 120 + R() * 70 : 40 + R() * 46) * (F.particles === 'ash' ? 0.16 : 1); if (F.particles === 'ash') { l.vy *= 0.6; l.vx *= 0.7; } });
+  leaves.forEach(l => { l.len = (l.z >= 1 ? 120 + R() * 70 : 40 + R() * 46) * (F.particles === 'ash' ? 0.16 : F.particles === 'snow' ? 0.3 : 1); if (F.particles === 'ash') { l.vy *= 0.6; l.vx *= 0.7; } if (F.particles === 'snow') { l.vy = Math.abs(l.vy) * 0.55 + 30; l.vx *= 0.35; l.spin *= 0.5; } });
   const fxB = $('fxBack').getContext('2d'), fxF = $('fxFront').getContext('2d');
   const wrap = (v, m, pad) => ((v % (m + 2 * pad)) + (m + 2 * pad)) % (m + 2 * pad) - pad;
 
@@ -297,7 +297,12 @@
       const dark = `rgb(${Math.round(hot[0] * 0.25)},${Math.round(hot[1] * 0.45)},${Math.round(hot[2] * 0.2)})`;
       g.addColorStop(0, dark); g.addColorStop(0.55, `rgb(${Math.round(hot[0] * 0.75)},${Math.round(hot[1] * 0.85)},${Math.round(hot[2] * 0.55)})`); g.addColorStop(1, `rgb(${hot.join(',')})`);
     }
-    if (F.particles === 'ash') { c.beginPath(); c.moveTo(-L * 0.5, -L * 0.3); c.lineTo(L * 0.45, -L * 0.45); c.lineTo(L * 0.55, L * 0.25); c.lineTo(-L * 0.35, L * 0.5); c.closePath(); if (LEAF_COL) { c.fillStyle = LEAF_COL[l.hue < 0.5 ? 1 : 2]; c.shadowColor = c.fillStyle; c.shadowBlur = 14 / (c.K || 1); } else c.fillStyle = `rgba(235,226,224,${0.55 + 0.4 * l.hue})`; c.fill(); }
+    if (F.particles === 'snow') {   // six-armed snowflakes, each arm with two little branches
+      c.scale(1, 1 / (0.55 + 0.45 * Math.cos(t * 2.6 + l.ph))); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineCap = 'round'; c.lineWidth = Math.max(1.6, L * 0.07) / (c.K || 1) * (c.K ? Math.min(c.K, 2) : 1);
+      c.shadowColor = 'rgba(210,235,255,0.9)'; c.shadowBlur = 8 / (c.K || 1);
+      for (let a6 = 0; a6 < 6; a6++) { c.rotate(Math.PI / 3); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -L * 0.5); c.moveTo(0, -L * 0.3); c.lineTo(L * 0.12, -L * 0.42); c.moveTo(0, -L * 0.3); c.lineTo(-L * 0.12, -L * 0.42); c.stroke(); }
+    }
+    else if (F.particles === 'ash') { c.beginPath(); c.moveTo(-L * 0.5, -L * 0.3); c.lineTo(L * 0.45, -L * 0.45); c.lineTo(L * 0.55, L * 0.25); c.lineTo(-L * 0.35, L * 0.5); c.closePath(); if (LEAF_COL) { c.fillStyle = LEAF_COL[l.hue < 0.5 ? 1 : 2]; c.shadowColor = c.fillStyle; c.shadowBlur = 14 / (c.K || 1); } else c.fillStyle = `rgba(235,226,224,${0.55 + 0.4 * l.hue})`; c.fill(); }
     else if (F.particles === 'maple') { maplePath(c, L * 1.25); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,230,210,0.22)'; c.lineWidth = Math.max(1, L / 70); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, L * 0.3); c.stroke(); }
     else { leafPath(c, L); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = Math.max(1, L / 60); c.beginPath(); c.moveTo(-L / 2, 0); c.lineTo(L * 0.45, 0); c.stroke(); }
     c.restore(); c.globalAlpha = 1;
@@ -386,6 +391,28 @@
         c.save(); c.translate(x, y); c.rotate(0.16 * Math.sin(t * 0.5 + ph) + (i % 2 ? 0.25 : -0.2)); c.scale(flip * sc, sc);
         c.shadowColor = rgbaOf(P.hot, 0.95); c.shadowBlur = (34 + 40 * hit) / 3;
         c.drawImage(im, -im.width / 2, -im.height / 2); c.restore(); softDraw(fxB, so, 0.17 + 0.09 * hit);
+      });
+    }
+    if ((F.bgFx || '').includes('pines')) {   // Christmas trees at the bottom corners, one small and far: snow on the tiers, lights that blink with the music
+      const TR = [[0.9, 1.03, 1.0, 640], [0.07, 1.02, 0.82, 520], [0.7, 0.985, 0.5, 300]], bn = BNC[fi];
+      TR.forEach(([tx, ty, z, hgt], i) => {
+        const so = soft('pine' + i, 1 + (1 - z) * 2.4), c = so.c, Ht = hgt * (1 + 0.025 * bn), Wd = Ht * 0.56;
+        c.save(); c.translate(W * tx, H * ty); c.rotate(0.02 * Math.sin(t * 0.8 + i * 2) + 0.012 * bn * (i % 2 ? 1 : -1));
+        c.fillStyle = '#2a1408'; c.fillRect(-Wd * 0.06, -Ht * 0.12, Wd * 0.12, Ht * 0.14);
+        for (let k = 0; k < 4; k++) {   // tiers from the bottom up
+          const y0 = -Ht * (0.1 + 0.2 * k), y1 = y0 - Ht * 0.36, hw = Wd * 0.5 * (1 - 0.2 * k);
+          const g = c.createLinearGradient(-hw, 0, hw, 0); g.addColorStop(0, '#07301c'); g.addColorStop(0.5, '#14663a'); g.addColorStop(1, '#062615');
+          c.fillStyle = g; c.beginPath(); c.moveTo(-hw, y0); c.quadraticCurveTo(0, y0 + Ht * 0.04, hw, y0); c.lineTo(0, y1); c.closePath(); c.fill();
+          c.fillStyle = 'rgba(245,250,255,0.9)'; c.beginPath(); c.moveTo(-hw, y0); c.quadraticCurveTo(-hw * 0.5, y0 - Ht * 0.035, -hw * 0.25, y0 - Ht * 0.01); c.quadraticCurveTo(0, y0 - Ht * 0.05, hw * 0.3, y0 - Ht * 0.012); c.quadraticCurveTo(hw * 0.6, y0 - Ht * 0.04, hw, y0); c.quadraticCurveTo(0, y0 + Ht * 0.04, -hw, y0); c.fill();   // snow along the edge of the tier
+          for (let n = 0; n < 4; n++) {   // lights
+            const u = hash(i * 31 + k * 7 + n * 3.3), lx = (u - 0.5) * hw * 1.3 * (0.75 - 0.12 * n), ly = y0 - Ht * (0.05 + 0.065 * n), on = 0.45 + 0.55 * Math.max(0, Math.sin(t * 3 + u * 20)) + 0.5 * hit;
+            c.fillStyle = ['#ffd24a', '#ff4d5e', '#ffffff', '#7fd0ff'][(k + n + i) % 4]; c.globalAlpha = Math.min(1, on); c.shadowColor = c.fillStyle; c.shadowBlur = 12 / (c.K || 1);
+            c.beginPath(); c.arc(lx, ly, Ht * 0.013, 0, 6.3); c.fill(); c.globalAlpha = 1; c.shadowBlur = 0;
+          }
+        }
+        c.fillStyle = '#ffd24a'; c.shadowColor = '#ffd24a'; c.shadowBlur = (14 + 16 * hit) / (c.K || 1); c.translate(0, -Ht * 1.07); c.beginPath();   // star on top
+        for (let p5 = 0; p5 < 10; p5++) { const rr = Ht * (p5 % 2 ? 0.022 : 0.05), aa = -Math.PI / 2 + p5 * Math.PI / 5; c.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr); } c.closePath(); c.fill();
+        c.restore(); softDraw(fxB, so, 0.5 + 0.42 * z);
       });
     }
     if ((F.bgFx || '').includes('rings')) {   // a few gold rings turning slowly in the depth of the scene; they pop with the hits
@@ -515,7 +542,7 @@
       gr.addColorStop(0, rgbaOf(P.cool, 0.16 * (1 + 0.4 * hit))); gr.addColorStop(1, rgbaOf(P.cool, 0));
       fxF.fillStyle = gr; fxF.fillRect(x - r, y - r, r * 2, r * 2);
     }
-    if (['leaves', 'maple', 'ash'].includes(F.particles || 'leaves')) { const sN = soft('leafN', 4), sB = soft('leafB', 2); for (const l of leaves) drawLeaf(l.z >= 1 ? sN.c : sB.c, l, t, ts); softDraw(fxB, sB); softDraw(fxF, sN); }
+    if (['leaves', 'maple', 'ash', 'snow'].includes(F.particles || 'leaves')) { const sN = soft('leafN', 4), sB = soft('leafB', 2); for (const l of leaves) drawLeaf(l.z >= 1 ? sN.c : sB.c, l, t, ts); softDraw(fxB, sB); softDraw(fxF, sN); }
     // sparkles twinkle in and out, more on the hits
     for (const s of sparks) {
       const u = ((t + s.ph) % s.per) / s.per, life = u < 0.4 ? Math.sin(Math.PI * u / 0.4) : 0;

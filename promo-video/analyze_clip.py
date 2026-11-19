@@ -22,7 +22,7 @@ p.add_argument('--drop_at', type=float, default=None)   # drop downbeat in the t
 p.add_argument('--start', type=float, default=None)     # fixed clip start in the track (s), e.g. 42 for 0:42
 p.add_argument('--target', type=float, default=18.0)    # target clip length (s) when --start is used; rounded to whole bars
 p.add_argument('--bpm', type=float, default=None)       # estimated from the audio if omitted
-p.add_argument('--particles', default='leaves')         # atmosphere motif: leaves | maple | none
+p.add_argument('--particles', default='leaves')         # atmosphere motif: leaves | maple | ash | snow | none
 p.add_argument('--story', default='')                    # manual score story 'sec:score,sec:score' (clip time); the last score is locked at the end
 p.add_argument('--score', type=float, default=None)      # final score (defaults to the last story score)
 p.add_argument('--react', default='')                    # sensitivity 'th,gain,pre' (default 0.22,1.0,0.3); low-bass songs: lower th, higher gain
@@ -37,7 +37,7 @@ p.add_argument('--hook', default='rate this drop ↓')       # handwritten openi
 p.add_argument('--tier', default='')                     # title on the stamp; default from the score: SKIP / DECENT / REPLAY / PEAK
 p.add_argument('--no_stamp_sfx', action='store_true')    # skip the signature stamp thud in the audio
 p.add_argument('--scene', default='')                    # scenery from the cover's world: garden (grass + hanging vines) | ''
-p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), snakes (gliding pale snakes), rings (gold rings), chains (hanging chains), chains-x (taut chains crossing behind the card + one out of focus in the corner), slash (blade cuts of light on the hits)
+p.add_argument('--bg_fx', default='')                    # extra background effect: comma list of: blades (drifting katanas), snakes (gliding pale snakes), rings (gold rings), pines (Christmas trees), chains (hanging chains), chains-x (taut chains crossing behind the card + one out of focus in the corner), slash (blade cuts of light on the hits)
 p.add_argument('--bg_objs', default='')                  # cut-out PNGs (comma list) that float in the background (bg_fx: objs)
 p.add_argument('--smooth', type=float, default=1.0)      # how round the hits are: 0 = the old hard jump on each kick, 1 = soft attack and a longer tail
 p.add_argument('--stars', action='store_true')           # four-point sparkles in the air (off by default: the owner finds them fake)
