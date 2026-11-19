@@ -83,6 +83,7 @@
 </svg>
 <div id="stage">
   <canvas id="bg" class="layer" width="1080" height="1920"></canvas>
+  <canvas id="dots" class="layer" width="1080" height="1920" style="mix-blend-mode: overlay; display: none"></canvas>
   <canvas id="fxBack" class="layer" width="1080" height="1920"></canvas>
   <div id="scene">
     <div id="card">
@@ -691,6 +692,13 @@
     if (gl_ > 0.8) { $('stage').style.filter = 'url(#rgb)'; $('rOff').setAttribute('dx', gl_); $('gbOff').setAttribute('dx', -gl_); }
     else $('stage').style.filter = 'none';
   };
+  if (F.dots) {   // halftone layer over the fog: a 45-degree grid of dots, big at the top and bottom edges, fading out behind the card
+    const dc = $('dots'), d = dc.getContext('2d'), stp = 22; dc.style.display = 'block'; dc.style.opacity = F.dots; d.fillStyle = '#fff';
+    for (let r = 0, y = 0; y < H + stp; y += stp / 2, r++) for (let x = (r % 2) * stp / 2; x < W + stp; x += stp) {
+      const v = Math.abs(y / H - 0.47) * 2, k = clamp((v - 0.22) / 0.78), rad = stp * 0.44 * Math.pow(k, 0.8);
+      if (rad > 0.6) { d.beginPath(); d.arc(x, y, rad, 0, 6.3); d.fill(); }
+    }
+  }
   window.NFRAMES = NF;
   window.READY = true;
 })().catch(e => { console.error('INIT', e.message); });
