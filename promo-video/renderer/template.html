@@ -164,7 +164,7 @@
   const $ = id => document.getElementById(id);
   const RX = F.react || { th: 0.22, gain: 1.0, pre: 0.3 };                 // sensitivity: lower th / higher gain = reacts to softer hits
   const MUF = F.muffled || null, inMuf = tt_ => MUF ? clamp((tt_ - MUF[0]) / 0.35) * clamp((MUF[1] - tt_) / 0.35) : 0;   // 0..1 inside a muffled passage, with soft edges
-  const hitAt = fi => { const e = F.env[clamp(fi, 0, NF - 1)], tt_ = fi / FPS; return Math.pow(clamp((e - RX.th) / (1 - RX.th) * RX.gain), 1.1) * (tt_ >= T_DROP ? 1 : Math.max(RX.pre, 0.75 * inMuf(tt_))); };
+  const hitAt = fi => { const e = F.env[clamp(fi, 0, NF - 1)], tt_ = fi / FPS; return Math.pow(clamp((e - RX.th) / (1 - RX.th) * RX.gain), 1.1) * (tt_ >= T_DROP ? 1 : Math.max(RX.pre, 1.0 * inMuf(tt_))); };
 
   // background / particle clock: each hit pushes it forward, then it coasts
   const tS = new Float32Array(NF);
@@ -767,8 +767,12 @@
       jg.style.opacity = clamp(jp * 4);
       if (F.judgeCut) {   // clean cut-out: rises to chest height, breathes, sways, and its neon outline pulses with the music
         jg.style.left = '70px'; jg.style.width = '500px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
-        const breathe = 1 + 0.014 * Math.sin(t * 2.6), nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1);
-        jg.style.transform = `translate(${-60 * (1 - Math.max(jio, ji))}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * Math.max(jio, ji) - 10 * hit}px) rotate(${3 + 12 * (1 - Math.max(jio, ji)) + nod * Math.max(jio, ji)}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
+        // talking: while the line plays, the voice's loudness makes the character bob, lean and stretch on every syllable
+        const vi = Math.round((t - (F.voiceAt || 0)) * FPS), talking = INTRO && vi >= 0 && t < (F.voiceAt || 0) + (F.voiceDur || 0);
+        const vraw = !talking ? 0 : F.voiceEnv ? (F.voiceEnv[vi] || 0) : Math.pow(Math.abs(Math.sin(t * 13) * Math.sin(t * 5.3 + 1)), 0.6);   // no voice file yet: a stand-in chatter
+        drawAtmos.vs = (drawAtmos.vsF === fi - 1 ? drawAtmos.vs : 0) * 0.55 + vraw * 0.45; drawAtmos.vsF = fi; const talk = talking ? clamp(drawAtmos.vs * 1.5) : 0;
+        const breathe = 1 + 0.014 * Math.sin(t * 2.6) + 0.06 * talk, nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1) + 4 * talk * Math.sin(t * 7.3);
+        jg.style.transform = `translate(${-60 * (1 - Math.max(jio, ji))}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * Math.max(jio, ji) - 10 * hit - 16 * talk}px) rotate(${3 + 12 * (1 - Math.max(jio, ji)) + nod * Math.max(jio, ji)}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
         jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
         $('judgeSay').style.top = '1368px';
       } else

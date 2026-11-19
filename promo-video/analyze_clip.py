@@ -48,6 +48,7 @@ p.add_argument('--judge_open', default='')                # what the judge says 
 p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
 p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
 p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
+p.add_argument('--voice_dur', type=float, default=0.0)     # length of the line when there is no voice file yet (the judge still comes up and 'talks')
 p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
 p.add_argument('--muffled', default='')                   # 't0,t1' (clip seconds): a filtered, 'underwater' passage. The screen goes a little darker there and the mids drive the reactions; normal again after it
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
@@ -118,7 +119,8 @@ if True:
         wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav.astype(np.float64) * (0.89 / pk), -32767, 32767).astype(np.int16)); print(f'audio peak {20 * np.log10(pk):.1f} dB -> -1 dB')
 
 # ---------- the judge's spoken line at the start ----------
-voice_at = voice_dur = 0.0
+voice_at = voice_dur = 0.0; voice_env = None
+if a.voice_dur and not a.voice: voice_at, voice_dur = a.voice_at, a.voice_dur
 if a.voice:
     from scipy.io import wavfile
     vsrc = a.voice if os.path.isabs(a.voice) else os.path.join(os.path.dirname(os.path.abspath(__file__)), a.voice)
@@ -131,6 +133,8 @@ if a.voice:
     duck = 1 - 0.6 * np.clip((tw - (voice_at - 0.25)) / 0.25, 0, 1) * np.clip((voice_at + voice_dur + 0.35 - tw) / 0.35, 0, 1)   # music down to 40% under the voice
     wav *= duck[:, None]; i0 = int(voice_at * wsr); seg = wav[i0:i0 + len(vo)]; seg += vo[:len(seg), None]
     wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav, -32767, 32767).astype(np.int16))
+    ve = np.array([np.sqrt(np.mean(vo[int(i * wsr / FPS):int((i + 1) * wsr / FPS)] ** 2)) if int(i * wsr / FPS) < len(vo) else 0.0 for i in range(int(np.ceil(voice_dur * FPS)) + 1)])
+    voice_env = np.round(np.clip(ve / max(np.percentile(ve, 95), 1), 0, 1), 3).tolist()   # loudness of the voice per video frame: drives the talking motion
     print(f'voice {voice_dur:.2f}s at {voice_at:.2f}s')
 
 # ---------- signature stamp sound, mixed in where the stamp lands ----------
@@ -206,7 +210,7 @@ if muf:   # inside the muffled passage the mid hits are tiny next to the rest of
         lo_m, hi_m = np.percentile(flux[inm], 50), np.percentile(flux[inm], 99)
         pm = release(np.clip((flux - lo_m) / max(hi_m - lo_m, 1e-9), 0, 1) ** 1.2, 0.12)
         env_perc = np.where(inm, pm, env_perc)
-mids_f = np.where(inm, 1.15, a.mids) if muf and inm.sum() > 10 else a.mids
+mids_f = np.where(inm, 1.7, a.mids) if muf and inm.sum() > 10 else a.mids
 env = np.clip(np.maximum(env_low, 0.85 * mids_f * env_perc) + 0.25 * mids_f * np.minimum(env_low, env_perc), 0, 1)   # bass / kick at full strength, mid hits scaled by --mids
 if a.smooth > 0:   # rounder hits: a soft attack and a longer tail instead of a hard jump on each kick
     env = np.maximum(gaussian_filter1d(env, 0.9 * a.smooth), 0.86 * env)
@@ -314,7 +318,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,

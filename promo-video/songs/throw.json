@@ -23,5 +23,9 @@
   "judge_img": "assets/throw/judge.png",
   "judge_crop": "0,0,1,1",
   "judge_line": "9.2/10. gotta replay.",
-  "muffled": "4,10"
+  "muffled": "4,10",
+  "judge_at": "intro",
+  "voice_at": 4.5,
+  "voice_dur": 4.2,
+  "judge_open": "ugh... i hate water."
 }
