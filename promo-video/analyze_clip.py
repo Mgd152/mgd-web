@@ -48,7 +48,7 @@ p.add_argument('--judge_open', default='')                # what the judge says 
 p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
 p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
 p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
-p.add_argument('--watermark', default='mxzhphxnk')         # small channel mark in the top right corner of every video ('' = none)
+p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)

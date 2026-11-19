@@ -109,7 +109,7 @@
   </div>
   <canvas id="fxFront" class="layer" width="1080" height="1920"></canvas>
   <div class="abs hand" id="hook"></div>
-  <div class="abs" id="wm" style="left: auto; right: 44px; top: 214px; font-size: 27px; font-weight: 700; letter-spacing: 0.06em; color: #fff; opacity: 0.5; text-shadow: 0 2px 8px rgba(0,0,0,0.7);"></div>
+  <div class="abs hand" id="wm" style="left: auto; right: 46px; top: 196px; font-size: 50px; color: #fff; opacity: 0.38; text-shadow: 0 2px 10px rgba(0,0,0,0.6); transform-origin: 100% 50%;"></div>
   <div class="abs hand delta" id="d1"></div>
   <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
@@ -761,6 +761,7 @@
       js.style.opacity = sp_ > 0 ? 1 : 0; js.style.transform = `rotate(-4deg) scale(${sp_})`;
     }
 
+    $('wm').style.transform = `translateY(${-7 * BNC[fi]}px) rotate(-3deg) scale(${1 + 0.14 * BNC[fi]})`;   // the channel mark pops with the beat
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
     { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
       hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
