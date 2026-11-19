@@ -112,7 +112,7 @@
   <div class="abs hand" id="hook"></div>
   <div class="abs hand" id="wm" style="left: auto; right: 46px; top: 196px; font-size: 50px; color: #fff; opacity: 0.38; text-shadow: 0 2px 10px rgba(0,0,0,0.6); transform-origin: 100% 50%;"></div>
   <div class="abs hand delta" id="d1"></div>
-  <img id="judge"><div id="judgeSay"></div>
+  <img id="judge"><img id="judge2" style="position:absolute;opacity:0"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
   <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
@@ -603,6 +603,7 @@
   await document.fonts.ready;
   $('art').src = BUILD + '/cover_sq.jpg';
   if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
+  if (F.judge && F.judge2) $('judge2').src = BUILD + '/judge2.png'; else $('judge2').remove();
   const BGO = []; for (let i = 0; i < (F.bgObjs || 0); i++) { const im = new Image(); im.src = BUILD + '/bgobj' + i + '.png'; await im.decode(); BGO.push(im); }
   await Promise.all([...document.images].map(im => im.decode()));
 
@@ -775,6 +776,10 @@
         jg.style.transform = `translate(${-60 * (1 - Math.max(jio, ji))}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * Math.max(jio, ji) - 10 * hit - 16 * talk}px) rotate(${3 + 12 * (1 - Math.max(jio, ji)) + nod * Math.max(jio, ji)}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
         jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
         $('judgeSay').style.top = '1368px';
+        if (F.judge2) {   // second pose for the spoken part: same motion, shown instead of the verdict pose until she/he has gone back down
+          const j2 = $('judge2'), first = t < iB + 0.75; j2.style.cssText = jg.style.cssText; j2.style.position = 'absolute';
+          j2.style.opacity = first ? jg.style.opacity : 0; if (first) jg.style.opacity = 0;
+        }
       } else
       jg.style.transform = `translateY(${(1 - je) * 560 + 6 * Math.sin(t * 2.2)}px) rotate(${6 + 1.5 * Math.sin(t * 1.7)}deg)`;
       const js = $('judgeSay'), FINAL = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
