@@ -16,11 +16,10 @@
   "cta": "send me your funk",
   "pal": "#0c0320,#7a2cf0,#ff7ad9,#fdf0ff",
   "bg_dim": 0.78,
-  "notes": "Runs from 0:00; drop 1 at 0:12.06 (owner said ~0:12; two fills at 10.62 and 11.34 come before it), beat 0.48 s. Sonic cut from the owner's image; gold rings in the background. Scores are mine (owner gave none).",
+  "notes": "Runs from 0:00; drop 1 at 0:12.06 (owner said ~0:12; two fills at 10.62 and 11.34 come before it), beat 0.48 s. Sonic cut from the owner's image; gold rings were tried and dropped by the owner. Scores are mine (owner gave none).",
   "bpm": 125,
   "story": "0.9:6.4,10.62:7.0,12.06:9.2",
   "score": 9.2,
-  "bg_fx": "rings",
   "judge_img": "assets/throw/judge.png",
   "judge_crop": "0,0,1,1",
   "judge_line": "9.2/10. gotta replay."
