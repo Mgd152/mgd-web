@@ -85,6 +85,7 @@
   <canvas id="bg" class="layer" width="1080" height="1920"></canvas>
   <canvas id="dots" class="layer" width="1080" height="1920" style="mix-blend-mode: overlay; display: none"></canvas>
   <canvas id="fxBack" class="layer" width="1080" height="1920"></canvas>
+  <div class="layer" id="muf" style="width:1080px;height:1920px;background:#000;opacity:0"></div>   <!-- darkens the background only (muffled passages); the card stays bright -->
   <div id="scene">
     <div id="card">
       <div id="artWrap">
@@ -114,7 +115,6 @@
   <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
   <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
-  <div class="abs" id="muf" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
 </div>
 <script>const BUILD = new URLSearchParams(location.search).get('build') || '/build'; document.write(`<script src="${BUILD}/features.js"><\/script>`);</script>
@@ -782,7 +782,7 @@
     }
 
     $('wm').style.transform = `translateY(${-7 * BNC[fi]}px) rotate(-3deg) scale(${1 + 0.14 * BNC[fi]})`;   // the channel mark pops with the beat
-    $('muf').style.opacity = 0.3 * inMuf(t);
+    $('muf').style.opacity = 0.45 * inMuf(t);
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
     { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
       hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
