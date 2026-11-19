@@ -49,6 +49,7 @@ p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer ov
 p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
 p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
 p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
+p.add_argument('--muffled', default='')                   # 't0,t1' (clip seconds): a filtered, 'underwater' passage. The screen goes a little darker there and the mids drive the reactions; normal again after it
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -198,7 +199,15 @@ logm = np.log1p(100 * S[mid] / np.percentile(S[mid], 99))
 flux = to_frames(np.maximum(0, np.diff(logm, axis=1, prepend=logm[:, :1])).sum(0), 'max')
 fl_lo, fl_hi = np.percentile(flux, 50), np.percentile(flux, 99.5)
 env_perc = release(np.clip((flux - fl_lo) / (fl_hi - fl_lo), 0, 1) ** 1.2, 0.12)
-env = np.clip(np.maximum(env_low, 0.85 * a.mids * env_perc) + 0.25 * a.mids * np.minimum(env_low, env_perc), 0, 1)   # bass / kick at full strength, mid hits scaled by --mids
+muf = [float(x) for x in a.muffled.split(',')] if a.muffled else None
+if muf:   # inside the muffled passage the mid hits are tiny next to the rest of the clip: measure them against the passage itself
+    fr = np.arange(NF) / FPS; inm = (fr >= muf[0]) & (fr < muf[1])
+    if inm.sum() > 10:
+        lo_m, hi_m = np.percentile(flux[inm], 50), np.percentile(flux[inm], 99)
+        pm = release(np.clip((flux - lo_m) / max(hi_m - lo_m, 1e-9), 0, 1) ** 1.2, 0.12)
+        env_perc = np.where(inm, pm, env_perc)
+mids_f = np.where(inm, 1.15, a.mids) if muf and inm.sum() > 10 else a.mids
+env = np.clip(np.maximum(env_low, 0.85 * mids_f * env_perc) + 0.25 * mids_f * np.minimum(env_low, env_perc), 0, 1)   # bass / kick at full strength, mid hits scaled by --mids
 if a.smooth > 0:   # rounder hits: a soft attack and a longer tail instead of a hard jump on each kick
     env = np.maximum(gaussian_filter1d(env, 0.9 * a.smooth), 0.86 * env)
     env = np.clip(np.maximum(env, 0.72 * release(env, 0.08 + 0.12 * a.smooth)), 0, 1)
@@ -305,7 +314,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,

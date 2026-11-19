@@ -114,6 +114,7 @@
   <img id="judge"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
   <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
+  <div class="abs" id="muf" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
 </div>
 <script>const BUILD = new URLSearchParams(location.search).get('build') || '/build'; document.write(`<script src="${BUILD}/features.js"><\/script>`);</script>
@@ -162,7 +163,8 @@
   const fmt = s => { const m = Math.floor(s / 60), r = Math.floor(s - m * 60); return `${m}:${String(r).padStart(2, '0')}`; };
   const $ = id => document.getElementById(id);
   const RX = F.react || { th: 0.22, gain: 1.0, pre: 0.3 };                 // sensitivity: lower th / higher gain = reacts to softer hits
-  const hitAt = fi => { const e = F.env[clamp(fi, 0, NF - 1)]; return Math.pow(clamp((e - RX.th) / (1 - RX.th) * RX.gain), 1.1) * (fi / FPS >= T_DROP ? 1 : RX.pre); };
+  const MUF = F.muffled || null, inMuf = tt_ => MUF ? clamp((tt_ - MUF[0]) / 0.35) * clamp((MUF[1] - tt_) / 0.35) : 0;   // 0..1 inside a muffled passage, with soft edges
+  const hitAt = fi => { const e = F.env[clamp(fi, 0, NF - 1)], tt_ = fi / FPS; return Math.pow(clamp((e - RX.th) / (1 - RX.th) * RX.gain), 1.1) * (tt_ >= T_DROP ? 1 : Math.max(RX.pre, 0.75 * inMuf(tt_))); };
 
   // background / particle clock: each hit pushes it forward, then it coasts
   const tS = new Float32Array(NF);
@@ -762,6 +764,7 @@
     }
 
     $('wm').style.transform = `translateY(${-7 * BNC[fi]}px) rotate(-3deg) scale(${1 + 0.14 * BNC[fi]})`;   // the channel mark pops with the beat
+    $('muf').style.opacity = 0.3 * inMuf(t);
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
     { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
       hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
