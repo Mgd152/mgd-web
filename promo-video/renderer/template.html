@@ -395,6 +395,24 @@
         c.drawImage(im, -im.width / 2, -im.height / 2); c.restore(); softDraw(fxB, so, 0.17 + 0.09 * hit);
       });
     }
+    if ((F.bgFx || '').includes('butterflies')) {   // pale butterflies drifting through the scene, soft and glowing like on a long exposure; every hit makes them flutter harder
+      const BF = [[0.82, 0.16, 1.0, 0], [0.86, 0.62, 0.55, 2], [0.16, 0.8, 0.85, 3]], bn = BNC[fi];
+      BF.forEach(([bx, by, z, i]) => {
+        const so = soft('bfly' + i, 2 + (1 - z) * 2.5), c = so.c, S_ = (90 + 120 * z) * (1 + 0.1 * bn);
+        const x = W * bx + Math.sin(t * 0.5 + i * 2.3) * 90 * z + Math.sin(t * 1.3 + i) * 24, y = H * by + Math.cos(t * 0.42 + i * 1.7) * 110 * z - 30 * z * bn + Math.sin(t * 2.1 + i * 3) * 16;
+        const flap = Math.abs(Math.sin(t * (5.5 + i * 0.6) + i * 1.9 + ts * 2.5)), open = 0.18 + 0.82 * flap, head = Math.sin(t * 0.5 + i * 2.3 + 1.2) * 0.5 + (i % 2 ? 0.5 : -0.4);
+        c.save(); c.translate(x, y); c.rotate(head); c.shadowColor = 'rgba(255,255,255,0.9)'; c.shadowBlur = (26 + 30 * hit) / so.k;
+        for (const sd of [-1, 1]) {
+          c.save(); c.scale(sd * open, 1);
+          const g = c.createRadialGradient(S_ * 0.25, -S_ * 0.1, S_ * 0.05, S_ * 0.3, -S_ * 0.05, S_ * 0.75); g.addColorStop(0, 'rgba(255,255,255,0.98)'); g.addColorStop(0.7, 'rgba(232,232,240,0.9)'); g.addColorStop(1, 'rgba(190,190,205,0.7)');
+          c.fillStyle = g; c.beginPath(); c.moveTo(0, -S_ * 0.05); c.bezierCurveTo(S_ * 0.15, -S_ * 0.75, S_ * 0.95, -S_ * 0.8, S_ * 0.8, -S_ * 0.18); c.bezierCurveTo(S_ * 0.72, S_ * 0.05, S_ * 0.3, S_ * 0.05, 0, S_ * 0.02); c.fill();   // fore wing
+          c.beginPath(); c.moveTo(0, S_ * 0.02); c.bezierCurveTo(S_ * 0.5, S_ * 0.02, S_ * 0.7, S_ * 0.35, S_ * 0.42, S_ * 0.58); c.bezierCurveTo(S_ * 0.2, S_ * 0.66, S_ * 0.05, S_ * 0.35, 0, S_ * 0.12); c.fill();   // hind wing
+          c.restore();
+        }
+        c.shadowBlur = 0; c.fillStyle = 'rgba(30,30,36,0.9)'; c.beginPath(); c.ellipse(0, S_ * 0.03, S_ * 0.035, S_ * 0.26, 0, 0, 6.3); c.fill();
+        c.restore(); softDraw(fxB, so, 0.3 + 0.36 * z + 0.08 * hit);
+      });
+    }
     if ((F.bgFx || '').includes('pines')) {   // Christmas trees at the bottom corners, one small and far: snow on the tiers, lights that blink with the music
       const TR = [[0.9, 1.03, 1.0, 640], [0.07, 1.02, 0.82, 520], [0.7, 0.985, 0.5, 300]], bn = BNC[fi];
       TR.forEach(([tx, ty, z, hgt], i) => {

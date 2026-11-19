@@ -1,0 +1,23 @@
+{
+  "slug": "pyro",
+  "track": "assets/pyro/track.mp3",
+  "cover": "assets/pyro/cover.jpg",
+  "title": "PYRO (SLOWED)",
+  "artist": "ZERTAL",
+  "start": 11.5,
+  "target": 20.9,
+  "drop_at": 18.46,
+  "bpm": 103.4,
+  "particles": "ash",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.4,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#050506,#6c6c78,#f1f1f6,#ffffff",
+  "bg_dim": 0.68,
+  "bg_fx": "butterflies",
+  "story": "0.9:6.8,4.64:7.3,6.96:9.3",
+  "score": 9.3,
+  "notes": "Slowed version. Drop 1 at 0:18.46 (slam after a short silence), bar 2.32 s. Long intro, so the clip starts 3 bars before the drop (0:11.50). Black and white from the cover, pale butterflies from the cover as the background effect. Cover: ZERTAL 'pyro - slowed' (matches the file name; the mp3 has no tags). Scores are mine (owner gave none)."
+}
