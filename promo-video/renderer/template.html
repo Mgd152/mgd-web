@@ -396,7 +396,7 @@
     if ((F.bgFx || '').includes('pines')) {   // Christmas trees at the bottom corners, one small and far: snow on the tiers, lights that blink with the music
       const TR = [[0.9, 1.03, 1.0, 640], [0.07, 1.02, 0.82, 520], [0.7, 0.985, 0.5, 300]], bn = BNC[fi];
       TR.forEach(([tx, ty, z, hgt], i) => {
-        const so = soft('pine' + i, 1 + (1 - z) * 2.4), c = so.c, Ht = hgt * (1 + 0.025 * bn), Wd = Ht * 0.56;
+        const so = soft('pine' + i, 3.2 + (1 - z) * 3), c = so.c, Ht = hgt * (1 + 0.025 * bn), Wd = Ht * 0.56;
         c.save(); c.translate(W * tx, H * ty); c.rotate(0.02 * Math.sin(t * 0.8 + i * 2) + 0.012 * bn * (i % 2 ? 1 : -1));
         c.fillStyle = '#2a1408'; c.fillRect(-Wd * 0.06, -Ht * 0.12, Wd * 0.12, Ht * 0.14);
         for (let k = 0; k < 4; k++) {   // tiers from the bottom up
@@ -412,7 +412,12 @@
         }
         c.fillStyle = '#ffd24a'; c.shadowColor = '#ffd24a'; c.shadowBlur = (14 + 16 * hit) / (c.K || 1); c.translate(0, -Ht * 1.07); c.beginPath();   // star on top
         for (let p5 = 0; p5 < 10; p5++) { const rr = Ht * (p5 % 2 ? 0.022 : 0.05), aa = -Math.PI / 2 + p5 * Math.PI / 5; c.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr); } c.closePath(); c.fill();
-        c.restore(); softDraw(fxB, so, 0.5 + 0.42 * z);
+        c.restore();
+        // sink the tree into the scene: wash it with the background colour, fade its top half out, then lay it in faintly
+        c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = rgbaOf(P.deep, 0.5); c.fillRect(0, 0, so.cv.width, so.cv.height);
+        c.globalCompositeOperation = 'destination-in'; const y0f = (H * ty - hgt * 1.15) / so.k, y1f = (H * ty) / so.k, fg = c.createLinearGradient(0, y0f, 0, y1f);
+        fg.addColorStop(0, 'rgba(0,0,0,0.45)'); fg.addColorStop(0.5, 'rgba(0,0,0,0.85)'); fg.addColorStop(1, 'rgba(0,0,0,1)'); c.fillStyle = fg; c.fillRect(0, 0, so.cv.width, so.cv.height); c.globalCompositeOperation = 'source-over';
+        softDraw(fxB, so, 0.4 + 0.16 * z + 0.06 * hit);
       });
     }
     if ((F.bgFx || '').includes('rings')) {   // a few gold rings turning slowly in the depth of the scene; they pop with the hits
