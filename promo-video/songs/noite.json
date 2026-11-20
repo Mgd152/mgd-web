@@ -19,5 +19,6 @@
   "bg_dim": 0.7,
   "story": "0.9:5.8,5.4:6.4,7.40:8.7",
   "score": 8.7,
-  "notes": "Audio is the store's 30 s preview (= the first 30 s of the track), fetched with fetch_preview.py. Drop 1 at 0:07.40: kick after the bass riser (5.4-6.6 s) and a short gap; beat 0.46 s. Runs from 0:00. Final score 8.7 (owner). Pink / violet / cyan from the cover. No judge: the automatic cut-out only kept the girl's head (white shirt on a white glow)."
+  "notes": "Audio is the store's 30 s preview (= the first 30 s of the track), fetched with fetch_preview.py. Drop 1 at 0:07.40: kick after the bass riser (5.4-6.6 s) and a short gap; beat 0.46 s. Runs from 0:00. Final score 8.7 (owner). Pink / violet / cyan from the cover. No judge: the automatic cut-out only kept the girl's head (white shirt on a white glow). Background: a pale moon (the title means 'clear night') and light trails like passing cars on the hits.",
+  "bg_fx": "moon,trails"
 }

@@ -395,6 +395,29 @@
         c.drawImage(im, -im.width / 2, -im.height / 2); c.restore(); softDraw(fxB, so, 0.17 + 0.09 * hit);
       });
     }
+    if ((F.bgFx || '').includes('moon')) {   // a big pale moon behind the card: soft halo, a few craters, it swells a little with the hits
+      const so = soft('moon', 2), c = so.c, bn = BNC[fi], mx = W * 0.74 + Math.sin(t * 0.12) * 14, my = H * 0.15 + Math.cos(t * 0.1) * 10, R0 = 215 * (1 + 0.035 * bn);
+      const halo = c.createRadialGradient(mx, my, R0 * 0.8, mx, my, R0 * 2.6); halo.addColorStop(0, rgbaOf(P.hot, 0.42 + 0.25 * hit)); halo.addColorStop(0.4, rgbaOf(P.cool, 0.16)); halo.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = halo; c.fillRect(mx - R0 * 2.7, my - R0 * 2.7, R0 * 5.4, R0 * 5.4);
+      const g = c.createRadialGradient(mx - R0 * 0.35, my - R0 * 0.35, R0 * 0.1, mx, my, R0); g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#f3e6f4'); g.addColorStop(1, '#cdb4d6');
+      c.fillStyle = g; c.beginPath(); c.arc(mx, my, R0, 0, 6.3); c.fill();
+      c.fillStyle = 'rgba(150,120,170,0.28)'; for (const [dx, dy, rr] of [[-0.3, -0.1, 0.2], [0.25, 0.3, 0.26], [0.35, -0.35, 0.13], [-0.15, 0.45, 0.12], [0.02, -0.02, 0.09]]) { c.beginPath(); c.ellipse(mx + dx * R0, my + dy * R0, rr * R0, rr * R0 * 0.85, 0.4, 0, 6.3); c.fill(); }
+      softDraw(fxB, so, 0.5 + 0.1 * hit);
+    }
+    if ((F.bgFx || '').includes('trails')) {   // light trails, like cars passing in the night: one shoots across on every strong hit after the drop
+      if (!drawAtmos.tr) { const R5 = rng(909), tr = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.4) { last = i; tr.push({ f: i, y: H * (0.1 + 0.8 * R5()), dir: tr.length % 2 ? 1 : -1, tilt: (R5() - 0.5) * 0.16, col: tr.length % 3 === 2 ? 2 : tr.length % 2, w: 5 + 6 * R5(), z: 0.5 + 0.5 * R5() }); } } drawAtmos.tr = tr; }
+      const so = soft('trails', 2.5), c = so.c; c.lineCap = 'round'; let any = false;
+      for (const k of drawAtmos.tr) {
+        const dt = (fi - k.f) / FPS; if (dt < 0 || dt > 1.1) continue; any = true;
+        const u = dt / 1.1, headX = k.dir > 0 ? -200 + (W + 900) * Math.pow(u, 0.7) : W + 200 - (W + 900) * Math.pow(u, 0.7), len = 620 * k.z * (1 - 0.5 * u), a = Math.pow(1 - u, 1.2);
+        c.save(); c.translate(headX, k.y); c.rotate(k.tilt * k.dir);
+        const g = c.createLinearGradient(0, 0, -k.dir * len, 0), col = k.col === 2 ? '#ffffff' : k.col ? '#7fe0ff' : P.hot; g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.globalAlpha = a; c.strokeStyle = g; c.shadowColor = col; c.shadowBlur = 16 / so.k; c.lineWidth = k.w * k.z; c.beginPath(); c.moveTo(0, 0); c.lineTo(-k.dir * len, 0); c.stroke();
+        c.lineWidth = k.w * k.z * 0.4; c.strokeStyle = 'rgba(255,255,255,0.9)'; c.beginPath(); c.moveTo(0, 0); c.lineTo(-k.dir * len * 0.35, 0); c.stroke();
+        c.restore();
+      }
+      if (any) softDraw(fxB, so, 0.85, 'lighter');
+    }
     if ((F.bgFx || '').includes('butterflies')) {   // pale butterflies drifting through the scene, soft and glowing like on a long exposure; every hit makes them flutter harder
       const BF = [[0.82, 0.16, 1.0, 0], [0.86, 0.62, 0.55, 2], [0.16, 0.8, 0.85, 3]], bn = BNC[fi];
       BF.forEach(([bx, by, z, i]) => {
