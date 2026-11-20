@@ -443,6 +443,21 @@
         c.restore(); softDraw(fxB, so, 0.3 + 0.4 * z + 0.1 * hit);
       });
     }
+    if ((F.bgFx || '').includes('glitch')) {   // VHS / glitch light like on the cover: a slow scan band, and on every strong hit a burst of thin neon streaks torn sideways
+      const so = soft('glitch', 2), c = so.c; c.globalCompositeOperation = 'lighter';
+      const yb = ((t * 150) % (H + 500)) - 250, gb = c.createLinearGradient(0, yb - 130, 0, yb + 130); gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(0.5, rgbaOf(P.hot, 0.16)); gb.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = gb; c.fillRect(0, yb - 130, W, 260);
+      if (!drawAtmos.gl) { const gl = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.3) { last = i; gl.push(i); } } drawAtmos.gl = gl; }
+      for (const f0 of drawAtmos.gl) {
+        const dt = (fi - f0) / FPS; if (dt < 0 || dt > 0.3) continue; const a = Math.pow(1 - dt / 0.3, 1.3), step = Math.floor(dt * 30);   // the streaks jump a few times, then die
+        for (let n = 0; n < 9; n++) {
+          const h1 = hash(f0 * 0.37 + n * 5.1 + step * 1.7), h2 = hash(f0 * 0.91 + n * 2.3 + step), h3 = hash(f0 * 1.3 + n * 7.7);
+          const y = H * h1, wd = W * (0.18 + 0.6 * h2), x = (W - wd) * h3 + (h2 - 0.5) * 80, th = 3 + 16 * hash(n * 3.3 + f0);
+          c.fillStyle = n % 3 === 0 ? `rgba(255,255,255,${0.5 * a})` : n % 3 === 1 ? rgbaOf(P.hot, 0.6 * a) : `rgba(110,230,255,${0.45 * a})`; c.fillRect(x, y, wd, th);
+        }
+      }
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.8, 'lighter');
+    }
     if ((F.bgFx || '').includes('moon')) {   // a big pale moon behind the card: soft halo, a few craters, it swells a little with the hits
       const so = soft('moon', 2), c = so.c, bn = BNC[fi], mx = W * 0.74 + Math.sin(t * 0.12) * 14, my = H * 0.15 + Math.cos(t * 0.1) * 10, R0 = 215 * (1 + 0.035 * bn);
       const halo = c.createRadialGradient(mx, my, R0 * 0.8, mx, my, R0 * 2.6); halo.addColorStop(0, rgbaOf(P.hot, 0.42 + 0.25 * hit)); halo.addColorStop(0.4, rgbaOf(P.cool, 0.16)); halo.addColorStop(1, 'rgba(0,0,0,0)');
