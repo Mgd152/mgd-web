@@ -52,7 +52,7 @@ p.add_argument('--voice_at', type=float, default=0.7)      # when the line start
 p.add_argument('--voice_dur', type=float, default=0.0)     # length of the line when there is no voice file yet (the judge still comes up and 'talks')
 p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
 p.add_argument('--muffled', default='')                   # 't0,t1' (clip seconds): a filtered, 'underwater' passage. The screen goes a little darker there and the mids drive the reactions; normal again after it
-p.add_argument('--bg_obj_at', default='')                 # where the bg_objs go: 'x,y,width,alpha,flip;...' (x, y = centre as 0..1 of the frame, width in px, flip 1 or -1); default: one faint object top right
+p.add_argument('--bg_obj_at', default='')                 # where the bg_objs go: 'x,y,width,alpha,flip,float;...' (x, y = centre as 0..1 of the frame, width in px, flip 1 or -1, float 0..1 = weightless drift); default: one faint object top right
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)

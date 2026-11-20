@@ -22,5 +22,5 @@
   "notes": "Audio is the store's 30 s preview (= the first 30 s of the track), fetched with fetch_preview.py. Drop 1 at 0:07.40: kick after the bass riser (5.4-6.6 s) and a short gap; beat 0.46 s. Runs from 0:00. Final score 8.7 (owner). Pink / violet / cyan from the cover. No judge: the automatic cut-out only kept the girl's head (white shirt on a white glow). Background: a pale moon (the title means 'clear night') and light trails like passing cars on the hits. Faint cars in the background: photo 'Mercedes-AMG GT Black Series IMG 0324.jpg' by Alexander-93, Wikimedia Commons, CC BY-SA 4.0 (cut out, tinted; credit it in the description).",
   "bg_fx": "moon,trails",
   "bg_objs": "assets/noite/car.png",
-  "bg_obj_at": "0.6,0.83,980,0.34,1;0.3,0.075,560,0.2,-1"
+  "bg_obj_at": "0.58,0.8,900,0.34,1,1;0.34,0.1,540,0.2,-1,1"
 }

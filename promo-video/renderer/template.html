@@ -387,10 +387,11 @@
     }
     if (BGO.length && !(F.bgFx || '').includes('pines')) {   // cut-out objects (e.g. the cover's own snake heads) floating in the depth of the scene
       if (F.bgObjAt) {   // placed by the preset: faint pictures sunk into the scene (washed with the background colour), drifting a little
-        F.bgObjAt.forEach(([sx, sy, wd, al, flip], i) => {
+        F.bgObjAt.forEach(([sx, sy, wd, al, flip, fl], i) => {   // fl = how freely it floats (0 = almost still, 1 = weightless drift and slow tumble)
           const im = BGO[i % BGO.length], so = soft('bgo' + i, 2.2), c = so.c, ph = i * 2.1, sc = wd / im.width * (1 + 0.035 * BNC[fi]);
-          const x = W * sx + Math.sin(t * 0.3 + ph) * 26, y = H * sy + Math.cos(t * 0.24 + ph * 1.7) * 18 - 8 * BNC[fi];
-          c.save(); c.translate(x, y); c.rotate(0.03 * Math.sin(t * 0.4 + ph)); c.scale((flip || 1) * sc, sc); c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = (26 + 30 * hit) / so.k;
+          const f_ = fl || 0, tw = t + 0.35 * ts;   // the hits nudge it along its path
+          const x = W * sx + Math.sin(t * 0.3 + ph) * 26 + f_ * (190 * Math.sin(tw * 0.21 + ph * 1.3) + 60 * Math.sin(tw * 0.47 + ph)), y = H * sy + Math.cos(t * 0.24 + ph * 1.7) * 18 - 8 * BNC[fi] + f_ * (120 * Math.cos(tw * 0.17 + ph * 0.7) + 45 * Math.sin(tw * 0.39 + ph * 2));
+          c.save(); c.translate(x, y); c.rotate(0.03 * Math.sin(t * 0.4 + ph) + f_ * (0.3 * Math.sin(tw * 0.19 + ph * 1.1) + 0.1 * Math.sin(tw * 0.43 + ph))); c.scale(1 + 0.1 * f_ * Math.sin(tw * 0.26 + ph * 0.5), 1 + 0.1 * f_ * Math.sin(tw * 0.26 + ph * 0.5)); c.scale((flip || 1) * sc, sc); c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = (26 + 30 * hit) / so.k;
           c.drawImage(im, -im.width / 2, -im.height / 2); c.restore();
           c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = rgbaOf(P.deep, 0.35); c.fillRect(0, 0, so.cv.width, so.cv.height); c.fillStyle = rgbaOf(P.cool, 0.3); c.fillRect(0, 0, so.cv.width, so.cv.height); c.globalCompositeOperation = 'source-over';
           softDraw(fxB, so, al + 0.07 * hit);
