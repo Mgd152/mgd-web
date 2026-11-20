@@ -17,8 +17,10 @@
   "cta": "send me your funk",
   "pal": "#02090c,#0e7f8c,#4ff3ff,#eaffff",
   "bg_dim": 0.5,
-  "bg_fx": "crystals,lightning",
+  "bg_fx": "lightning",
   "story": "0.9:6.5,6.2:7.0,10.87:9.0",
   "score": 9.0,
-  "notes": "Audio is Deezer's 30 s preview (MP3 128 kbps; Apple did not list the track) = the first 30 s. Drop 1 at 0:10.87: first kick after a quiet intro, beat 0.58 s. Runs from 0:00, 3 bars after the drop. Background: glass prisms floating (the title) and teal lightning on the hits (the cover). Scores are mine (owner gave none). No judge."
+  "notes": "Audio is Deezer's 30 s preview (MP3 128 kbps; Apple did not list the track) = the first 30 s. Drop 1 at 0:10.87: first kick after a quiet intro, beat 0.58 s. Runs from 0:00, 3 bars after the drop. Background: soft-edged pieces of the cover's own art drifting behind the card, plus lightning on the hits. (Drawn glass prisms were tried and dropped: the owner found them 'too AI'.) Scores are mine (owner gave none). No judge.",
+  "bg_objs": "assets/prism/art_r.png,assets/prism/art_l.png",
+  "bg_obj_at": "0.66,0.76,1050,0.5,1,0.45;0.3,0.2,1100,0.42,1,0.45"
 }
