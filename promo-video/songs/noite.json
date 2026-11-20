@@ -1,0 +1,23 @@
+{
+  "slug": "noite",
+  "track": "assets/noite/track.mp3",
+  "cover": "assets/noite/cover.jpg",
+  "title": "NOITE CLARA",
+  "artist": "VDN912",
+  "start": 0,
+  "target": 18.4,
+  "drop_at": 7.4,
+  "bpm": 130.4,
+  "particles": "ash",
+  "leaf_colors": "#2a0a30,#ff8fd6,#7fe0ff",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#0a0612,#8a2f86,#ff8fd6,#fff2fb",
+  "bg_dim": 0.7,
+  "story": "0.9:5.8,5.4:6.4,7.40:8.3",
+  "score": 8.3,
+  "notes": "Audio is the store's 30 s preview (= the first 30 s of the track), fetched with fetch_preview.py. Drop 1 at 0:07.40: kick after the bass riser (5.4-6.6 s) and a short gap; beat 0.46 s. Runs from 0:00. Final score 8.3 (owner). Pink / violet / cyan from the cover. No judge: the automatic cut-out only kept the girl's head (white shirt on a white glow)."
+}
