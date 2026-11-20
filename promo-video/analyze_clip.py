@@ -52,6 +52,7 @@ p.add_argument('--voice_at', type=float, default=0.7)      # when the line start
 p.add_argument('--voice_dur', type=float, default=0.0)     # length of the line when there is no voice file yet (the judge still comes up and 'talks')
 p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
 p.add_argument('--muffled', default='')                   # 't0,t1' (clip seconds): a filtered, 'underwater' passage. The screen goes a little darker there and the mids drive the reactions; normal again after it
+p.add_argument('--bg_obj_at', default='')                 # where the bg_objs go: 'x,y,width,alpha,flip;...' (x, y = centre as 0..1 of the frame, width in px, flip 1 or -1); default: one faint object top right
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -322,7 +323,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judge2': bool(a.judge_img and a.judge_img2), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
