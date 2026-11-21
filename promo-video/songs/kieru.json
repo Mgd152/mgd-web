@@ -17,10 +17,11 @@
   "cta": "send me your funk",
   "pal": "#07030f,#5a2aa8,#c9a2ff,#f6efff",
   "bg_dim": 0.6,
-  "bg_fx": "slash",
-  "bg_objs": "assets/kieru/art_top.png,assets/kieru/art_bot.png",
-  "bg_obj_at": "0.5,0.1,1250,0.45,1,0.3;0.5,0.86,1250,0.42,1,0.3",
+  "bg_fx": "lightning,slash",
   "story": "0.9:6.6,4.32:7.2,8.82:9.2",
   "score": 9.2,
-  "notes": "The owner's own track (MGD, QUARSHY & BellyJay), original version; audio = Apple's 30 s preview (first 30 s). Drop 1 at 0:16.92 (owner chose it): bass back after a short gap. The clip starts at 0:08.10 so it keeps the lead-in kick at 0:08.20 and the bass section before the drop. Beat 0.54 s. Cover's chrome letters and purple flames float faint in the background. No judge: the figure on the cover is dark on dark and does not cut out. Scores are mine."
+  "notes": "The owner's own track (MGD, QUARSHY & BellyJay), original version; audio = Apple's 30 s preview (first 30 s). Drop 1 at 0:16.92 (owner chose it): bass back after a short gap. The clip starts at 0:08.10 so it keeps the lead-in kick at 0:08.20 and the bass section before the drop. Beat 0.54 s. Background: purple lightning and blade cuts of light on the hits (the cover's letters were tried behind the card and dropped by the owner). Judge: Aizen, from a picture the owner sent. Scores are mine.",
+  "judge_img": "assets/kieru/judge.png",
+  "judge_crop": "0.12,0,0.88,0.62",
+  "judge_line": "9.2/10. as expected."
 }
