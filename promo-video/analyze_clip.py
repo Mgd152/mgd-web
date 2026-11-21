@@ -48,6 +48,7 @@ p.add_argument('--judge_at', default='')                  # 'start' = the judge 
 p.add_argument('--judge_open', default='')                # what the judge says at the start (judge_at start); the final line comes with the stamp
 p.add_argument('--dots', type=float, default=0.55)       # halftone dot layer over the background (owner approved it for all songs); 0 = off
 p.add_argument('--voice', default='')                     # a spoken line (audio file) for the judge at the start: mixed over the music, which ducks under it
+p.add_argument('--voice_gain', type=float, default=0.55)  # voice peak level (1 = full scale); 0.9 was too loud on Montagem Kieru
 p.add_argument('--voice_at', type=float, default=0.7)      # when the line starts (s into the clip)
 p.add_argument('--voice_dur', type=float, default=0.0)     # length of the line when there is no voice file yet (the judge still comes up and 'talks')
 p.add_argument('--watermark', default='mxzhphxnkk')         # small channel mark in the top right corner of every video ('' = none)
@@ -129,10 +130,10 @@ if a.voice:
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', vsrc, '-af', 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse',
                     '-ar', '48000', '-ac', '1', f'{OUT}/voice.wav'], check=True)
     wsr, wav = wavfile.read(f'{OUT}/clip.wav'); wav = wav.astype(np.float64)
-    _, vo = wavfile.read(f'{OUT}/voice.wav'); vo = vo.astype(np.float64); vo = vo / max(np.abs(vo).max(), 1) * 32767 * 0.9
+    _, vo = wavfile.read(f'{OUT}/voice.wav'); vo = vo.astype(np.float64); vo = vo / max(np.abs(vo).max(), 1) * 32767 * a.voice_gain
     voice_at, voice_dur = a.voice_at, len(vo) / wsr
     tw = np.arange(len(wav)) / wsr
-    duck = 1 - 0.6 * np.clip((tw - (voice_at - 0.25)) / 0.25, 0, 1) * np.clip((voice_at + voice_dur + 0.35 - tw) / 0.35, 0, 1)   # music down to 40% under the voice
+    duck = 1 - 0.45 * np.clip((tw - (voice_at - 0.25)) / 0.25, 0, 1) * np.clip((voice_at + voice_dur + 0.35 - tw) / 0.35, 0, 1)   # music down to 40% under the voice
     wav *= duck[:, None]; i0 = int(voice_at * wsr); seg = wav[i0:i0 + len(vo)]; seg += vo[:len(seg), None]
     wavfile.write(f'{OUT}/clip.wav', wsr, np.clip(wav, -32767, 32767).astype(np.int16))
     ve = np.array([np.sqrt(np.mean(vo[int(i * wsr / FPS):int((i + 1) * wsr / FPS)] ** 2)) if int(i * wsr / FPS) < len(vo) else 0.0 for i in range(int(np.ceil(voice_dur * FPS)) + 1)])
