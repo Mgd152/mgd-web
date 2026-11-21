@@ -1,0 +1,21 @@
+{
+  "slug": "rampage",
+  "track": "assets/rampage/track.mp3",
+  "cover": "assets/rampage/cover.jpg",
+  "title": "RAMPAGE (SLOWED)",
+  "artist": "ZMAJOR, Lurk & SEKIMANE",
+  "drop_at": 10.52,
+  "bpm": 107.2,
+  "bars_intro": 2,
+  "bars_main": 4,
+  "bars_out": 2,
+  "score": 9.0,
+  "particles": "ash",
+  "pal": "#1c0405,#7a1416,#ff3b3b,#f4ecea",
+  "atmos": 1.3,
+  "sway": 1,
+  "energy": 1.6,
+  "glitch": true,
+  "cta": "send me your funk",
+  "notes": "Hard / motivation preset: energy 1.6 + glitch. Cover is mostly black, so the fog is kept dark red."
+}

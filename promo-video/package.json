@@ -1,0 +1,14 @@
+{
+  "name": "promo-video",
+  "private": true,
+  "description": "Score-card promo videos (9:16) for TikTok / Shorts, rendered frame by frame in headless Chromium.",
+  "scripts": {
+    "check": "python3 make_video.py",
+    "render": "node render.js"
+  },
+  "dependencies": {
+    "@fontsource-variable/tiktok-sans": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/nanum-pen-script": "^5.3.0"
+  }
+}

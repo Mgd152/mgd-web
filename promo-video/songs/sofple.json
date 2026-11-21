@@ -1,0 +1,23 @@
+{
+  "slug": "sofple",
+  "track": "assets/sofple/track.mp3",
+  "cover": "assets/sofple/cover.jpg",
+  "title": "MONTAGEM SOFPLE",
+  "artist": "Khv",
+  "start": 5.58,
+  "target": 18.4,
+  "particles": "leaves",
+  "leaf_colors": "#3a2a08,#ffb52e,#bfe8cf",
+  "atmos": 1.5,
+  "sway": 1,
+  "energy": 1.2,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#030d08,#27604a,#ffb52e,#f6ffe9",
+  "bg_dim": 0.72,
+  "notes": "Drop 1 at 0:12.94 (owner said ~0:13): the slam right after a short silence; beat 0.46 s. The first 3 s of the track are near silent, so the clip starts 4 bars before the drop (0:05.58). Forest at golden hour from the cover: teal glass, gold accent, falling leaves. Final score 8.5 (owner), build-up scores are mine; no judge (no character on the cover).",
+  "drop_at": 12.94,
+  "bpm": 130.4,
+  "story": "0.9:6.0,3.68:6.5,7.36:8.5",
+  "score": 8.5
+}
