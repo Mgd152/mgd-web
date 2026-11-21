@@ -85,6 +85,7 @@
   <canvas id="bg" class="layer" width="1080" height="1920"></canvas>
   <canvas id="dots" class="layer" width="1080" height="1920" style="mix-blend-mode: overlay; display: none"></canvas>
   <canvas id="fxBack" class="layer" width="1080" height="1920"></canvas>
+  <canvas id="g3d" class="layer" style="width:1080px;height:1920px;display:none"></canvas>
   <div class="layer" id="muf" style="width:1080px;height:1920px;background:#000;opacity:0"></div>   <!-- darkens the background only (muffled passages); the card stays bright -->
   <div id="scene">
     <div id="card">
@@ -687,6 +688,12 @@
   await document.fonts.load('italic 400 34px "Instrument Serif"');
   await document.fonts.load('400 60px "Nanum Pen Script"');
   await document.fonts.ready;
+  let draw3d = null;   // real 3D props (three.js), drawn behind the card
+  if ((F.bgFx || '').includes('swords3d')) {
+    const THREE = await import('/node_modules/three/build/three.module.js'), { makeSwords } = await import('./swords3d.js'), cv = $('g3d');
+    cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.9;
+    draw3d = await makeSwords(THREE, cv, { W: 720, H: 1280, cool: P.cool, hot: P.hot });
+  }
   $('art').src = BUILD + '/cover_sq.jpg';
   if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
   if (F.judge && F.judge2) $('judge2').src = BUILD + '/judge2.png'; else $('judge2').remove();
@@ -838,6 +845,7 @@
     $('viz').style.opacity = 1 - vP; $('vizDrop').style.opacity = 1 - vP; $('verdict').style.opacity = vP; $('verdict').style.transform = `translateY(${(1 - vP) * 16}px)`;
     vWords.forEach((w, i) => { const p = eOutCubic(prog(t, T_VERD + 0.5 + i * BEAT / 2, 0.3)); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 12}px)`; });
 
+    if (draw3d) draw3d(t + 0.4 * ts, hit, BNC[fi]);
     drawAtmos(fi, t, ts, hit, cr);
 
     const ctaP = eOutBack(prog(t, T_CTA, 0.35), 2);
