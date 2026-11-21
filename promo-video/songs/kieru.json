@@ -22,7 +22,7 @@
   "score": 9.2,
   "notes": "The owner's own track (MGD, QUARSHY & BellyJay), original version; audio = Apple's 30 s preview (first 30 s). Drop 1 at 0:16.92 (owner chose it): bass back after a short gap. The clip starts at 0:08.10 so it keeps the lead-in kick at 0:08.20 and the bass section before the drop. Beat 0.54 s. Background: purple lightning and blade cuts of light on the hits (the cover's letters were tried behind the card and dropped by the owner). Judge: Aizen, from a picture the owner sent. Scores are mine. Aizen rises at the start and says the owner's Fish Audio line 「このドロップも、すべて私の計算通りだ。」 (bubble shows it in English), then returns after the stamp.",
   "judge_img": "assets/kieru/judge.png",
-  "judge_crop": "0.12,0,0.88,0.62",
+  "judge_crop": "0,0,1,0.7",
   "judge_line": "9.2/10. as expected.",
   "judge_at": "intro",
   "voice": "assets/kieru/voice.wav",
