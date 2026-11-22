@@ -86,30 +86,69 @@ export async function makeSwords(THREE, canvas, opts) {
   }
   const GUARD = guardGeometry();
 
+  // ---- fantasy-RPG dressing (owner: 'like Final Fantasy'): gold filigree inlaid in the lower blade, a line of runes that glows
+  //      in the cover's colour and flares on the hits, gilded guard and pommel, cut gems, a grip wrapped in dark cord with gold diamonds ----
+  const mkTex = (w, h, fn, srgb) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+  const filigree = (x, w, h, col, lw, glowOnly) => {   // canvas top = blade tip; the ornament sits in the lower half, symmetric about the ridge
+    const Y = v => (1 - v) * h, X = u => u * w; x.strokeStyle = col; x.fillStyle = col; x.lineCap = 'round'; x.lineJoin = 'round';
+    if (!glowOnly) {
+      x.lineWidth = lw;
+      for (const sd of [-1, 1]) {   // two long tendrils with curls, mirrored
+        x.beginPath(); for (let i = 0; i <= 300; i++) { const v = 0.035 + 0.5 * i / 300, a = 0.13 * (1 - i / 300) * (0.55 + 0.45 * Math.sin(i / 300 * Math.PI * 9)); const px = X(0.5 + sd * (0.06 + a)), py = Y(v); i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke();
+        for (let k = 0; k < 9; k++) { const v = 0.06 + k * 0.05, r = w * 0.05 * (1 - k / 11); x.beginPath(); x.arc(X(0.5 + sd * (0.2 - 0.012 * k)), Y(v), r, sd > 0 ? Math.PI * 0.6 : Math.PI * 0.4, sd > 0 ? Math.PI * 2.1 : -Math.PI * 1.1, sd < 0); x.stroke(); }
+      }
+      x.lineWidth = lw * 0.8; for (let k = 0; k < 3; k++) { const v = 0.035 + k * 0.012; x.beginPath(); x.moveTo(X(0.18), Y(v)); x.lineTo(X(0.82), Y(v)); x.stroke(); }   // bands at the base
+      x.beginPath(); x.moveTo(X(0.5), Y(0.60)); x.lineTo(X(0.47), Y(0.555)); x.lineTo(X(0.5), Y(0.53)); x.lineTo(X(0.53), Y(0.555)); x.closePath(); x.fill();   // finial
+    } else {
+      x.lineWidth = lw; let s_ = 11; const R = () => (s_ = (s_ * 16807) % 2147483647) / 2147483647;
+      for (let k = 0; k < 13; k++) {   // runes down the ridge: small angular glyphs
+        const cy = Y(0.085 + k * 0.035), cx = X(0.5), u = w * 0.035; x.beginPath();
+        const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, -1.3], [0, 1.3], [-1, 0], [1, 0]];
+        let p0 = pts[Math.floor(R() * 8)]; x.moveTo(cx + p0[0] * u, cy + p0[1] * u);
+        for (let j = 0; j < 4; j++) { const q = pts[Math.floor(R() * 8)]; x.lineTo(cx + q[0] * u, cy + q[1] * u); } x.stroke();
+      }
+      x.lineWidth = lw * 0.6; x.beginPath(); x.moveTo(X(0.5), Y(0.56)); x.lineTo(X(0.5), Y(0.93)); x.stroke();   // a thin line of light up the ridge to the point
+    }
+  };
+  steel.map = mkTex(256, 2048, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); filigree(x, w, h, '#d9a441', 5, false); }, true);
+  steel.emissiveMap = mkTex(256, 2048, (x, w, h) => { x.fillStyle = '#000'; x.fillRect(0, 0, w, h); x.shadowColor = '#fff'; x.shadowBlur = 10; filigree(x, w, h, '#ffffff', 4, true); }, false);
+  const gemCol = new THREE.Color(hot); { const hsl = {}; gemCol.getHSL(hsl); gemCol.setHSL(hsl.h, 0.95, 0.55); }
+  steel.emissive = gemCol.clone(); steel.emissiveIntensity = 0.8; steel.needsUpdate = true;
+  const gold = new THREE.MeshPhysicalMaterial({ color: 0xf0c060, metalness: 1, roughness: 0.3, clearcoat: 0.5, clearcoatRoughness: 0.1, envMapIntensity: 3.2, emissive: 0x4a3208, emissiveIntensity: 1 });
+  const gemM = new THREE.MeshPhysicalMaterial({ color: gemCol, emissive: gemCol, emissiveIntensity: 1.2, metalness: 0, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.5, flatShading: true });
+  const gripM = new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.15, map: mkTex(256, 256, (x, w, h) => { x.fillStyle = '#10131c'; x.fillRect(0, 0, w, h);
+      x.strokeStyle = '#1d2333'; x.lineWidth = 9; for (let k = -8; k < 16; k++) { x.beginPath(); x.moveTo(k * 32, 0); x.lineTo(k * 32 + 256, 256); x.stroke(); x.beginPath(); x.moveTo(k * 32 + 256, 0); x.lineTo(k * 32, 256); x.stroke(); }   // crossed cord
+      x.fillStyle = '#d9a441'; for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const cx = i * 32 + (j % 2 ? 16 : 0), cy = j * 32 + 16; x.beginPath(); x.moveTo(cx, cy - 7); x.lineTo(cx + 5, cy); x.lineTo(cx, cy + 7); x.lineTo(cx - 5, cy); x.closePath(); x.fill(); } }, true) });
+  gripM.map.wrapS = gripM.map.wrapT = THREE.RepeatWrapping; gripM.map.repeat.set(2, 2);
+
   function sword() {
     const g = new THREE.Group();
     g.add(new THREE.Mesh(BLADE, [steel, edgeM, fullerM]));
-    g.add(new THREE.Mesh(GUARD, polished));
-    for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), polished); cap.position.set(sx * 1.32, 0.2, 0); g.add(cap); }   // rounded ends
-    const lang = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 4), polished); lang.rotation.set(0, Math.PI / 4, 0); lang.scale.set(1, 1, 0.55); lang.position.y = 0.2; g.add(lang);   // the small point the guard makes over the blade
+    // gilded collar over the base of the blade, winged like on fantasy swords, with a gem set in each face
+    const collar = new THREE.Shape(); collar.moveTo(-0.42, 0); collar.lineTo(-0.62, 0.34); collar.lineTo(-0.3, 0.3); collar.lineTo(-0.2, 0.62); collar.lineTo(0, 0.95); collar.lineTo(0.2, 0.62); collar.lineTo(0.3, 0.3); collar.lineTo(0.62, 0.34); collar.lineTo(0.42, 0); collar.closePath();
+    const col = new THREE.Mesh(new THREE.ExtrudeGeometry(collar, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.035, bevelSegments: 2 }), gold); col.position.set(0, 0.06, -0.1); g.add(col);
+    for (const sz of [-1, 1]) { const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.15, 0), gemM); gem.scale.set(0.8, 1.35, 0.45); gem.position.set(0, 0.36, sz * 0.15); g.add(gem); }
+    g.add(new THREE.Mesh(GUARD, gold));
+    for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.1, 0), gemM); cap.position.set(sx * 1.32, 0.2, 0); g.add(cap); }   // rounded ends
     // grip: short, slightly waisted, black leather, one riser in the middle
     const gl = 1.55, prof = []; for (let i = 0; i <= 30; i++) { const gy = gl * i / 30, w = Math.abs(gy / gl - 0.5); prof.push(new THREE.Vector2(0.17 - 0.025 * (1 - 2 * w) + 0.02 * (gy < 0.12 ? 1 - gy / 0.12 : 0), -0.09 - gy)); }
-    g.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 40), blackLeather));
-    const riser = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.022, 10, 40), blackLeather); riser.rotation.x = Math.PI / 2; riser.position.y = -0.09 - gl / 2; g.add(riser);
+    g.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 40), gripM));
+    const riser = new THREE.Mesh(new THREE.TorusGeometry(0.158, 0.026, 10, 40), gold); riser.rotation.x = Math.PI / 2; riser.position.y = -0.09 - gl / 2; g.add(riser);
+    for (const fy of [-0.1, -0.09 - gl + 0.01]) { const fer = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.09, 32), gold); fer.position.y = fy; g.add(fer); }
     // wheel pommel: bevelled rim, recessed face with a domed boss, then the peen cap
     const py = -0.09 - gl - 0.31;
-    const wheel = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0, -0.15), new THREE.Vector2(0.24, -0.15), new THREE.Vector2(0.27, -0.09), new THREE.Vector2(0.36, -0.06), new THREE.Vector2(0.38, 0), new THREE.Vector2(0.36, 0.06), new THREE.Vector2(0.27, 0.09), new THREE.Vector2(0.24, 0.15), new THREE.Vector2(0, 0.15)], 64), polished);
+    const wheel = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0, -0.15), new THREE.Vector2(0.24, -0.15), new THREE.Vector2(0.27, -0.09), new THREE.Vector2(0.36, -0.06), new THREE.Vector2(0.38, 0), new THREE.Vector2(0.36, 0.06), new THREE.Vector2(0.27, 0.09), new THREE.Vector2(0.24, 0.15), new THREE.Vector2(0, 0.15)], 64), gold);
     wheel.rotation.x = Math.PI / 2; wheel.position.y = py; g.add(wheel);
-    for (const sz of [-1, 1]) { const boss = new THREE.Mesh(new THREE.SphereGeometry(0.2, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), polished); boss.scale.set(1, 0.35, 1); boss.rotation.x = sz * Math.PI / 2; boss.position.set(0, py, sz * 0.12); g.add(boss); }
-    const peen = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.14, 24), polished); peen.position.y = py - 0.44; g.add(peen);
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), polished); dome.rotation.x = Math.PI; dome.position.y = py - 0.51; g.add(dome);
+    for (const sz of [-1, 1]) { const boss = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2), gemM); boss.scale.set(1, 0.5, 1); boss.rotation.x = sz * Math.PI / 2; boss.position.set(0, py, sz * 0.12); g.add(boss); }
+    const peen = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.14, 24), gold); peen.position.y = py - 0.44; g.add(peen);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), gold); dome.rotation.x = Math.PI; dome.position.y = py - 0.51; g.add(dome);
     const outer = new THREE.Group(); g.position.y = -3.4; outer.add(g);   // pivot near the middle of the whole sword
     return outer;
   }
 
-  // two crossed behind the card, three further back and smaller (fog takes them into the dark)
+  // two flanking the card, three further back and smaller (fog takes them into the dark)
   const S = [
-    { g: sword(), p: [0, 0.7, -2.5], rz: 0.46, ry: 0.0, sc: 1.05 }, { g: sword(), p: [0, 0.7, -2.9], rz: -0.46, ry: 0.0, sc: 1.05 },
+    { g: sword(), p: [-2.98, 0.2, -2.5], rz: Math.PI + 0.05, ry: 0.0, sc: 0.62 }, { g: sword(), p: [2.98, 0.2, -2.5], rz: Math.PI - 0.05, ry: 0.0, sc: 0.62 },   // one on each side of the card, point down, so the whole sword shows
     { g: sword(), p: [-5.6, 6.5, -9], rz: 2.6, ry: 0.5, sc: 0.75 }, { g: sword(), p: [6, -6.8, -8], rz: -2.4, ry: -0.4, sc: 0.8 }, { g: sword(), p: [5.4, 7.6, -14], rz: 0.4, ry: 0.9, sc: 0.7 },
   ];
   if (solo) { S.length = 1; S[0].p = [0, 0, 0]; S[0].rz = 0.0; S[0].ry = 0.6; S[0].sc = 1.4; }   // test page: one sword, upright
@@ -126,6 +165,7 @@ export async function makeSwords(THREE, canvas, opts) {
       // the crossed pair turns a little on its long axis, so the strip lights run up and down the blades
       o.g.rotation.set(0.1 * Math.sin(t * 0.4 + ph), o.ry + (far ? t * 0.35 : 0.42 * Math.sin(t * 0.5 + i * Math.PI)), o.rz + (far ? t * 0.08 * (i % 2 ? 1 : -1) : (i ? -1 : 1) * 0.04 * bn));
     });
+    steel.emissiveIntensity = 0.8 + 2.6 * hit; gemM.emissiveIntensity = 1.1 + 2.8 * hit;
     flash.intensity = 300 * hit * hit; key.intensity = 1.2 + 0.7 * hit;
     r.render(scene, cam);
   };
