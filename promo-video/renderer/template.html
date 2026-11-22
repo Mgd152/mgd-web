@@ -692,7 +692,7 @@
   if ((F.bgFx || '').includes('swords3d')) {
     const THREE = await import('/node_modules/three/build/three.module.js'), { makeSwords } = await import('./swords3d.js'), cv = $('g3d');
     cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.9;
-    const k3 = F.obj3dSoft || 1; draw3d = await makeSwords(THREE, cv, { W: Math.round(1080 / k3), H: Math.round(1920 / k3), cool: P.cool, hot: P.hot });   // obj3dSoft > 1: rendered smaller and stretched = out of focus
+    const k3 = F.obj3dSoft || 1; draw3d = await makeSwords(THREE, cv, { W: Math.round(1080 / k3), H: Math.round(1920 / k3), cool: P.cool, hot: P.hot, drop: T_DROP });   // obj3dSoft > 1: rendered smaller and stretched = out of focus
   }
   $('art').src = BUILD + '/cover_sq.jpg';
   if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
@@ -845,7 +845,7 @@
     $('viz').style.opacity = 1 - vP; $('vizDrop').style.opacity = 1 - vP; $('verdict').style.opacity = vP; $('verdict').style.transform = `translateY(${(1 - vP) * 16}px)`;
     vWords.forEach((w, i) => { const p = eOutCubic(prog(t, T_VERD + 0.5 + i * BEAT / 2, 0.3)); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 12}px)`; });
 
-    if (draw3d) draw3d(t + 0.4 * ts, hit, BNC[fi]);
+    if (draw3d) draw3d(t + 0.4 * ts, hit, BNC[fi], t);
     drawAtmos(fi, t, ts, hit, cr);
 
     const ctaP = eOutBack(prog(t, T_CTA, 0.35), 2);
