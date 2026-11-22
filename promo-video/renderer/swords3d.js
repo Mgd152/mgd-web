@@ -147,24 +147,23 @@ export async function makeSwords(THREE, canvas, opts) {
     return outer;
   }
 
-  // a fan of blades behind the card, like a throne of swords: hilts hidden behind the card, blades radiating up and out.
-  // Before the drop only the points peek out; on the drop the fan snaps open, and every hit thrusts the blades outward in a wave.
-  const NS = 9, S = []; for (let i = 0; i < NS; i++) { const th = (-112 + 224 * i / (NS - 1)) * Math.PI / 180; S.push({ g: sword(), th, sc: 0.6 - 0.07 * Math.abs(i - (NS - 1) / 2) / ((NS - 1) / 2) }); }
-  if (solo) { S.length = 1; S[0].th = 0; S[0].sc = 1.4; S[0].solo = true; }
+  // two swords crossed behind the card (the owner's pick after trying flanking swords and a fan of blades), three more small ones far back
+  const S = [
+    { g: sword(), p: [0, 0.7, -2.5], rz: 0.46, ry: 0.0, sc: 1.05 }, { g: sword(), p: [0, 0.7, -2.9], rz: -0.46, ry: 0.0, sc: 1.05 },
+    { g: sword(), p: [-5.6, 6.5, -9], rz: 2.6, ry: 0.5, sc: 0.75 }, { g: sword(), p: [6, -6.8, -8], rz: -2.4, ry: -0.4, sc: 0.8 }, { g: sword(), p: [5.4, 7.6, -14], rz: 0.4, ry: 0.9, sc: 0.7 },
+  ];
+  if (solo) { S.length = 1; S[0].p = [0, 0, 0]; S[0].rz = 0; S[0].ry = 0.6; S[0].sc = 1.4; }
   S.forEach(o => { o.g.scale.setScalar(o.sc); scene.add(o.g); });
   scene.fog = new THREE.Fog(0x05070b, 22, 44);
   const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(-5, 9, 10); scene.add(key);
   const rim = new THREE.DirectionalLight(new THREE.Color(cool), 1.2); rim.position.set(6, -3, -6); scene.add(rim);
   const flash = new THREE.PointLight(new THREE.Color(cool).lerp(new THREE.Color(0xffffff), 0.65), 0, 60, 1.2); flash.position.set(3, 6, 9); scene.add(flash);
 
-  const drop = opts.drop ?? 0, eob = x => { x = Math.min(1, Math.max(0, x)); const c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
-  return function draw(t, hit, bn, tr = t) {
-    const open = eob((tr - drop) / 0.45), sway = 0.05 * Math.sin(tr * 0.5);
+  return function draw(t, hit, bn) {
     S.forEach((o, i) => {
-      if (o.solo) { o.g.position.set(0, 0, 0); o.g.rotation.set(0, 0.6 + t * 0.3, 0); return; }
-      const wave = Math.max(0, Math.sin(tr * 7 - i * 0.7)) * 0.25 * hit, R = 1.2 + 2.5 * open + 0.55 * bn + wave, th = o.th * (0.72 + 0.28 * open) + sway;
-      o.g.position.set(Math.sin(th) * R, 0.9 + Math.cos(th) * R, -3 - 0.12 * Math.abs(i - (NS - 1) / 2));
-      o.g.rotation.set(0, 0.5 * Math.sin(t * 0.6 + i * 0.9), -th);   // each blade rolls a little on its own axis, so the light runs along it
+      const far = i > 1, ph = i * 1.9;
+      o.g.position.set(o.p[0] + (far ? Math.sin(t * 0.25 + ph) * 0.8 : 0), o.p[1] + (far ? Math.cos(t * 0.21 + ph) * 0.7 : 0.15 * Math.sin(t * 0.9)) + (far ? 0 : 0.25 * bn), o.p[2]);
+      o.g.rotation.set(0.1 * Math.sin(t * 0.4 + ph), o.ry + (far ? t * 0.35 : 0.42 * Math.sin(t * 0.5 + i * Math.PI)), o.rz + (far ? t * 0.08 * (i % 2 ? 1 : -1) : (i ? -1 : 1) * 0.04 * bn));
     });
     if (FANCY) { steel.emissiveIntensity = 0.8 + 2.6 * hit; gemM.emissiveIntensity = 1.1 + 2.8 * hit; }
     flash.intensity = 300 * hit * hit; key.intensity = 1.2 + 0.7 * hit;
