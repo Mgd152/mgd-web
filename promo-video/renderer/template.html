@@ -459,6 +459,21 @@
       }
       c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.8, 'lighter');
     }
+    if ((F.bgFx || '').includes('halo')) {   // light bursting from behind the card: an eclipse-like corona, long god rays that turn slowly, an anamorphic streak; all swell on the hits
+      const so = soft('halo', 3), c = so.c, bn = BNC[fi], cx = W / 2, cy = cardRect ? cardRect.top + cardRect.height * 0.46 : H * 0.42, live_ = t >= T_DROP ? 1 : 0.45 + 0.25 * clamp(t / Math.max(T_DROP, 0.1));
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 34; i++) {   // god rays
+        const a = hash(i * 7.31) * 6.283 + t * (0.05 + 0.05 * hash(i * 1.7)) * (i % 2 ? 1 : -1), wd = 0.012 + 0.05 * hash(i * 3.3), len = (700 + 900 * hash(i * 5.9)) * (0.75 + 0.3 * bn + 0.25 * Math.sin(t * 0.7 + i)) * live_;
+        const g = c.createRadialGradient(cx, cy, 200, cx, cy, 200 + len); g.addColorStop(0, rgbaOf(P.hot, 0.34 * live_)); g.addColorStop(0.35, rgbaOf(P.cool, 0.14 * live_)); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.beginPath(); c.moveTo(cx, cy); c.arc(cx, cy, 200 + len, a - wd, a + wd); c.closePath(); c.fill();
+      }
+      const R0 = 470 * (1 + 0.05 * bn), cg = c.createRadialGradient(cx, cy, R0 * 0.72, cx, cy, R0 * 1.5);   // corona ring around the card
+      cg.addColorStop(0, 'rgba(0,0,0,0)'); cg.addColorStop(0.3, rgbaOf(P.white || '#ffffff', (0.3 + 0.35 * hit) * live_)); cg.addColorStop(0.42, rgbaOf(P.hot, (0.42 + 0.3 * hit) * live_)); cg.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = cg; c.fillRect(0, 0, W, H);
+      const fl = c.createLinearGradient(0, 0, W, 0); fl.addColorStop(0, 'rgba(0,0,0,0)'); fl.addColorStop(0.5, rgbaOf(P.hot, (0.25 + 0.55 * hit) * live_)); fl.addColorStop(1, 'rgba(0,0,0,0)');   // anamorphic streak
+      c.fillStyle = fl; c.fillRect(0, cy + 430 - 5 - 10 * hit, W, 10 + 20 * hit);
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.85, 'lighter');
+    }
     if ((F.bgFx || '').includes('moon')) {   // a big pale moon behind the card: soft halo, a few craters, it swells a little with the hits
       const so = soft('moon', 2), c = so.c, bn = BNC[fi], mx = W * 0.74 + Math.sin(t * 0.12) * 14, my = H * 0.15 + Math.cos(t * 0.1) * 10, R0 = 215 * (1 + 0.035 * bn);
       const halo = c.createRadialGradient(mx, my, R0 * 0.8, mx, my, R0 * 2.6); halo.addColorStop(0, rgbaOf(P.hot, 0.42 + 0.25 * hit)); halo.addColorStop(0.4, rgbaOf(P.cool, 0.16)); halo.addColorStop(1, 'rgba(0,0,0,0)');
