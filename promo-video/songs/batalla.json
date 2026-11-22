@@ -20,5 +20,7 @@
   "bg_fx": "swords3d,lightning",
   "story": "0.9:6.4,6.1:7.0,8.4:9.1",
   "score": 9.1,
-  "notes": "Slowed version (103 s), artists as on Apple: ICEDMANE & DYSMANE. Audio = Apple's 30 s preview (first 30 s). Drop 1 at 0:12.16: bass comes in for good after two lead-in kicks (0:09.84, 0:10.24) and a ~2 s gap. Beat 0.70 s. Clip starts 3 bars before the drop (0:03.76). Steel blue / white from the knight cover; cold lightning and blade cuts on the hits. No judge: the dark knight does not cut out cleanly. Scores are mine. Background: real 3D longswords (three.js) crossed behind the card and floating in depth ('batalla' = battle), plus lightning. The knight picture was tried and dropped."
+  "notes": "Slowed version (103 s), artists as on Apple: ICEDMANE & DYSMANE. Audio = Apple's 30 s preview (first 30 s). Drop 1 at 0:12.16: bass comes in for good after two lead-in kicks (0:09.84, 0:10.24) and a ~2 s gap. Beat 0.70 s. Clip starts 3 bars before the drop (0:03.76). Steel blue / white from the knight cover; cold lightning and blade cuts on the hits. No judge: the dark knight does not cut out cleanly. Scores are mine. Background: real 3D longswords (three.js) crossed behind the card and floating in depth ('batalla' = battle), plus lightning. The knight picture was tried and dropped.",
+  "obj3d_alpha": 0.55,
+  "obj3d_soft": 1.0
 }

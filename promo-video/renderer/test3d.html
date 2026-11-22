@@ -1,0 +1,7 @@
+<!doctype html><html><body style="margin:0;background:#0a0e14"><canvas id="c" style="width:1080px;height:1920px"></canvas>
+<script type="module">
+const THREE = await import('/node_modules/three/build/three.module.js'); const { makeSwords } = await import('./swords3d.js');
+const q = new URLSearchParams(location.search);
+const draw = await makeSwords(THREE, document.getElementById('c'), { W: 1080, H: 1920, cool: '#3a5470', hot: '#cfe2ff', closeup: +q.get('z') || 0, cy: q.has('cy') ? +q.get('cy') : null, solo: +q.get('solo') || 0 });
+draw(+q.get('t') || 1, +q.get('hit') || 0, 0); window.READY = true; window.NFRAMES = 1; window.renderFrame = () => {};
+</script></body></html>
