@@ -20,6 +20,12 @@ export async function makeModel(THREE, GLTFLoader, canvas, opts) {
   const rim = new THREE.DirectionalLight(new THREE.Color(hot), 1.4); rim.position.set(8, 3, -10); scene.add(rim);
   const flash = new THREE.PointLight(new THREE.Color(hot).lerp(new THREE.Color(0xffffff), 0.5), 0, 80, 1.2); flash.position.set(0, y + 5, 10); scene.add(flash);
   return function draw(t, hit, bn) {
+    if (opts.drive) {   // the car cruises across the frame under the card, turns round off screen and comes back; hits push it along (t is beat-warped) and press the suspension
+      const T = opts.drive, k = Math.floor(t / T), u = t / T - k, dir = k % 2 ? -1 : 1, x = dir * (-6.6 + 13.2 * u);
+      pivot.position.set(x, y + 0.03 * Math.sin(t * 9) - 0.06 * bn, dir > 0 ? 0 : -1.2);
+      pivot.rotation.set(pitch * 0.6, dir * (Math.PI / 2 - 0.32) + 0.05 * Math.sin(t * 0.7), -dir * 0.012 * bn);
+      flash.position.x = x; flash.intensity = 380 * hit * hit; key.intensity = 1.4 + 0.8 * hit; r.render(scene, cam); return;
+    }
     pivot.position.set(0, y + 0.1 * Math.sin(t * 0.9) + 0.22 * bn, 0);
     pivot.rotation.set(pitch, yaw + 0.5 * Math.sin(t * spin), 0);   // a slow turn back and forth around a three-quarter view, level like a car on a turntable (a full tumble looked weightless and fake)
     const s = size / Math.max(sz.x, sz.z, sz.y) * (1 + 0.05 * bn); pivot.scale.setScalar(s);

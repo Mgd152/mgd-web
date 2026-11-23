@@ -722,7 +722,7 @@
     { // screen effect like the cover art's: the model keeps its form and shading but is pulled into the cover's tone, with hard contrast and a neon glow around it
       const c3 = new THREE.Color(P.hot), hs = {}; c3.getHSL(hs); const hue = Math.round(hs.h * 360 - 38), mono = hs.s < 0.12;
       cv.style.filter = `grayscale(0.85) contrast(1.45) brightness(0.95) ${mono ? '' : `sepia(0.9) hue-rotate(${hue}deg) saturate(${(2.2 + 1.2 * hs.s).toFixed(2)})`} drop-shadow(0 0 22px ${rgbaOf(P.hot, 0.55)})`; }
-    draw3d = await makeModel(THREE, GLTFLoader, cv, { W: 1080, H: 1920, url: BUILD + '/model.glb', cool: P.cool, hot: P.hot, y: m[0] ?? -3.3, size: m[1] ?? 5.2, spin: m[2] ?? 0.5, yaw: m[3] ?? 0.6, pitch: m[4] ?? 0.12, tint: F.modelTint || null });
+    draw3d = await makeModel(THREE, GLTFLoader, cv, { W: 1080, H: 1920, url: BUILD + '/model.glb', cool: P.cool, hot: P.hot, y: m[0] ?? -3.3, size: m[1] ?? 5.2, spin: m[2] ?? 0.5, yaw: m[3] ?? 0.6, pitch: m[4] ?? 0.12, tint: F.modelTint || null, drive: F.modelDrive || 0 });
   }
   if ((F.bgFx || '').includes('swords3d')) {
     const THREE = await import('/node_modules/three/build/three.module.js'), { makeSwords } = await import('./swords3d.js'), cv = $('g3d');
