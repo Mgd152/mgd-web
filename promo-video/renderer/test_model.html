@@ -1,0 +1,8 @@
+<!doctype html><html><head><script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script></head>
+<body style="margin:0;background:#0a0e14"><canvas id="c" style="width:1080px;height:1920px"></canvas>
+<script type="module">
+const THREE = await import('three'); const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); const { makeModel } = await import('./model3d.js');
+const q = new URLSearchParams(location.search);
+const draw = await makeModel(THREE, GLTFLoader, document.getElementById('c'), { W: 1080, H: 1920, url: q.get('m'), cool: q.get('cool') || '#3a5470', hot: q.get('hot') || '#cfe2ff', y: 0, size: 5.4, yaw: +q.get('yaw') || 0.6 });
+draw(0, 0.3, 0); window.READY = true; window.NFRAMES = 1; window.renderFrame = () => {};
+</script></body></html>

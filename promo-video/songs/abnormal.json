@@ -17,9 +17,12 @@
   "cta": "send me your funk",
   "pal": "#050505,#5a5a5e,#f2f2f2,#ffffff",
   "bg_dim": 0.5,
-  "bg_fx": "chains-x",
+  "bg_fx": "slash",
   "story": "0.9:6.2,4.99:6.8,8.32:8.8",
   "score": 8.8,
   "notes": "Batch from the owner's playlist. Drop = where the most hyped section starts (owner's rule), measured by me at 16.62 s. Scores are mine.",
-  "mid_drive": "8.3,20.8"
+  "mid_drive": "8.3,20.8",
+  "model": "assets/models/DamagedHelmet.glb",
+  "model_at": "-4.75,3.1,0.5,0.4,0.05",
+  "obj3d_alpha": 1.0
 }

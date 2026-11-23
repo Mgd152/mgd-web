@@ -20,5 +20,8 @@
   "bg_fx": "trails,slash",
   "story": "0.9:6.1,6.06:6.7,10.10:8.7",
   "score": 8.7,
-  "notes": "Batch from the owner's playlist. Drop = where the most hyped section starts (owner's rule), measured by me at 10.1 s. Scores are mine."
+  "notes": "Batch from the owner's playlist. Drop = where the most hyped section starts (owner's rule), measured by me at 10.1 s. Scores are mine.",
+  "model": "assets/models/BoomBox.glb",
+  "model_at": "-4.75,3.3,0.5,0.5,0.15",
+  "obj3d_alpha": 1.0
 }
