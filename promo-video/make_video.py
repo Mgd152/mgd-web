@@ -44,7 +44,7 @@ for k, v in cfg.items():
         if v:
             cmd.append('--' + k)
     else:
-        cmd += ['--' + k, str(v)]
+        cmd.append(f'--{k}={v}')   # '=' form, so values that start with '-' are not taken for flags
 if not a.encode_only:
     run(cmd)
 
