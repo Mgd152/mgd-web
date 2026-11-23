@@ -23,5 +23,5 @@
   "notes": "Batch from the owner's playlist. Drop = where the most hyped section starts (owner's rule), measured by me at 10.1 s. Scores are mine.",
   "model": "assets/models/BoomBox.glb",
   "model_at": "-4.75,3.3,0.5,0.5,0.15",
-  "obj3d_alpha": 0.45
+  "obj3d_alpha": 0.7
 }

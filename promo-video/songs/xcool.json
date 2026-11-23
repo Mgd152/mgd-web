@@ -21,8 +21,5 @@
   "notes": "mp3 from the owner (original version). Drop at 0:24.08 as the owner described: the music fades out, then comes back in, a section without kick (mids drive the reactions there). Score is mine.",
   "pal": "#020814,#1f55d8,#7fb4ff,#f0f6ff",
   "leaf_colors": "#0a1e5e,#7fb4ff,#ffffff",
-  "mid_drive": "7.5,18.8",
-  "model": "assets/models/SunglassesKhronos.glb",
-  "model_at": "-4.2,4.6,0.5,0.4,0.1",
-  "obj3d_alpha": 0.45
+  "mid_drive": "7.5,18.8"
 }

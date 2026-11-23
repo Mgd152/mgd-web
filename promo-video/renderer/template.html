@@ -716,10 +716,10 @@
   let draw3d = null;   // real 3D props (three.js), drawn behind the card
   if (F.model3d) {
     const THREE = await import('three'), { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), { makeModel } = await import('./model3d.js'), cv = $('g3d'), m = F.modelAt || [];
-    cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.45;
-    { // same grade as the cover art: the model is reduced to one tone in the cover's accent colour (duotone), contrasty, slightly soft
-      const c3 = new THREE.Color(P.hot), hs = {}; c3.getHSL(hs); const hue = Math.round(hs.h * 360 - 38), sat = hs.s < 0.12 ? 0 : 1.6 + 1.4 * hs.s;
-      cv.style.filter = `grayscale(1) contrast(1.25) brightness(1.1) sepia(1) hue-rotate(${hue}deg) saturate(${sat.toFixed(2)}) blur(1.2px)`; }
+    cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.7;
+    { // screen effect like the cover art's: the model keeps its form and shading but is pulled into the cover's tone, with hard contrast and a neon glow around it
+      const c3 = new THREE.Color(P.hot), hs = {}; c3.getHSL(hs); const hue = Math.round(hs.h * 360 - 38), mono = hs.s < 0.12;
+      cv.style.filter = `grayscale(0.85) contrast(1.45) brightness(0.95) ${mono ? '' : `sepia(0.9) hue-rotate(${hue}deg) saturate(${(2.2 + 1.2 * hs.s).toFixed(2)})`} drop-shadow(0 0 22px ${rgbaOf(P.hot, 0.55)})`; }
     draw3d = await makeModel(THREE, GLTFLoader, cv, { W: 1080, H: 1920, url: BUILD + '/model.glb', cool: P.cool, hot: P.hot, y: m[0] ?? -3.3, size: m[1] ?? 5.2, spin: m[2] ?? 0.5, yaw: m[3] ?? 0.6, pitch: m[4] ?? 0.12, tint: F.modelTint || null });
   }
   if ((F.bgFx || '').includes('swords3d')) {
