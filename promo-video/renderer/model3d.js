@@ -21,7 +21,7 @@ export async function makeModel(THREE, GLTFLoader, canvas, opts) {
   const flash = new THREE.PointLight(new THREE.Color(hot).lerp(new THREE.Color(0xffffff), 0.5), 0, 80, 1.2); flash.position.set(0, y + 5, 10); scene.add(flash);
   return function draw(t, hit, bn) {
     pivot.position.set(0, y + 0.1 * Math.sin(t * 0.9) + 0.22 * bn, 0);
-    pivot.rotation.set(pitch + 0.03 * Math.sin(t * 0.6), yaw + t * spin, 0.02 * Math.sin(t * 0.8));
+    pivot.rotation.set(pitch, yaw + 0.5 * Math.sin(t * spin), 0);   // a slow turn back and forth around a three-quarter view, level like a car on a turntable (a full tumble looked weightless and fake)
     const s = size / Math.max(sz.x, sz.z, sz.y) * (1 + 0.05 * bn); pivot.scale.setScalar(s);
     flash.intensity = 380 * hit * hit; key.intensity = 1.4 + 0.8 * hit;
     r.render(scene, cam);

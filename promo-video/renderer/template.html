@@ -116,6 +116,8 @@
   <img id="judge"><img id="judge2" style="position:absolute;opacity:0"><div id="judgeSay"></div>
   <div class="abs" id="cta"><i></i></div>
   <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
+  <div class="abs" id="vig" style="width:1080px;height:1920px;pointer-events:none;background:radial-gradient(ellipse 75% 62% at 50% 44%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.5) 100%)"></div>
+  <canvas class="abs" id="grain" width="540" height="960" style="width:1080px;height:1920px;mix-blend-mode:overlay;opacity:0.22;pointer-events:none"></canvas>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
 </div>
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
@@ -919,6 +921,7 @@
 
     $('wm').style.transform = `translateY(${-7 * BNC[fi]}px) rotate(-3deg) scale(${1 + 0.14 * BNC[fi]})`;   // the channel mark pops with the beat
     $('muf').style.opacity = 0.45 * inMuf(t);
+    GR(fi);
     $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
     { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
       hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
@@ -936,6 +939,11 @@
     }
   }
   $('wm').textContent = F.watermark ? '@' + F.watermark : '';
+  // screen look shared by every video, taken from how the cover arts are finished: film grain that changes every frame and a soft vignette.
+  // No drawn decoration: it only makes the picture read as one photographed image instead of clean layers.
+  const GR = (() => { const g = $('grain').getContext('2d'), tiles = []; const R9 = rng(99);
+    for (let k = 0; k < 6; k++) { const im = g.createImageData(540, 960), d = im.data; for (let i = 0; i < d.length; i += 4) { const v = 128 + (R9() + R9() - 1) * 120; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } tiles.push(im); }
+    return fi => g.putImageData(tiles[Math.floor(hash(fi * 1.7) * 6)], 0, 0); })();
   window.NFRAMES = NF;
   window.READY = true;
 })().catch(e => { console.error('INIT', e.message); });

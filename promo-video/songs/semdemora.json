@@ -22,6 +22,6 @@
   "score": 8.8,
   "notes": "Original version (the store preview of the slowed one ends 5 s after its drop). Owner: drop at ~0:22; measured 0:22.52 (lead-in kick 0:22.28). Preview ends at 0:30, so only one bar after the drop before the stamp; bpm set to 100 only to make the layout fit (real beat 0.70 s). Light trails like passing cars (cover: a Skyline at night). Score is mine.",
   "model": "assets/models/CarConcept.glb",
-  "model_at": "-4.3,5.2,0.45,0.7,0.16",
-  "obj3d_alpha": 0.7
+  "model_at": "-4.3,5.2,0.5,0.75,0.12",
+  "obj3d_alpha": 0.42
 }
