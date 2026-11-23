@@ -20,6 +20,12 @@ export async function makeModel(THREE, GLTFLoader, canvas, opts) {
   const rim = new THREE.DirectionalLight(new THREE.Color(hot), 1.4); rim.position.set(8, 3, -10); scene.add(rim);
   const flash = new THREE.PointLight(new THREE.Color(hot).lerp(new THREE.Color(0xffffff), 0.5), 0, 80, 1.2); flash.position.set(0, y + 5, 10); scene.add(flash);
   return function draw(t, hit, bn) {
+    if (opts.float) {   // weightless: drifts on a slow wandering path, turns and tilts a little on every axis, breathes nearer and further; hits nudge it
+      const f = opts.float, ph = 1.3;
+      pivot.position.set(f * (1.5 * Math.sin(t * 0.21 + ph) + 0.5 * Math.sin(t * 0.47)), y + f * (0.8 * Math.cos(t * 0.17 + ph * 0.7) + 0.3 * Math.sin(t * 0.39)) + 0.18 * bn, f * 1.2 * Math.sin(t * 0.26));
+      pivot.rotation.set(pitch + f * 0.24 * Math.sin(t * 0.23 + 1), yaw + f * (0.7 * Math.sin(t * 0.19 + ph) + 0.06 * t), f * 0.2 * Math.sin(t * 0.31 + 2));
+      flash.position.x = pivot.position.x; flash.intensity = 380 * hit * hit; key.intensity = 1.4 + 0.8 * hit; r.render(scene, cam); return;
+    }
     if (opts.drive) {   // the car cruises across the frame under the card, turns round off screen and comes back; hits push it along (t is beat-warped) and press the suspension
       const T = opts.drive, k = Math.floor(t / T), u = t / T - k, dir = k % 2 ? -1 : 1, x = dir * (-6.6 + 13.2 * u);
       pivot.position.set(x, y + 0.03 * Math.sin(t * 9) - 0.06 * bn, dir > 0 ? 0 : -1.2);

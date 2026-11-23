@@ -60,6 +60,7 @@ p.add_argument('--mid_drive', default='')                 # 't0,t1' (clip second
 p.add_argument('--model', default='')                     # a glTF binary (.glb) shown as a real 3D object under the card
 p.add_argument('--model_tint', default='')                # hex colour to repaint the model's paint with (e.g. the cover's colour)
 p.add_argument('--model_drive', type=float, default=0.0)  # seconds for the model (a car) to cross the frame; 0 = stays in place on a turntable
+p.add_argument('--model_float', type=float, default=1.0)  # 1 = the model floats weightlessly (the owner's choice); 0 = turntable
 p.add_argument('--model_at', default='')                  # 'y,size,spin,yaw,pitch' (world units; y = -3.3 is the lower third, size 5.2 fills the width)
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
@@ -337,7 +338,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judge2': bool(a.judge_img and a.judge_img2), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'model3d': bool(a.model), 'modelDrive': a.model_drive, 'modelTint': a.model_tint, 'modelAt': [float(v) for v in a.model_at.split(',')] if a.model_at else None, 'obj3dAlpha': a.obj3d_alpha, 'obj3dSoft': a.obj3d_soft, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': (muf_ if (a.muffled or a.mid_drive) else None), 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'model3d': bool(a.model), 'modelFloat': a.model_float, 'modelDrive': a.model_drive, 'modelTint': a.model_tint, 'modelAt': [float(v) for v in a.model_at.split(',')] if a.model_at else None, 'obj3dAlpha': a.obj3d_alpha, 'obj3dSoft': a.obj3d_soft, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': (muf_ if (a.muffled or a.mid_drive) else None), 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
