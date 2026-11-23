@@ -9,16 +9,17 @@
   "drop_at": 9.5,
   "bpm": 100.0,
   "particles": "ash",
-  "atmos": 1.5,
+  "atmos": 1.7,
   "sway": 1,
   "energy": 1.3,
   "glitch": false,
   "cta": "send me your funk",
   "bg_dim": 0.6,
-  "bg_fx": "slash",
+  "bg_fx": "swords3d",
   "story": "0.9:6.3,5.70:6.9,9.50:8.9",
   "score": 8.9,
   "notes": "Batch from the owner's playlist screenshot. Audio = store preview (apple, first 30 s). Drop measured by me at 9.5 s, not confirmed by the owner. Palette set by hand from the cover. Scores are mine.",
   "pal": "#140402,#b3260f,#ff6a2e,#fff1e6",
-  "leaf_colors": "#3a0a02,#ff6a2e,#ffd08a"
+  "leaf_colors": "#3a0a02,#ff6a2e,#ffd08a",
+  "obj3d_alpha": 0.6
 }

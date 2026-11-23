@@ -474,6 +474,15 @@
       c.fillStyle = fl; c.fillRect(0, cy + 430 - 5 - 10 * hit, W, 10 + 20 * hit);
       c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.85, 'lighter');
     }
+    if ((F.bgFx || '').includes('orbs')) {   // big soft glowing orbs rising slowly, like something radioactive in the air; they swell and brighten on the hits
+      const so = soft('orbs', 4), c = so.c, bn = BNC[fi]; c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 16; i++) {
+        const z = 0.4 + 0.6 * hash(i * 3.1), x = W * hash(i * 7.7) + Math.sin(t * 0.3 + i) * 60, y = wrap(H * hash(i * 5.3) - (t * (30 + 50 * z) + ts * 30), H, 300), r = (70 + 150 * z) * (1 + 0.25 * bn);
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgbaOf(P.hot, (0.5 + 0.4 * hit) * z)); g.addColorStop(0.35, rgbaOf(P.hot, 0.2 * z)); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.8, 'lighter');
+    }
     if ((F.bgFx || '').includes('moon')) {   // a big pale moon behind the card: soft halo, a few craters, it swells a little with the hits
       const so = soft('moon', 2), c = so.c, bn = BNC[fi], mx = W * 0.74 + Math.sin(t * 0.12) * 14, my = H * 0.15 + Math.cos(t * 0.1) * 10, R0 = 215 * (1 + 0.035 * bn);
       const halo = c.createRadialGradient(mx, my, R0 * 0.8, mx, my, R0 * 2.6); halo.addColorStop(0, rgbaOf(P.hot, 0.42 + 0.25 * hit)); halo.addColorStop(0.4, rgbaOf(P.cool, 0.16)); halo.addColorStop(1, 'rgba(0,0,0,0)');

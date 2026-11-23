@@ -15,7 +15,7 @@
   "glitch": false,
   "cta": "send me your funk",
   "bg_dim": 0.6,
-  "bg_fx": "slash",
+  "bg_fx": "glitch,slash",
   "story": "0.9:6.0,4.32:6.6,7.20:8.6",
   "score": 8.6,
   "notes": "Batch from the owner's playlist screenshot. Audio = store preview (apple, first 30 s). Drop measured by me at 13.36 s, not confirmed by the owner. Palette set by hand from the cover. Scores are mine.",

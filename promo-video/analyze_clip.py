@@ -56,6 +56,7 @@ p.add_argument('--muffled', default='')                   # 't0,t1' (clip second
 p.add_argument('--bg_obj_at', default='')                 # where the bg_objs go: 'x,y,width,alpha,flip,float;...' (x, y = centre as 0..1 of the frame, width in px, flip 1 or -1, float 0..1 = weightless drift); default: one faint object top right
 p.add_argument('--obj3d_alpha', type=float, default=0.9)  # opacity of the 3D props layer
 p.add_argument('--obj3d_soft', type=float, default=1.0)   # how out of focus the 3D props are (1 = sharp, 3-4 = soft background)
+p.add_argument('--mid_drive', default='')                 # 't0,t1' (clip seconds): a section with little bass (no kick): the mids drive the reactions there, nothing else changes
 p.add_argument('--mids', type=float, default=0.65)       # strength of the non-bass hits (low-mids, snare, perc) in the reactions; bass and kick stay at full strength
 p.add_argument('--bg_dim', type=float, default=1.0)      # background brightness (0.8 = a little darker)
 p.add_argument('--pal', default='')                      # manual palette override: deep,cool,hot,white (hex, comma separated)
@@ -209,6 +210,9 @@ flux = to_frames(np.maximum(0, np.diff(logm, axis=1, prepend=logm[:, :1])).sum(0
 fl_lo, fl_hi = np.percentile(flux, 50), np.percentile(flux, 99.5)
 env_perc = release(np.clip((flux - fl_lo) / (fl_hi - fl_lo), 0, 1) ** 1.2, 0.12)
 muf = [float(x) for x in a.muffled.split(',')] if a.muffled else None
+mdr = [float(x) for x in a.mid_drive.split(',')] if a.mid_drive else None
+if muf or mdr:
+    muf_ = muf; muf = muf or mdr
 if muf:   # inside the muffled passage the mid hits are tiny next to the rest of the clip: measure them against the passage itself
     fr = np.arange(NF) / FPS; inm = (fr >= muf[0]) & (fr < muf[1])
     if inm.sum() > 10:
@@ -326,7 +330,7 @@ feat = {
     'wave': np.round(wave, 3).tolist(), 'dropAt': a.drop_at,
     'story': ([[float(x.split(':')[0]), float(x.split(':')[1])] for x in a.story.split(',')] + [[scan_end, a.score if a.score is not None else float(a.story.split(',')[-1].split(':')[1])]]) if a.story else None,
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judge2': bool(a.judge_img and a.judge_img2), 'judgeLine': a.judge_line,
-    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'obj3dAlpha': a.obj3d_alpha, 'obj3dSoft': a.obj3d_soft, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': muf, 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
+    'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'obj3dAlpha': a.obj3d_alpha, 'obj3dSoft': a.obj3d_soft, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': (muf_ if (a.muffled or a.mid_drive) else None), 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
