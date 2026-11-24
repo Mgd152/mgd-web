@@ -8,19 +8,17 @@
   "target": 18.8,
   "drop_at": 24.08,
   "bpm": 127.7,
-  "particles": "none",
-  "atmos": 1.0,
+  "particles": "ash",
+  "atmos": 1.4,
   "sway": 1,
   "energy": 1.3,
   "glitch": false,
   "cta": "send me your funk",
   "bg_dim": 0.6,
-  "bg_fx": "lightning",
   "story": "0.9:6.5,4.6:7.1,7.52:9.1",
   "score": 9.1,
   "notes": "mp3 from the owner (original version). Drop at 0:24.08 as the owner described: the music fades out, then comes back in, a section without kick (mids drive the reactions there). Score is mine.",
   "pal": "#020814,#1f55d8,#7fb4ff,#f0f6ff",
   "leaf_colors": "#0a1e5e,#7fb4ff,#ffffff",
-  "mid_drive": "7.5,18.8",
-  "fx_alpha": 0.4
+  "mid_drive": "7.5,18.8"
 }
