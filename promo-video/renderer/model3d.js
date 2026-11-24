@@ -22,8 +22,10 @@ export async function makeModel(THREE, GLTFLoader, canvas, opts) {
   return function draw(t, hit, bn) {
     if (opts.float) {   // weightless: drifts on a slow wandering path, turns and tilts a little on every axis, breathes nearer and further; hits nudge it
       const f = opts.float, ph = 1.3;
-      pivot.position.set(f * (1.5 * Math.sin(t * 0.21 + ph) + 0.5 * Math.sin(t * 0.47)), y + f * (0.8 * Math.cos(t * 0.17 + ph * 0.7) + 0.3 * Math.sin(t * 0.39)) + 0.18 * bn, f * 1.2 * Math.sin(t * 0.26));
-      pivot.rotation.set(pitch + f * 0.24 * Math.sin(t * 0.23 + 1), yaw + f * (0.7 * Math.sin(t * 0.19 + ph) + 0.06 * t), f * 0.2 * Math.sin(t * 0.31 + 2));
+      // it wanders over the whole frame, not just under the card: starts low, drifts up behind the card to the top and back, swaying sideways
+      const Y = Math.abs(y), sgn = y <= 0 ? -1 : 1;
+      pivot.position.set(f * (1.5 * Math.sin(t * 0.23 + ph) + 0.5 * Math.sin(t * 0.47)), sgn * Y * Math.cos(t * 0.2) + f * (0.5 * Math.sin(t * 0.37 + ph) + 0.25 * Math.sin(t * 0.61)) + 0.18 * bn, f * 1.6 * Math.sin(t * 0.26));
+      pivot.rotation.set(pitch + f * 0.3 * Math.sin(t * 0.23 + 1), yaw + f * (0.7 * Math.sin(t * 0.19 + ph) + 0.1 * t), f * 0.26 * Math.sin(t * 0.31 + 2));
       flash.position.x = pivot.position.x; flash.intensity = 380 * hit * hit; key.intensity = 1.4 + 0.8 * hit; r.render(scene, cam); return;
     }
     if (opts.drive) {   // the car cruises across the frame under the card, turns round off screen and comes back; hits push it along (t is beat-warped) and press the suspension

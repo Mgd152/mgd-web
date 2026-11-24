@@ -650,6 +650,7 @@
         c.restore();
       }
     }
+    if (F.fxAlpha != null && F.fxAlpha < 1) { fxB.save(); fxB.shadowBlur = 0; fxB.globalAlpha = 1; fxB.filter = 'none'; fxB.globalCompositeOperation = 'destination-in'; fxB.fillStyle = `rgba(0,0,0,${F.fxAlpha})`; fxB.fillRect(0, 0, W, H); fxB.restore(); }   // fx_alpha: everything drawn so far (the bg_fx things) is faded back; particles after this keep their strength
     // warm embers rising, a short streak each; brighter and faster on the hits
     for (const e of embers) {
       const c = e.front ? fxF : fxB;
