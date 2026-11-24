@@ -28,6 +28,7 @@
   #cTitle { font-size: 50px; font-weight: 700; letter-spacing: -0.01em; margin-top: 22px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #cArtist { font-size: 26px; font-weight: 600; opacity: 0.66; margin-top: 6px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #viz { display: block; margin-top: 18px; }
+  #wbar { position: absolute; left: -4px; right: -4px; top: 236px; height: 132px; background: rgba(205,8,28,0.94); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 104px; letter-spacing: 0.14em; color: #fff; transform-origin: 50% 50%; opacity: 0; box-shadow: 0 0 60px rgba(255,0,30,0.45); }
   .line { position: absolute; left: 0; width: 1080px; text-align: center; white-space: nowrap; }
   .row { position: absolute; left: 120px; width: 840px; height: 148px; border-radius: 34px; display: flex; align-items: center; padding: 0 44px; }
   .row b { font-size: 64px; font-weight: 800; letter-spacing: -0.01em; position: relative; }
@@ -54,10 +55,11 @@
   <canvas id="bg" class="abs" width="1080" height="1920"></canvas>
   <canvas id="dots" class="abs" width="1080" height="1920" style="mix-blend-mode: overlay; opacity: 0.5"></canvas>
   <canvas id="fx" class="abs" width="1080" height="1920"></canvas>
+  <div class="abs" id="flash" style="width:1080px;height:1920px;opacity:0;pointer-events:none;mix-blend-mode:screen"></div>   <!-- the flash is light in the background, in its colour, behind the card -->
   <div id="scene">
     <div id="card" class="glass">
       <div id="artWrap"><img id="artA"><img id="artB">
-        <div id="chip"><small>score</small><div id="digits"><div class="col" id="cU"><div class="strip"></div></div><div class="dot">.</div><div class="col" id="cT"><div class="strip"></div></div><div class="of">/10</div></div></div>
+        <div id="wbar"></div><div id="chip"><small>score</small><div id="digits"><div class="col" id="cU"><div class="strip"></div></div><div class="dot">.</div><div class="col" id="cT"><div class="strip"></div></div><div class="of">/10</div></div></div>
       </div>
       <div id="cTitle"></div><div id="cArtist"></div>
       <canvas id="viz" width="608" height="104"></canvas>
@@ -73,6 +75,9 @@
   <div class="abs hand" id="hook" style="left:0;width:1080px;top:270px;text-align:center;font-size:104px"></div>
   <div class="abs hand" id="note1" style="font-size:96px"></div>
   <div class="abs hand" id="delta" style="font-size:92px"></div>
+  <div class="line" id="i1" style="top:660px;font-size:122px;font-weight:900;letter-spacing:-0.02em;line-height:1">EVERY SCORE</div>
+  <div class="line" id="i2" style="top:790px;font-size:122px;font-weight:900;letter-spacing:-0.02em;line-height:1;color:var(--hot)">I GAVE SO FAR</div>
+  <div class="line serif" id="q2" style="top:900px;font-size:76px;color:var(--cool)">that ends today.</div>
   <div class="line" id="w1" style="top:610px;font-size:74px;font-weight:700;letter-spacing:0.16em">FROM NOW ON</div>
   <div class="line" id="w2" style="top:720px;font-size:236px;font-weight:900;letter-spacing:-0.02em;line-height:1">I RATE</div>
   <div class="line" id="w3" style="top:948px;font-size:236px;font-weight:900;letter-spacing:-0.02em;line-height:1;color:var(--hot)">HARDER.</div>
@@ -97,11 +102,10 @@
   const spring = (t, t0, f = 2.6, z = 0.5) => { const x = t - t0; if (x <= 0) return 0; const w = 2 * Math.PI * f, d = z * w, wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-d * x) * (Math.cos(wd * x) + d / wd * Math.sin(wd * x)); };
   const rng = s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
   const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), mixc = (a, b, k) => a.map((v, i) => Math.round(lerp(v, b[i], k))), css = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-  // two moods: the generous past (violet) and the strict future (crimson); everything is tinted from the mix
-  const PA = { deep: hex('#07041a'), cool: hex('#4a2ab8'), hot: hex('#b48cff') }, PB = { deep: hex('#140204'), cool: hex('#b3101c'), hot: hex('#ff3b46') };
-  // impact envelope from the timeline (the sounds are made from the same times)
-  const EV = [...T.cards.map((c, i) => [c, 0.28]), [T.words[0], 0.7], [T.words[1], 0.6], [T.words[2], 1], ...T.rows.map(r => [r + 0.42, 0.45]), [T.ladder + 0.9, 0.4], [T.stamp, 1]];
-  const hitAt = t => { let h = 0; for (const [a, g] of EV) { const x = t - a; if (x >= 0) h += g * Math.exp(-x / 0.2) * clamp(x / 0.02); } return clamp(h); };
+  const GREY = { deep: hex('#08080a'), cool: hex('#4c4c56'), hot: hex('#d8d8e0') }, PB = { deep: hex('#140204'), cool: hex('#b3101c'), hot: hex('#ff3b46') }, P0 = { deep: hex('#07041a'), cool: hex('#4a2ab8'), hot: hex('#b48cff') };
+  const CP = D.cards.map(c => ({ deep: hex(c.pal[0]), cool: hex(c.pal[1]), hot: hex(c.pal[2]) })), mixP = (a, b, k) => ({ deep: mixc(a.deep, b.deep, k), cool: mixc(a.cool, b.cool, k), hot: mixc(a.hot, b.hot, k) });
+  // reactions come from the clip itself: the bass envelope after the kicks start, the full envelope (the "wasted" hits) before
+  const hitAt = t => { const i = clamp(Math.round(t * FPS), 0, NF - 1), k = clamp((t - T.drop + 0.05) / 0.1); return clamp(Math.pow(lerp(0.55 * Math.max(0, D.full[i] - 0.45) / 0.55, D.bass[i], k), 1.3)); };
   const tS = new Float32Array(NF); { let acc = 0; for (let i = 0; i < NF; i++) { acc += (1 / FPS) * (0.2 + 2.2 * Math.pow(hitAt(i / FPS), 1.3)); tS[i] = acc; } }
 
   const gl = $('bg').getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
@@ -199,68 +203,74 @@
 
   window.NFRAMES = NF;
   window.renderFrame = fi => {
-    const t = fi / FPS, hit = hitAt(t), mood = eio(prog(t, T.drop - 0.15, 0.9));
-    const P = { deep: mixc(PA.deep, PB.deep, mood), cool: mixc(PA.cool, PB.cool, mood), hot: mixc(PA.hot, PB.hot, mood) }, st = $('stage').style;
+    const t = fi / FPS, hit = hitAt(t);
+    let ci = -1; while (ci + 1 < T.shows.length && t >= T.shows[ci + 1]) ci++;      // which cover is on screen
+    let P = P0;
+    if (ci >= 0) { const from = ci > 0 ? CP[ci - 1] : P0; P = mixP(from, CP[ci], eo3(prog(t, T.shows[ci], 0.08))); }   // the background takes the colours of the cover on screen
+    P = mixP(P, { deep: hex('#050507'), cool: hex('#2a2a32'), hot: hex('#e8e8ee') }, eio(prog(t, T.quiet, 0.5)));
+    P = mixP(P, PB, eo3(prog(t, T.drop - 0.03, 0.25))); const st = $('stage').style;
     st.setProperty('--hot', css(P.hot)); st.setProperty('--cool', css(mixc(P.cool, [255, 255, 255], 0.45))); st.setProperty('--ink', css(P.hot));
     st.setProperty('--glassA', css(mixc(P.cool, [20, 14, 26], 0.72), 0.5)); st.setProperty('--glassB', css(mixc(P.deep, [10, 8, 14], 0.4), 0.62)); st.setProperty('--edge', css(mixc(P.hot, [255, 255, 255], 0.5), 0.26));
     drawBg(fi, tS[fi], hit, P);
     fx.clearRect(0, 0, W, H);
     for (const d of dust) { const x = ((d.x + Math.sin(t * 0.5 + d.ph) * d.sw * d.z) % W + W) % W, y = ((d.y - tS[fi] * 60 * d.z - t * 14 * d.z) % H + H) % H, a = (0.22 + 0.5 * d.z) * (0.6 + 0.4 * Math.sin(t * 2.1 + d.ph)) * (1 + 0.6 * hit);
       fx.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.6), clamp(a)); fx.beginPath(); fx.arc(x, y, 1.2 + 1.8 * d.z, 0, 6.3); fx.fill(); }
-    const shake = 14 * Math.exp(-Math.max(0, t - T.words[2]) / 0.16) * (t >= T.words[2] ? 1 : 0) + 18 * Math.exp(-Math.max(0, t - T.stamp) / 0.16) * (t >= T.stamp ? 1 : 0);
+    const wz = ci >= 0 ? 9 * Math.exp(-(t - T.shows[ci]) / 0.12) : 0, shake = wz + 14 * Math.exp(-Math.max(0, t - T.words[2]) / 0.16) * (t >= T.words[2] ? 1 : 0) + 18 * Math.exp(-Math.max(0, t - T.stamp) / 0.16) * (t >= T.stamp ? 1 : 0);
     const shx = shake * Math.sin(t * 91), shy = shake * Math.cos(t * 77);
 
-    // ---- 1) the old scores: covers of past videos flick by, every one a 9
-    { const hk = $('hook'), hi_ = eo3(prog(t, 0.05, 0.5)), ho = prog(t, 2.5, 0.35); hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
-    { const n = $('note1'), a = eo3(prog(t, 2.85, 0.45)), o = prog(t, T.drop - 0.12, 0.25); n.style.left = '236px'; n.style.top = '262px'; n.style.opacity = 1 - o; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = `rotate(-4deg) translateY(${-30 * o}px)`; }
-    const card = $('card'), cin = spring(t, 0.0, 1.7, 0.72), cout = ei3(prog(t, T.drop, 0.5));
-    if (t < T.drop + 0.55) {
-      let k = 0; while (k + 1 < T.cards.length && t >= T.cards[k + 1]) k++;
-      const pk = eo5(prog(t, T.cards[k], 0.34)), prev = Math.max(0, k - 1), first = t < T.cards[0] || k === 0;
-      $('artA').src = IM[first ? 0 : prev].src; $('artB').src = IM[k].src;
-      $('artA').style.transform = `translateX(${first ? 0 : -100 * pk}%) scale(${1 + 0.06 * (first ? 0 : pk)})`; $('artB').style.transform = `translateX(${first ? 100 : 100 - 100 * pk}%)`; if (first) $('artB').style.transform = 'translateX(100%)';
-      const c = D.cards[k]; $('cTitle').textContent = c.title; $('cArtist').textContent = c.artist; const tk = first ? 1 : eo3(prog(t, T.cards[k] + 0.06, 0.28));
-      $('cTitle').style.opacity = tk; $('cTitle').style.transform = `translateY(${14 * (1 - tk)}px)`; $('cArtist').style.opacity = 0.66 * tk;
-      const from = first ? 0 : D.cards[prev].score, sc = first ? lerp(0, c.score, eo5(prog(t, 0.15, 0.7))) : lerp(from, c.score, eo5(prog(t, T.cards[k], 0.3)));
-      const fall = t >= T.drop ? lerp(sc, 0, eo3(prog(t, T.drop, 0.45))) : sc; setScore(Math.round(fall * 100) / 100);
-      const jit = 2.2 * prog(t, T.cards[7] + 0.25, 0.3) * (t < T.drop ? 1 : 0);
-      $('chip').style.transform = `translate(${jit * Math.sin(t * 83)}px, ${jit * Math.cos(t * 71)}px) scale(${1 + 0.07 * hit})`;
-      card.style.opacity = clamp(prog(t, 0, 0.25)) * (1 - prog(t, T.drop + 0.2, 0.3));
-      card.style.transform = `translate3d(0, ${(1 - cin) * 420 + cout * 1250 - 16 * hit}px, ${-cout * 300}px) rotateX(${3 * Math.sin(t * 0.9) + 14 * cout}deg) rotateY(${5 * Math.sin(t * 0.7 + 1)}deg) rotateZ(${7 * cout}deg) scale(${1 + 0.03 * hit})`;
-      viz.clearRect(0, 0, 608, 104); for (let b = 0; b < 48; b++) { const h = 10 + 78 * clamp((0.5 + 0.5 * hit) * (0.45 + 0.55 * Math.abs(Math.sin(t * 5.3 + vph[b]) * Math.sin(t * 2.1 + vph[b] * 1.7))) * (1 - 0.35 * b / 48)); viz.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.75), 0.9); viz.fillRect(b * 12.7, 104 - h, 7.5, h); }
-      const dl = $('delta'), dk = t >= T.cards[1] && t < T.drop ? k : -1;
-      if (dk > 0) { const x = t - T.cards[dk], a = spring(t, T.cards[dk], 4, 0.55), o = prog(x, 0.26, 0.16); dl.textContent = NOTES[dk]; dl.style.left = (640 + 34 * (dk % 2)) + 'px'; dl.style.top = (760 - 40 * x) + 'px'; dl.style.opacity = clamp(x / 0.05) * (1 - o); dl.style.transform = `rotate(${dk % 2 ? 6 : -7}deg) scale(${0.6 + 0.4 * a})`; } else dl.style.opacity = 0;
+    // ---- 0) intro, 1) the old scores: one cover per "wasted" hit of the clip; each gets greyed, struck with the red bar and its score pulled down
+    { const hk = $('hook'), hi_ = eo3(prog(t, 0.3, 0.5)), ho = prog(t, T.stutter[0] - 0.1, 0.12); hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = 'rotate(-3deg)'; }
+    { let stp = 0; for (const s_ of T.stutter) if (t >= s_) stp++; const sx = stp ? 1 + 0.025 * stp + 0.04 * (1 - prog(t, T.stutter[stp - 1], 0.1)) : 1, gone = t >= T.shows[0] ? 1 : 0;
+      [['i1', 1.25], ['i2', 2.05]].forEach(([id, at], j) => { const e = $(id), sp = spring(t, at, 2.3, 0.62); e.style.opacity = clamp(prog(t, at, 0.1)) * (1 - gone) * (stp % 2 && prog(t, T.stutter[stp - 1], 0.05) < 1 ? 0.35 : 1);
+        e.style.transform = `translateY(${80 * (1 - sp)}px) scale(${(1.1 - 0.1 * sp) * sx})`; e.style.filter = stp ? `blur(${1.5 * stp}px)` : 'none'; }); }
+    const card = $('card');
+    if (ci >= 0 && t < T.quiet + 0.1) {
+      const c = D.cards[ci], tin = T.shows[ci], tw = 1e9, tout = ci + 1 < T.shows.length ? T.shows[ci + 1] - 0.13 : T.quiet - 0.12, cin = spring(t, tin, 2.6, 0.62), cout = ei3(prog(t, tout, 0.13)), w = prog(t, tw, 0.14), wk = eo3(w);
+      $('artA').src = IM[ci].src; $('artB').style.display = 'none'; $('artA').style.filter = `grayscale(${wk}) contrast(${1 + 0.25 * wk}) brightness(${1 - 0.38 * wk})`; $('artA').style.transform = `scale(${1.08 - 0.06 * eo3(prog(t, tin, 0.6)) + 0.03 * wk})`;
+      $('cTitle').textContent = c.title; $('cArtist').textContent = c.artist; $('cTitle').style.opacity = 1 - 0.45 * wk; $('cArtist').style.opacity = 0.66 * (1 - 0.45 * wk);
+      const strict = Math.round((c.score - 1.6 - 0.3 * ((ci * 7) % 4)) * 10) / 10, sc = t < tw ? lerp(c.score - 2.5, c.score, eo5(prog(t, tin + 0.05, 0.45))) : lerp(c.score, strict, eo5(prog(t, tw + 0.04, 0.34))); setScore(Math.round(sc * 100) / 100);
+      const wb = $('wbar'), wsp = spring(t, tw, 4.2, 0.5); wb.style.opacity = w > 0 ? 1 : 0; wb.style.transform = `rotate(-4deg) scaleX(${0.2 + 0.8 * eo5(prog(t, tw, 0.12))}) scaleY(${1.5 - 0.5 * wsp})`;
+      $('chip').style.transform = `scale(${1 + 0.07 * hit + 0.1 * (w > 0 ? Math.exp(-(t - tw) / 0.15) : 0)})`;
+      card.style.opacity = clamp(prog(t, tin, 0.06)) * (1 - cout);
+      card.style.transform = `translate3d(${shx - cout * 620 * (ci % 2 ? -1 : 1)}px, ${(1 - cin) * 520 + cout * 260 + shy - 14 * hit}px, ${-cout * 200}px) rotateX(${3 * Math.sin(t * 0.9) + 10 * (1 - cin)}deg) rotateY(${5 * Math.sin(t * 0.7 + 1)}deg) rotateZ(${(ci % 2 ? 1 : -1) * (2.2 * wk - 9 * cout)}deg) scale(${1 + 0.03 * hit - 0.025 * wk})`;
+      viz.clearRect(0, 0, 608, 104); for (let b = 0; b < 48; b++) { const h = 10 + 78 * clamp((0.5 + 0.5 * hit) * (0.45 + 0.55 * Math.abs(Math.sin(t * 5.3 + vph[b]) * Math.sin(t * 2.1 + vph[b] * 1.7))) * (1 - 0.35 * b / 48)) * (1 - 0.6 * wk); viz.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.75), 0.9); viz.fillRect(b * 12.7, 104 - h, 7.5, h); }
+      const dl = $('delta'), x = t - tw; if (x >= 0.06) { const a = spring(t, tw + 0.06, 4, 0.55); dl.textContent = '−' + (c.score - strict).toFixed(1); dl.style.color = '#ff5a66'; dl.style.left = (668 + 30 * (ci % 2)) + 'px'; dl.style.top = (770 - 46 * x) + 'px'; dl.style.opacity = (1 - prog(x, 0.34, 0.12)) * (1 - cout); dl.style.transform = `rotate(${ci % 2 ? 6 : -7}deg) scale(${0.6 + 0.4 * a})`; } else dl.style.opacity = 0;
     } else { card.style.opacity = 0; $('delta').style.opacity = 0; }
+    // the quiet bars before the kicks
+    { const n = $('note1'), a = eo3(prog(t, T.quiet + 0.15, 0.55)), o = prog(t, T.drop - 0.1, 0.1); n.style.left = '0'; n.style.width = '1080px'; n.style.textAlign = 'center'; n.style.top = '720px'; n.style.fontSize = '132px'; n.style.opacity = (a > 0 ? 1 : 0) * (1 - o); n.style.clipPath = `inset(0 ${78 - 78 * a}% 0 0)`; n.style.transform = `rotate(-3deg) scale(${1 + 0.02 * (t - T.quiet)})`; }
+    { const e = $('q2'), a = eo3(prog(t, T.quiet + 1.25, 0.5)), o = prog(t, T.drop - 0.1, 0.1); e.style.opacity = a * (1 - o); e.style.transform = `translateY(${24 * (1 - a)}px)`; e.style.letterSpacing = (0.06 - 0.04 * a) + 'em'; }
 
     // ---- 2) the statement
-    const out2 = t0 => eio(prog(t, 7.3 + t0, 0.4));
+    const out2 = t0 => eio(prog(t, T.out2 + t0, 0.36));
     { const a = eo5(prog(t, T.words[0], 0.6)), o = out2(0), e = $('w1'); e.style.opacity = a * (1 - o) * 0.82; e.style.clipPath = `inset(0 ${50 - 50 * a}% 0 ${50 - 50 * a}%)`; e.style.transform = `translate(${shx}px, ${28 * (1 - a) - 70 * o + shy}px)`; e.style.letterSpacing = (0.3 - 0.14 * a) + 'em'; }
     { const s = spring(t, T.words[1], 2.4, 0.6), o = out2(0.05), e = $('w2'); e.style.opacity = clamp(prog(t, T.words[1], 0.08)) * (1 - o); e.style.transform = `translate(${shx}px, ${70 * (1 - s) - 70 * o + shy}px) scale(${1.12 - 0.12 * s})`; }
     { const s = spring(t, T.words[2], 3.0, 0.48), o = out2(0.1), e = $('w3'); e.style.opacity = clamp(prog(t, T.words[2], 0.05)) * (1 - o); e.style.transform = `translate(${shx}px, ${-70 * o + shy}px) scale(${1.9 - 0.9 * s})`; e.style.textShadow = `0 0 ${50 + 60 * hit}px ${css(P.hot, 0.5)}`; }
     { const a = eo3(prog(t, T.words[2] + 0.32, 0.5)), o = out2(0.12); $('ulp').style.strokeDashoffset = ulLen * (1 - a); $('ul').style.opacity = (a > 0 ? 1 : 0) * (1 - o); $('ul').style.transform = `translate(${shx}px, ${-70 * o + shy}px)`; }
 
     // ---- 3) what changes
-    const out3 = i => eio(prog(t, 11.15 + 0.06 * i, 0.38));
+    const out3 = i => eio(prog(t, T.out3 + 0.05 * i, 0.34));
     { const a = eo3(prog(t, T.rows[0] - 0.12, 0.5)), o = out3(0), e = $('h3'); e.style.opacity = a * (1 - o); e.style.transform = `translate(${-30 * (1 - a) - 80 * o}px, 0)`; }
-    ROWS.forEach(([s, ok], i) => { const e = $('r' + i), a = eo5(prog(t, T.rows[i], 0.6)), o = out3(i + 1), m = prog(t, T.rows[i] + 0.42, 0.34), mk = eo3(m), pop = spring(t, T.rows[i] + 0.42, 3.2, 0.5);
-      const dim = ok ? 1 : 1 - 0.5 * eo3(prog(t, T.rows[i] + 0.55, 0.5));
-      e.style.opacity = a * (1 - o) * dim; e.style.transform = `translate(${110 * (1 - a) - 140 * o}px, 0) scale(${ok ? 1 + 0.045 * (m > 0 ? 1 - pop : 0) * -1 + 0.045 * Math.exp(-Math.max(0, t - T.rows[i] - 0.42) / 0.25) * (m > 0 ? 1 : 0) : 1})`;
+    ROWS.forEach(([s, ok], i) => { const e = $('r' + i), a = eo5(prog(t, T.rows[i], 0.6)), o = out3(i + 1), m = prog(t, T.rows[i] + T.mark, 0.34), mk = eo3(m), pop = spring(t, T.rows[i] + T.mark, 3.2, 0.5);
+      const dim = ok ? 1 : 1 - 0.5 * eo3(prog(t, T.rows[i] + T.mark + 0.13, 0.5));
+      e.style.opacity = a * (1 - o) * dim; e.style.transform = `translate(${110 * (1 - a) - 140 * o}px, 0) scale(${ok ? 1 + 0.045 * (m > 0 ? 1 - pop : 0) * -1 + 0.045 * Math.exp(-Math.max(0, t - T.rows[i] - T.mark) / 0.25) * (m > 0 ? 1 : 0) : 1})`;
       e.querySelector('b i').style.transform = `scaleX(${ok ? 0 : mk})`; e.style.borderColor = ok && m > 0 ? css(P.hot, 0.5 + 0.5 * mk) : ''; e.style.boxShadow = ok ? `0 0 ${60 * mk}px ${css(P.hot, 0.28 * mk)}` : 'none';
-      const ps = e.querySelectorAll('svg path'); ps.forEach((p, j) => { p.style.stroke = ok ? css(P.hot) : '#fff'; p.style.strokeDashoffset = 1 - eo3(prog(t, T.rows[i] + 0.42 + 0.12 * j, 0.26)); }); });
-    { const n = $('note3'), a = eo3(prog(t, T.rows[2] + 0.75, 0.45)), o = out3(4); n.style.left = '430px'; n.style.top = '1136px'; n.style.opacity = (a > 0 ? 1 : 0) * (1 - o); n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = `rotate(-3deg) translateX(${-120 * o}px)`; }
+      const ps = e.querySelectorAll('svg path'); ps.forEach((p, j) => { p.style.stroke = ok ? css(P.hot) : '#fff'; p.style.strokeDashoffset = 1 - eo3(prog(t, T.rows[i] + T.mark + 0.12 * j, 0.26)); }); });
+    { const n = $('note3'), a = eo3(prog(t, T.rows[2] + T.mark + 0.3, 0.4)), o = out3(4); n.style.left = '430px'; n.style.top = '1136px'; n.style.opacity = (a > 0 ? 1 : 0) * (1 - o); n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = `rotate(-3deg) translateX(${-120 * o}px)`; }
 
     // ---- 4) the scale, 5) the stamp
     { const a = eo3(prog(t, T.ladder - 0.05, 0.5)), e = $('h4'); e.style.opacity = a; e.style.transform = `translate(${-30 * (1 - a)}px, 0)`; }
-    { const L = $('ladder'), a = spring(t, T.ladder, 1.9, 0.7), sb = t >= T.stamp ? Math.exp(-(t - T.stamp) / 0.2) : 0; L.style.opacity = clamp(prog(t, T.ladder, 0.22));
+    { const L = $('ladder'), a = spring(t, T.ladder, 2.2, 0.7), sb = t >= T.stamp ? Math.exp(-(t - T.stamp) / 0.2) : 0; L.style.opacity = clamp(prog(t, T.ladder, 0.22));
       L.style.transform = `translate3d(${shx}px, ${(1 - a) * 260 + shy + 10 * sb}px, 0) rotateX(${8 * (1 - a) + 2 * Math.sin(t * 0.8)}deg) rotateY(${3 * Math.sin(t * 0.6 + 1)}deg) scale(${1 - 0.02 * sb})`;
       L.querySelectorAll('.lr').forEach((r, i) => { const k = eo5(prog(t, T.ladder + 0.12 + 0.13 * i, 0.55)); r.style.opacity = k * (i === 0 ? 1 : 0.92 - 0.14 * i); r.style.transform = `translateX(${60 * (1 - k)}px)`; });
-      const hk = eo3(prog(t, T.ladder + 0.9, 0.5)); L.querySelector('.hl').style.opacity = 0.16 * hk + 0.1 * hit * hk; L.querySelector('.hl').style.clipPath = `inset(0 ${100 - 100 * hk}% 0 0)`; L.querySelector('small').style.opacity = eo3(prog(t, T.ladder + 1.1, 0.4)); L.querySelector('.lr b').style.color = css(mixc([255, 255, 255], P.hot, hk)); }
-    { const n = $('note4'), a = eo3(prog(t, T.ladder + 1.5, 0.4)); n.style.left = '150px'; n.style.top = '1262px'; n.style.opacity = a > 0 ? 1 : 0; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = 'rotate(-4deg)'; }
+      const hk = eo3(prog(t, T.peak, 0.45)); L.querySelector('.hl').style.opacity = 0.16 * hk + 0.1 * hit * hk; L.querySelector('.hl').style.clipPath = `inset(0 ${100 - 100 * hk}% 0 0)`; L.querySelector('small').style.opacity = eo3(prog(t, T.peak + 0.2, 0.4)); L.querySelector('.lr b').style.color = css(mixc([255, 255, 255], P.hot, hk)); }
+    { const n = $('note4'), a = eo3(prog(t, T.peak + 0.58, 0.4)); n.style.left = '150px'; n.style.top = '1262px'; n.style.opacity = a > 0 ? 1 : 0; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = 'rotate(-4deg)'; }
     { const s = $('stamp'), x = t - T.stamp, land = clamp(x / 0.11), k = ei3(land), set = spring(t, T.stamp + 0.11, 5, 0.4); s.style.opacity = x < 0 ? 0 : clamp(x / 0.05) * 0.96;
       s.style.transform = `translate(${shx}px, ${shy}px) rotate(${-9 + 5 * (1 - k)}deg) scale(${land < 1 ? 2.6 - 1.6 * k : 1 + 0.07 * (1 - set)})`; }
     { const c = $('cta'), a = spring(t, T.cta, 2.6, 0.6); c.style.opacity = clamp(prog(t, T.cta, 0.15)); c.style.transform = `translateY(${40 * (1 - a)}px) scale(${1 + 0.04 * hit})`; }
     $('wm').style.transform = `scale(${1 + 0.06 * hit})`;
-    GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.2), prog(t, NF / FPS - 0.3, 0.3));
+    { let f = 0; for (const w_ of T.wasted) if (t >= w_) f = Math.max(f, Math.exp(-(t - w_) / 0.11)); const fe = $('flash');   // one flash of the background on every hit, in the colour of the cover that comes in
+      if (f < 0.01) fe.style.opacity = 0; else { const c1 = mixc(P.hot, [255, 255, 255], 0.25), c2 = mixc(P.cool, P.hot, 0.35); fe.style.opacity = 0.95 * f; fe.style.background = `radial-gradient(ellipse 90% 70% at 50% 42%, ${css(c1, 0.95)} 0%, ${css(c2, 0.8)} 45%, ${css(P.cool, 0.45)} 100%)`; } }
+    GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.25), prog(t, NF / FPS - 0.12, 0.12));
   };
   window.READY = true;
 })();

@@ -1,44 +1,33 @@
 #!/usr/bin/env python3
-"""Data for the announcement video (renderer/announce.html): the timeline, a sound-effects track made here (no song), a few past covers.
+"""Data for the announcement video (renderer/announce.html).
+Audio: taken as is from a clip the owner supplied (FUNK ABNORMAL slowed with six "wasted" sound effects, then the bass kicks);
+save its audio as assets/announce/ref.wav first (ffmpeg -i clip.mp4 -vn -ar 48000 -ac 2 assets/announce/ref.wav).
     python3 announce_prep.py            # writes work/announce/build/{clip.wav,data.js,c*.jpg}
 """
-import json, os, shutil
-import numpy as np, scipy.signal as sg
-from scipy.io import wavfile
+import json, os, shutil, subprocess
+import numpy as np, librosa, scipy.signal as sg
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, 'work/announce/build'); os.makedirs(OUT, exist_ok=True)
-FPS, DUR, SR = 60, 16.6, 48000
-T = {'cards': [0.35 + 0.44 * i for i in range(8)], 'drop': 4.0, 'words': [4.0, 5.0, 5.55], 'rows': [7.9, 8.85, 9.8], 'ladder': 11.6, 'stamp': 14.4, 'cta': 15.0}
-rg = np.random.default_rng(7); n = int(DUR * SR); mix = np.zeros(n)
-def lp(x, f): return sg.sosfilt(sg.butter(2, f, fs=SR, output='sos'), x)
-def bp(x, a, b): return sg.sosfilt(sg.butter(2, [a, b], btype='band', fs=SR, output='sos'), x)
-def put(at, s, g=1.0):
-    i = int(at * SR); s = s[:max(0, n - i)]; mix[i:i + len(s)] += s * g
-def tt(d): return np.arange(int(d * SR)) / SR
-def tick():  t = tt(0.06); return np.sin(2 * np.pi * 1900 * t) * np.exp(-t / 0.008) * 0.5 + bp(rg.standard_normal(len(t)), 2500, 7000) * np.exp(-t / 0.006) * 0.5
-def thud(f=52, d=0.5): t = tt(d); s = np.sin(2 * np.pi * (f + 40 * np.exp(-t / 0.03)) * t) * np.exp(-t / 0.16) + lp(rg.standard_normal(len(t)), 400) * np.exp(-t / 0.09) * 0.9; return s / np.abs(s).max()
-def swish(d=0.32, up=True):
-    t = tt(d); x = rg.standard_normal(len(t)); f = np.linspace(900, 5200, len(t)) if up else np.linspace(5200, 900, len(t))
-    ph = np.cumsum(f) / SR; s = bp(x, 700, 7000) * (0.6 + 0.4 * np.sin(2 * np.pi * ph)) * np.sin(np.pi * t / d) ** 2; return s / np.abs(s).max()
-def ding(f=1320): t = tt(0.7); s = (np.sin(2 * np.pi * f * t) + 0.5 * np.sin(2 * np.pi * f * 2.01 * t)) * np.exp(-t / 0.18); return s / np.abs(s).max()
-def riser(d):
-    t = tt(d); x = rg.standard_normal(len(t)); k = t / d; s = bp(x, 300, 9000) * k ** 2.2; s += 0.35 * np.sin(2 * np.pi * np.cumsum(120 + 500 * k ** 2) / SR) * k ** 2; return s / np.abs(s).max()
-for i, c in enumerate(T['cards']): put(c, tick(), 0.30 + 0.02 * i)
-put(T['drop'] - 1.5, riser(1.5), 0.30)
-for w, g in zip(T['words'], (0.55, 0.5, 0.95)): put(w, thud(), g)
-put(T['words'][2], swish(0.25, False), 0.25)
-for i, r in enumerate(T['rows']):
-    put(r, swish(0.28), 0.22); put(r + 0.42, tick() if i < 2 else ding(), 0.5 if i < 2 else 0.28); put(r + 0.42, swish(0.2, False), 0.2 if i < 2 else 0)
-for i in range(4): put(T['ladder'] + 0.13 * i, tick(), 0.3)
-put(T['ladder'] + 1.25, ding(990), 0.2)
-put(T['stamp'], thud(48, 0.7), 1.0); put(T['cta'], swish(0.25), 0.16)
-t = np.arange(n) / SR; bed = (np.sin(2 * np.pi * 55 * t) * 0.5 + np.sin(2 * np.pi * 82.5 * t) * 0.25) * (0.6 + 0.4 * np.sin(2 * np.pi * 0.11 * t)) + lp(rg.standard_normal(n), 300) * 0.15
-bed *= np.clip(t / 1.0, 0, 1) * np.clip((DUR - t) / 1.2, 0, 1); mix += bed * 0.05
-mix = np.tanh(mix * 1.1) * 0.85; mix *= np.clip((DUR - t) / 0.4, 0, 1)
-wavfile.write(os.path.join(OUT, 'clip.wav'), SR, np.stack([mix, mix], 1).astype(np.float32))
-past = [s for s in ['malemo', 'mandala', 'sinos', 'medusa', 'pyro', 'kieru', 'throw', 'batalla'] if os.path.exists(os.path.join(HERE, f'work/{s}/build/cover_sq.jpg'))]
+FPS, DUR, K, P = 60, 27.3, 13.78, 0.58          # K = first bass kick, P = kick period (measured)
+T = {'shows': [4.57, 5.13, 6.27, 7.43, 8.60, 9.73, 10.90], 'wasted': [5.13, 6.27, 7.43, 8.60, 9.73, 10.90],   # a new cover (and one flash) on every "wasted" hit of the clip; the owner did not want the word shown
+     'stutter': [3.93, 4.07, 4.20, 4.37], 'quiet': 11.37, 'drop': K,
+     'words': [K, K + 2 * P, K + 3 * P], 'out2': K + 6.4 * P, 'rows': [K + 7 * P, K + 9 * P, K + 11 * P], 'mark': P, 'out3': K + 14 * P,
+     'ladder': K + 14.9 * P, 'peak': K + 16 * P, 'stamp': K + 19 * P, 'cta': K + 20 * P}
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-t', f'{DUR}', '-i', os.path.join(HERE, 'assets/announce/ref.wav'), '-af', f'afade=t=out:st={DUR - 0.12}:d=0.12', '-ar', '48000', '-ac', '2', os.path.join(OUT, 'clip.wav')], check=True)
+y, sr = librosa.load(os.path.join(OUT, 'clip.wav'), sr=22050, mono=True)
+nf = int(DUR * FPS); hop = sr / FPS
+def env_of(x, rel):
+    raw = np.array([np.sqrt((x[int(i * hop):int((i + 1) * hop) + 1] ** 2).mean()) for i in range(nf)]); raw = np.clip(raw / np.percentile(raw, 98), 0, 1)
+    out = np.zeros(nf); e = 0
+    for i in range(nf): e = raw[i] if raw[i] > e else e * rel + raw[i] * (1 - rel); out[i] = e
+    return out
+bass = env_of(sg.sosfiltfilt(sg.butter(4, [25, 120], btype='band', fs=sr, output='sos'), y), 0.90)
+full = env_of(y, 0.88)
 cards = []
-for i, s in enumerate(past):
+for i, s in enumerate(['malemo', 'mandala', 'medusa', 'kieru', 'sinos', 'throw', 'pyro']):
     shutil.copy(os.path.join(HERE, f'work/{s}/build/cover_sq.jpg'), os.path.join(OUT, f'c{i}.jpg'))
-    c = json.load(open(os.path.join(HERE, f'songs/{s}.json'), encoding='utf-8')); cards.append({'title': c['title'], 'artist': c['artist'], 'score': c['score']})
-open(os.path.join(OUT, 'data.js'), 'w', encoding='utf-8').write('window.DATA = ' + json.dumps({'fps': FPS, 'nframes': int(DUR * FPS), 'T': T, 'cards': cards}, ensure_ascii=False) + ';')
-print('frames', int(DUR * FPS), 'cards', [c['title'] for c in cards])
+    c = json.load(open(os.path.join(HERE, f'songs/{s}.json'), encoding='utf-8')); t = open(os.path.join(HERE, f'work/{s}/build/features.js'), encoding='utf-8').read()
+    pal = json.loads(t[t.index('{'):t.rindex('}') + 1])['palette']
+    cards.append({'title': c['title'], 'artist': c['artist'], 'score': c['score'], 'pal': [pal['deep'], pal['cool'], pal['hot']]})
+open(os.path.join(OUT, 'data.js'), 'w', encoding='utf-8').write('window.DATA = ' + json.dumps({'fps': FPS, 'nframes': nf, 'T': T, 'cards': cards,
+    'bass': [round(float(v), 3) for v in bass], 'full': [round(float(v), 3) for v in full]}, ensure_ascii=False) + ';')
+print('frames', nf, [c['title'] for c in cards])
