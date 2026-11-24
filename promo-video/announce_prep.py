@@ -7,12 +7,12 @@ save its audio as assets/announce/ref.wav first (ffmpeg -i clip.mp4 -vn -ar 4800
 import json, os, shutil, subprocess
 import numpy as np, librosa, scipy.signal as sg
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, 'work/announce/build'); os.makedirs(OUT, exist_ok=True)
-FPS, DUR, K, P = 60, 27.3, 13.78, 0.58          # K = first bass kick, P = kick period (measured)
-T = {'shows': [4.57, 5.13, 6.27, 7.43, 8.60, 9.73, 10.90], 'wasted': [5.13, 6.27, 7.43, 8.60, 9.73, 10.90],   # a new cover (and one flash) on every "wasted" hit of the clip; the owner did not want the word shown
-     'stutter': [3.93, 4.07, 4.20, 4.37], 'quiet': 11.37, 'drop': K,
-     'words': [K, K + 2 * P, K + 3 * P], 'out2': K + 6.4 * P, 'rows': [K + 7 * P, K + 9 * P, K + 11 * P], 'mark': P, 'out3': K + 14 * P,
-     'ladder': K + 14.9 * P, 'peak': K + 16 * P, 'stamp': K + 19 * P, 'cta': K + 20 * P}
-subprocess.run(['ffmpeg', '-v', 'error', '-y', '-t', f'{DUR}', '-i', os.path.join(HERE, 'assets/announce/ref.wav'), '-af', f'afade=t=out:st={DUR - 0.12}:d=0.12', '-ar', '48000', '-ac', '2', os.path.join(OUT, 'clip.wav')], check=True)
+FPS, DUR, K, P = 60, 19.3, 9.64, 0.58          # K = first bass kick, P = kick period (measured on the cleaner clip, assets/announce/ref2.wav)
+HITS = [1.00, 2.14, 3.30, 4.47, 5.60, 6.77]     # the six hits before the quiet bars: a new cover and one background flash on each (the owner did not want the word "wasted" shown)
+T = {'shows': [0.36] + HITS, 'wasted': HITS, 'quiet': 7.24, 'drop': K,
+     'words': [K, K + P, K + 2 * P], 'out2': K + 4.4 * P, 'rows': [K + 5 * P, K + 7 * P, K + 9 * P], 'mark': P, 'out3': K + 11.45 * P,
+     'ladder': K + 12 * P, 'peak': K + 13 * P, 'stamp': K + 14 * P, 'cta': K + 15 * P}
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-t', f'{DUR}', '-i', os.path.join(HERE, 'assets/announce/ref2.wav'), '-af', f'afade=t=out:st={DUR - 0.25}:d=0.25', '-ar', '48000', '-ac', '2', os.path.join(OUT, 'clip.wav')], check=True)
 y, sr = librosa.load(os.path.join(OUT, 'clip.wav'), sr=22050, mono=True)
 nf = int(DUR * FPS); hop = sr / FPS
 def env_of(x, rel):
@@ -23,7 +23,7 @@ def env_of(x, rel):
 bass = env_of(sg.sosfiltfilt(sg.butter(4, [25, 120], btype='band', fs=sr, output='sos'), y), 0.90)
 full = env_of(y, 0.88)
 cards = []
-for i, s in enumerate(['malemo', 'mandala', 'medusa', 'kieru', 'sinos', 'throw', 'pyro']):
+for i, s in enumerate(['malemo', 'mandala', 'medusa', 'guang', 'kieru', 'prism', 'sinos']):
     shutil.copy(os.path.join(HERE, f'work/{s}/build/cover_sq.jpg'), os.path.join(OUT, f'c{i}.jpg'))
     c = json.load(open(os.path.join(HERE, f'songs/{s}.json'), encoding='utf-8')); t = open(os.path.join(HERE, f'work/{s}/build/features.js'), encoding='utf-8').read()
     pal = json.loads(t[t.index('{'):t.rindex('}') + 1])['palette']

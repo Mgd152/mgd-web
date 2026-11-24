@@ -14,20 +14,20 @@
   .hand { font-family: 'Nanum Pen Script'; font-weight: 400; white-space: nowrap; text-shadow: 0 3px 16px rgba(0,0,0,0.6); }
   .glass { background: linear-gradient(180deg, var(--glassA), var(--glassB)); border: 1.5px solid var(--edge); backdrop-filter: blur(28px) saturate(1.3); box-sizing: border-box; }
   #scene { position: absolute; inset: 0; perspective: 1900px; perspective-origin: 540px 820px; }
-  #card { position: absolute; left: 210px; top: 372px; width: 660px; padding: 26px; border-radius: 42px; transform-origin: 330px 480px; }
-  #artWrap { position: relative; width: 608px; height: 608px; border-radius: 28px; overflow: hidden; background: #111; }
-  #artWrap img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  #chip { position: absolute; right: 18px; bottom: 18px; width: 262px; height: 158px; border-radius: 26px; box-sizing: border-box; padding: 16px 20px 18px;
+  .card { position: absolute; left: 210px; top: 372px; width: 660px; padding: 26px; border-radius: 42px; transform-origin: 330px 480px; will-change: transform; }
+  .artWrap { position: relative; width: 608px; height: 608px; border-radius: 28px; overflow: hidden; background: #111; }
+  .artWrap img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chip { position: absolute; right: 18px; bottom: 18px; width: 262px; height: 158px; border-radius: 26px; box-sizing: border-box; padding: 16px 20px 18px;
           background: rgba(10,6,16,0.5); border: 1.5px solid rgba(255,255,255,0.2); backdrop-filter: blur(18px) saturate(1.2); transform-origin: 100% 100%; }
-  #chip small { display: block; font-size: 19px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.75; }
-  #digits { display: flex; align-items: flex-end; height: 104px; margin-top: 2px; }
+  .chip small { display: block; font-size: 19px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.75; }
+  .digits { display: flex; align-items: flex-end; height: 104px; margin-top: 2px; }
   .col { height: 104px; overflow: hidden; padding: 0 14px; margin: 0 -14px; }
   .strip span, .dot { display: block; height: 104px; line-height: 104px; font-weight: 900; font-size: 106px; letter-spacing: -0.03em; color: var(--hot); font-feature-settings: "tnum"; }
   .dot { width: 26px; text-align: center; }
   .of { font-size: 30px; font-weight: 600; opacity: 0.6; margin: 0 0 18px 8px; }
-  #cTitle { font-size: 50px; font-weight: 700; letter-spacing: -0.01em; margin-top: 22px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #cArtist { font-size: 26px; font-weight: 600; opacity: 0.66; margin-top: 6px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #viz { display: block; margin-top: 18px; }
+  .cTitle { font-size: 50px; font-weight: 700; letter-spacing: -0.01em; margin-top: 22px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cArtist { font-size: 26px; font-weight: 600; opacity: 0.66; margin-top: 6px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .viz { display: block; margin-top: 18px; }
   #wbar { position: absolute; left: -4px; right: -4px; top: 236px; height: 132px; background: rgba(205,8,28,0.94); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 104px; letter-spacing: 0.14em; color: #fff; transform-origin: 50% 50%; opacity: 0; box-shadow: 0 0 60px rgba(255,0,30,0.45); }
   .line { position: absolute; left: 0; width: 1080px; text-align: center; white-space: nowrap; }
   .row { position: absolute; left: 120px; width: 840px; height: 148px; border-radius: 34px; display: flex; align-items: center; padding: 0 44px; }
@@ -57,13 +57,7 @@
   <canvas id="fx" class="abs" width="1080" height="1920"></canvas>
   <div class="abs" id="flash" style="width:1080px;height:1920px;opacity:0;pointer-events:none;mix-blend-mode:screen"></div>   <!-- the flash is light in the background, in its colour, behind the card -->
   <div id="scene">
-    <div id="card" class="glass">
-      <div id="artWrap"><img id="artA"><img id="artB">
-        <div id="wbar"></div><div id="chip"><small>score</small><div id="digits"><div class="col" id="cU"><div class="strip"></div></div><div class="dot">.</div><div class="col" id="cT"><div class="strip"></div></div><div class="of">/10</div></div></div>
-      </div>
-      <div id="cTitle"></div><div id="cArtist"></div>
-      <canvas id="viz" width="608" height="104"></canvas>
-    </div>
+    <div id="cards"></div>
     <div id="ladder" class="glass">
       <div class="lr"><div class="hl"></div><b style="position:relative;top:-14px">PEAK</b><span style="position:relative;top:-14px">9.0 +</span><small>EARNED, NEVER GIVEN</small></div>
       <div class="lr"><b>REPLAY</b><span>7.5 – 8.9</span></div>
@@ -175,7 +169,7 @@
   const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
 
   const U = (pr, n) => gl.getUniformLocation(pr, n);
-  function drawBg(fi, ts, hit, P) {
+  function drawBg(fi, ts, hit, P, boost = 0) {
     const v3 = c => c.map(x => x / 255), C_BASE = v3(P.deep).map(x => x * 0.22), C_MID = v3(P.cool).map(x => x * 0.9), C_HI = v3(P.hot);
     const bind = pr => { gl.useProgram(pr); const loc = gl.getAttribLocation(pr, 'p'); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0); };
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, SW, SH); bind(pFog);
@@ -183,7 +177,7 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); bind(pComp);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(U(pComp, 'uS'), 0);
     gl.uniform2f(U(pComp, 'uRes'), W, H); gl.uniform3f(U(pComp, 'uBase'), ...C_BASE); gl.uniform3f(U(pComp, 'uMid'), ...C_MID); gl.uniform3f(U(pComp, 'uHi'), ...C_HI);
-    gl.uniform1f(U(pComp, 'uGain'), 1.0 + 0.5 * hit); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), 1.3); gl.uniform1f(U(pComp, 'uDim'), 0.62);
+    gl.uniform1f(U(pComp, 'uGain'), 1.0 + 0.5 * hit + 1.0 * boost); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), 1.3); gl.uniform1f(U(pComp, 'uDim'), 0.62 * (1 + 0.75 * boost));
     gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish();
   }
   { const d = $('dots').getContext('2d'), stp = 22; d.fillStyle = '#fff';
@@ -193,12 +187,13 @@
 
   await document.fonts.load('900 60px "TikTok Sans Variable"'); await document.fonts.load('400 60px "Nanum Pen Script"'); await document.fonts.load('italic 400 34px "Instrument Serif"'); await document.fonts.ready;
   const IM = []; for (let i = 0; i < D.cards.length; i++) { const im = new Image(); im.src = `${BUILD}/c${i}.jpg`; await im.decode(); IM.push(im); }
-  for (const id of ['cU', 'cT']) $(id).firstChild.innerHTML = Array.from({ length: 21 }, (_, i) => `<span>${i % 10}</span>`).join('');
-  const setScore = v => { const tn = v * 10, u = Math.floor(v + 1e-6), fr = tn - Math.floor(tn + 1e-6), tpos = (Math.floor(tn + 1e-6) % 10) + fr, upos = u + (tpos > 9 ? tpos - 9 : 0); $('cT').firstChild.style.transform = `translateY(${-104 * tpos}px)`; $('cU').firstChild.style.transform = `translateY(${-104 * upos}px)`; };
+  const strip = Array.from({ length: 21 }, (_, i) => `<span>${i % 10}</span>`).join('');
+  $('cards').innerHTML = D.cards.map((c, i) => `<div class="card glass" id="k${i}" style="display:none"><div class="artWrap"><img src="${BUILD}/c${i}.jpg"><div class="chip"><small>score</small><div class="digits"><div class="col cU"><div class="strip">${strip}</div></div><div class="dot">.</div><div class="col cT"><div class="strip">${strip}</div></div><div class="of">/10</div></div></div></div><div class="cTitle">${c.title}</div><div class="cArtist">${c.artist}</div><canvas class="viz" width="608" height="104"></canvas></div>`).join('');
+  const setScore = (el, v) => { const tn = v * 10, u = Math.floor(v + 1e-6), fr = tn - Math.floor(tn + 1e-6), tpos = (Math.floor(tn + 1e-6) % 10) + fr, upos = u + (tpos > 9 ? tpos - 9 : 0); el.querySelector('.cT .strip').style.transform = `translateY(${-104 * tpos}px)`; el.querySelector('.cU .strip').style.transform = `translateY(${-104 * upos}px)`; };
   const ROWS = [['pity points', 0], ['inflated scores', 0], ['honest scores only', 1]];
   $('rows').innerHTML = ROWS.map(([s, ok], i) => `<div class="row glass" id="r${i}" style="top:${590 + i * 178}px"><b>${s}<i></i></b><svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">${ok ? '<path d="M10 34 L26 50 L56 14" pathLength="1" stroke-dasharray="1"/>' : '<path d="M14 14 L50 50" pathLength="1" stroke-dasharray="1"/><path d="M50 14 L14 50" pathLength="1" stroke-dasharray="1"/>'}</svg></div>`).join('');
   const ulLen = $('ulp').getTotalLength(); $('ulp').style.strokeDasharray = ulLen;
-  const NOTES = ['+2.0', '+1.5', '+2.4', '+1.8', '+2.2', '+1.6', '+2.5', '+2.0'], viz = $('viz').getContext('2d'), RV = rng(5), vph = Array.from({ length: 48 }, () => RV() * 6.28);
+  const NOTES = ['+2.0', '+1.5', '+2.4', '+1.8', '+2.2', '+1.6', '+2.5', '+2.0'], RV = rng(5), vph = Array.from({ length: 48 }, () => RV() * 6.28);
   $('hook').textContent = 'quick announcement ↓'; $('note1').textContent = 'way too generous.'; $('note3').textContent = 'no more free 9s'; $('note4').textContent = 'earn it.';
 
   window.NFRAMES = NF;
@@ -206,36 +201,35 @@
     const t = fi / FPS, hit = hitAt(t);
     let ci = -1; while (ci + 1 < T.shows.length && t >= T.shows[ci + 1]) ci++;      // which cover is on screen
     let P = P0;
-    if (ci >= 0) { const from = ci > 0 ? CP[ci - 1] : P0; P = mixP(from, CP[ci], eo3(prog(t, T.shows[ci], 0.08))); }   // the background takes the colours of the cover on screen
+    if (ci >= 0) P = mixP(ci > 0 ? CP[ci - 1] : P0, CP[ci], ci > 0 ? 1 : eo3(prog(t, T.shows[0], 0.4)));   // the colour changes exactly on the hit, under the flash, straight to the new cover's colour: no in-between hues
     P = mixP(P, { deep: hex('#050507'), cool: hex('#2a2a32'), hot: hex('#e8e8ee') }, eio(prog(t, T.quiet, 0.5)));
     P = mixP(P, PB, eo3(prog(t, T.drop - 0.03, 0.25))); const st = $('stage').style;
     st.setProperty('--hot', css(P.hot)); st.setProperty('--cool', css(mixc(P.cool, [255, 255, 255], 0.45))); st.setProperty('--ink', css(P.hot));
     st.setProperty('--glassA', css(mixc(P.cool, [20, 14, 26], 0.72), 0.5)); st.setProperty('--glassB', css(mixc(P.deep, [10, 8, 14], 0.4), 0.62)); st.setProperty('--edge', css(mixc(P.hot, [255, 255, 255], 0.5), 0.26));
-    drawBg(fi, tS[fi], hit, P);
+    // one flash on every hit: the background itself lights up in its own colour (the fog gets brighter, plus a soft glow of the same hue); never white
+    let fl = 0; T.wasted.forEach(w_ => { if (t >= w_ - 0.03) { const x = t - w_; fl = Math.max(fl, x < 0 ? (x + 0.03) / 0.03 : Math.exp(-x / 0.24)); } });
+    drawBg(fi, tS[fi], hit, P, fl);
+    { const fe = $('flash'); if (fl < 0.01) fe.style.opacity = 0; else { fe.style.opacity = 0.5 * fl; fe.style.background = `radial-gradient(ellipse 95% 75% at 50% 42%, ${css(mixc(P.cool, P.hot, 0.45), 0.95)} 0%, ${css(P.cool, 0.7)} 50%, ${css(P.cool, 0.25)} 100%)`; } }
     fx.clearRect(0, 0, W, H);
     for (const d of dust) { const x = ((d.x + Math.sin(t * 0.5 + d.ph) * d.sw * d.z) % W + W) % W, y = ((d.y - tS[fi] * 60 * d.z - t * 14 * d.z) % H + H) % H, a = (0.22 + 0.5 * d.z) * (0.6 + 0.4 * Math.sin(t * 2.1 + d.ph)) * (1 + 0.6 * hit);
       fx.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.6), clamp(a)); fx.beginPath(); fx.arc(x, y, 1.2 + 1.8 * d.z, 0, 6.3); fx.fill(); }
-    const wz = ci >= 0 ? 9 * Math.exp(-(t - T.shows[ci]) / 0.12) : 0, shake = wz + 14 * Math.exp(-Math.max(0, t - T.words[2]) / 0.16) * (t >= T.words[2] ? 1 : 0) + 18 * Math.exp(-Math.max(0, t - T.stamp) / 0.16) * (t >= T.stamp ? 1 : 0);
+    const wz = 0, shake = wz + 14 * Math.exp(-Math.max(0, t - T.words[2]) / 0.16) * (t >= T.words[2] ? 1 : 0) + 18 * Math.exp(-Math.max(0, t - T.stamp) / 0.16) * (t >= T.stamp ? 1 : 0);
     const shx = shake * Math.sin(t * 91), shy = shake * Math.cos(t * 77);
 
-    // ---- 0) intro, 1) the old scores: one cover per "wasted" hit of the clip; each gets greyed, struck with the red bar and its score pulled down
-    { const hk = $('hook'), hi_ = eo3(prog(t, 0.3, 0.5)), ho = prog(t, T.stutter[0] - 0.1, 0.12); hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = 'rotate(-3deg)'; }
-    { let stp = 0; for (const s_ of T.stutter) if (t >= s_) stp++; const sx = stp ? 1 + 0.025 * stp + 0.04 * (1 - prog(t, T.stutter[stp - 1], 0.1)) : 1, gone = t >= T.shows[0] ? 1 : 0;
-      [['i1', 1.25], ['i2', 2.05]].forEach(([id, at], j) => { const e = $(id), sp = spring(t, at, 2.3, 0.62); e.style.opacity = clamp(prog(t, at, 0.1)) * (1 - gone) * (stp % 2 && prog(t, T.stutter[stp - 1], 0.05) < 1 ? 0.35 : 1);
-        e.style.transform = `translateY(${80 * (1 - sp)}px) scale(${(1.1 - 0.1 * sp) * sx})`; e.style.filter = stp ? `blur(${1.5 * stp}px)` : 'none'; }); }
-    const card = $('card');
-    if (ci >= 0 && t < T.quiet + 0.1) {
-      const c = D.cards[ci], tin = T.shows[ci], tw = 1e9, tout = ci + 1 < T.shows.length ? T.shows[ci + 1] - 0.13 : T.quiet - 0.12, cin = spring(t, tin, 2.6, 0.62), cout = ei3(prog(t, tout, 0.13)), w = prog(t, tw, 0.14), wk = eo3(w);
-      $('artA').src = IM[ci].src; $('artB').style.display = 'none'; $('artA').style.filter = `grayscale(${wk}) contrast(${1 + 0.25 * wk}) brightness(${1 - 0.38 * wk})`; $('artA').style.transform = `scale(${1.08 - 0.06 * eo3(prog(t, tin, 0.6)) + 0.03 * wk})`;
-      $('cTitle').textContent = c.title; $('cArtist').textContent = c.artist; $('cTitle').style.opacity = 1 - 0.45 * wk; $('cArtist').style.opacity = 0.66 * (1 - 0.45 * wk);
-      const strict = Math.round((c.score - 1.6 - 0.3 * ((ci * 7) % 4)) * 10) / 10, sc = t < tw ? lerp(c.score - 2.5, c.score, eo5(prog(t, tin + 0.05, 0.45))) : lerp(c.score, strict, eo5(prog(t, tw + 0.04, 0.34))); setScore(Math.round(sc * 100) / 100);
-      const wb = $('wbar'), wsp = spring(t, tw, 4.2, 0.5); wb.style.opacity = w > 0 ? 1 : 0; wb.style.transform = `rotate(-4deg) scaleX(${0.2 + 0.8 * eo5(prog(t, tw, 0.12))}) scaleY(${1.5 - 0.5 * wsp})`;
-      $('chip').style.transform = `scale(${1 + 0.07 * hit + 0.1 * (w > 0 ? Math.exp(-(t - tw) / 0.15) : 0)})`;
-      card.style.opacity = clamp(prog(t, tin, 0.06)) * (1 - cout);
-      card.style.transform = `translate3d(${shx - cout * 620 * (ci % 2 ? -1 : 1)}px, ${(1 - cin) * 520 + cout * 260 + shy - 14 * hit}px, ${-cout * 200}px) rotateX(${3 * Math.sin(t * 0.9) + 10 * (1 - cin)}deg) rotateY(${5 * Math.sin(t * 0.7 + 1)}deg) rotateZ(${(ci % 2 ? 1 : -1) * (2.2 * wk - 9 * cout)}deg) scale(${1 + 0.03 * hit - 0.025 * wk})`;
-      viz.clearRect(0, 0, 608, 104); for (let b = 0; b < 48; b++) { const h = 10 + 78 * clamp((0.5 + 0.5 * hit) * (0.45 + 0.55 * Math.abs(Math.sin(t * 5.3 + vph[b]) * Math.sin(t * 2.1 + vph[b] * 1.7))) * (1 - 0.35 * b / 48)) * (1 - 0.6 * wk); viz.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.75), 0.9); viz.fillRect(b * 12.7, 104 - h, 7.5, h); }
-      const dl = $('delta'), x = t - tw; if (x >= 0.06) { const a = spring(t, tw + 0.06, 4, 0.55); dl.textContent = '−' + (c.score - strict).toFixed(1); dl.style.color = '#ff5a66'; dl.style.left = (668 + 30 * (ci % 2)) + 'px'; dl.style.top = (770 - 46 * x) + 'px'; dl.style.opacity = (1 - prog(x, 0.34, 0.12)) * (1 - cout); dl.style.transform = `rotate(${ci % 2 ? 6 : -7}deg) scale(${0.6 + 0.4 * a})`; } else dl.style.opacity = 0;
-    } else { card.style.opacity = 0; $('delta').style.opacity = 0; }
+    // ---- 1) the old scores: a carousel of past covers, one step per hit of the clip. The card leaving and the card arriving move together on the same curve, so nothing snaps.
+    { const hk = $('hook'), hi_ = eo3(prog(t, 0.08, 0.5)), ho = eio(prog(t, 2.5, 0.5)); hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-24 * ho}px)`; }
+    $('i1').style.opacity = 0; $('i2').style.opacity = 0; $('delta').style.opacity = 0;
+    const DIN = 0.62, DOUT = 0.62;
+    D.cards.forEach((c, i) => { const LEAD = 0.24, el = $('k' + i), tin = T.shows[i] - (i ? LEAD : 0), last = i + 1 >= T.shows.length, tout = last ? T.quiet - 0.05 : T.shows[i + 1] - LEAD;   // the move starts a little before the hit, so the new cover is already coming in when the colour flashes
+      if (t < tin || t > tout + (last ? 0.8 : DOUT)) { el.style.display = 'none'; return; } el.style.display = 'block';
+      const a = i === 0 ? eo5(prog(t, tin, 0.7)) : eio(prog(t, tin, DIN)), o = last ? eio(prog(t, tout, 0.8)) : eio(prog(t, tout, DOUT));   // a: 0 -> 1 arriving, o: 0 -> 1 leaving
+      const x = i === 0 ? 0 : 760 * (1 - a), y0 = i === 0 ? 300 * (1 - a) : 0, xo = last ? 0 : -760 * o, yo = last ? 70 * o : 0, sway = 3 * Math.sin(t * 0.9 + i), swy = 5 * Math.sin(t * 0.7 + 1 + i);
+      const sc = (0.86 + 0.14 * a) * (1 - (last ? 0.12 : 0.14) * o) * (1 + 0.025 * hit), ry = (i === 0 ? 0 : -34 * (1 - a)) + (last ? 0 : 34 * o), speed = Math.sin(Math.PI * (i === 0 ? 0 : a)) * (a < 1 ? 1 : 0) + Math.sin(Math.PI * o) * (last ? 0 : 1);
+      el.style.opacity = clamp(a * 1.6) * (1 - Math.pow(o, last ? 1 : 1.6)); el.style.zIndex = o > 0 ? 1 : 2;
+      el.style.transform = `translate3d(${x + xo}px, ${y0 + yo - 12 * hit}px, ${-260 * (1 - a) - 260 * o}px) rotateX(${sway}deg) rotateY(${swy + ry}deg) rotateZ(${(i === 0 ? 0 : 3 * (1 - a)) - (last ? 0 : 3 * o)}deg) scale(${sc})`;
+      el.style.filter = speed > 0.05 ? `blur(${(5 * speed).toFixed(1)}px)` : 'none';
+      setScore(el, Math.round(lerp(c.score - 3, c.score, eo5(prog(t, tin + 0.12, 0.7))) * 100) / 100); el.querySelector('.chip').style.transform = `scale(${1 + 0.06 * hit})`;
+      const viz = el.querySelector('.viz').getContext('2d'); viz.clearRect(0, 0, 608, 104); for (let b = 0; b < 48; b++) { const h = 10 + 78 * clamp((0.5 + 0.5 * hit) * (0.45 + 0.55 * Math.abs(Math.sin(t * 5.3 + vph[b]) * Math.sin(t * 2.1 + vph[b] * 1.7))) * (1 - 0.35 * b / 48)); viz.fillStyle = css(mixc(CP[i].hot, [255, 255, 255], 0.75), 0.9); viz.fillRect(b * 12.7, 104 - h, 7.5, h); } });
     // the quiet bars before the kicks
     { const n = $('note1'), a = eo3(prog(t, T.quiet + 0.15, 0.55)), o = prog(t, T.drop - 0.1, 0.1); n.style.left = '0'; n.style.width = '1080px'; n.style.textAlign = 'center'; n.style.top = '720px'; n.style.fontSize = '132px'; n.style.opacity = (a > 0 ? 1 : 0) * (1 - o); n.style.clipPath = `inset(0 ${78 - 78 * a}% 0 0)`; n.style.transform = `rotate(-3deg) scale(${1 + 0.02 * (t - T.quiet)})`; }
     { const e = $('q2'), a = eo3(prog(t, T.quiet + 1.25, 0.5)), o = prog(t, T.drop - 0.1, 0.1); e.style.opacity = a * (1 - o); e.style.transform = `translateY(${24 * (1 - a)}px)`; e.style.letterSpacing = (0.06 - 0.04 * a) + 'em'; }
@@ -268,9 +262,7 @@
       s.style.transform = `translate(${shx}px, ${shy}px) rotate(${-9 + 5 * (1 - k)}deg) scale(${land < 1 ? 2.6 - 1.6 * k : 1 + 0.07 * (1 - set)})`; }
     { const c = $('cta'), a = spring(t, T.cta, 2.6, 0.6); c.style.opacity = clamp(prog(t, T.cta, 0.15)); c.style.transform = `translateY(${40 * (1 - a)}px) scale(${1 + 0.04 * hit})`; }
     $('wm').style.transform = `scale(${1 + 0.06 * hit})`;
-    { let f = 0; for (const w_ of T.wasted) if (t >= w_) f = Math.max(f, Math.exp(-(t - w_) / 0.11)); const fe = $('flash');   // one flash of the background on every hit, in the colour of the cover that comes in
-      if (f < 0.01) fe.style.opacity = 0; else { const c1 = mixc(P.hot, [255, 255, 255], 0.25), c2 = mixc(P.cool, P.hot, 0.35); fe.style.opacity = 0.95 * f; fe.style.background = `radial-gradient(ellipse 90% 70% at 50% 42%, ${css(c1, 0.95)} 0%, ${css(c2, 0.8)} 45%, ${css(P.cool, 0.45)} 100%)`; } }
-    GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.25), prog(t, NF / FPS - 0.12, 0.12));
+    GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.2), prog(t, NF / FPS - 0.3, 0.3));
   };
   window.READY = true;
 })();
