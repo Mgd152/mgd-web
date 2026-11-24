@@ -4,9 +4,9 @@
   "cover": "assets/xcool/cover.jpg",
   "title": "X-COOL!",
   "artist": "tienanh109, HDN & MC K3",
-  "start": 16.56,
-  "target": 18.8,
-  "drop_at": 24.08,
+  "start": 32.76,
+  "target": 19.9,
+  "drop_at": 40.76,
   "bpm": 127.7,
   "particles": "ash",
   "atmos": 1.4,
@@ -15,10 +15,10 @@
   "glitch": false,
   "cta": "send me your funk",
   "bg_dim": 0.6,
-  "story": "0.9:6.5,4.6:7.1,7.52:9.1",
+  "story": "0.9:6.5,4.6:7.1,8.0:9.1",
   "score": 9.1,
-  "notes": "mp3 from the owner (original version). Drop at 0:24.08 as the owner described: the music fades out, then comes back in, a section without kick (mids drive the reactions there). Score is mine.",
+  "notes": "mp3 from the owner (original version). Owner: the drop is NOT the entry at 0:24; after that section the music fades (0:37-0:38.7), three notes (0:38.85), three fading notes (0:39.5-0:40.5), then the drop at 0:40.76. Section without a hard kick, so mids drive the reactions. Score is mine.",
   "pal": "#020814,#1f55d8,#7fb4ff,#f0f6ff",
   "leaf_colors": "#0a1e5e,#7fb4ff,#ffffff",
-  "mid_drive": "7.5,18.8"
+  "mid_drive": "0,19.9"
 }
