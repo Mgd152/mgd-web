@@ -1,0 +1,269 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Announcement video in the look of the score videos: "from now on I rate harder". Timeline and sounds come from announce_prep.py. -->
+<link rel="stylesheet" href="/node_modules/@fontsource-variable/tiktok-sans/standard.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/instrument-serif/400-italic.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/nanum-pen-script/400.css">
+<style>
+  html, body { margin: 0; background: #000; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: 'TikTok Sans Variable', sans-serif; color: #fff; }
+  .abs { position: absolute; left: 0; top: 0; }
+  .serif { font-family: 'Instrument Serif'; font-style: italic; font-weight: 400; }
+  .hand { font-family: 'Nanum Pen Script'; font-weight: 400; white-space: nowrap; text-shadow: 0 3px 16px rgba(0,0,0,0.6); }
+  .glass { background: linear-gradient(180deg, var(--glassA), var(--glassB)); border: 1.5px solid var(--edge); backdrop-filter: blur(28px) saturate(1.3); box-sizing: border-box; }
+  #scene { position: absolute; inset: 0; perspective: 1900px; perspective-origin: 540px 820px; }
+  #card { position: absolute; left: 210px; top: 372px; width: 660px; padding: 26px; border-radius: 42px; transform-origin: 330px 480px; }
+  #artWrap { position: relative; width: 608px; height: 608px; border-radius: 28px; overflow: hidden; background: #111; }
+  #artWrap img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  #chip { position: absolute; right: 18px; bottom: 18px; width: 262px; height: 158px; border-radius: 26px; box-sizing: border-box; padding: 16px 20px 18px;
+          background: rgba(10,6,16,0.5); border: 1.5px solid rgba(255,255,255,0.2); backdrop-filter: blur(18px) saturate(1.2); transform-origin: 100% 100%; }
+  #chip small { display: block; font-size: 19px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.75; }
+  #digits { display: flex; align-items: flex-end; height: 104px; margin-top: 2px; }
+  .col { height: 104px; overflow: hidden; padding: 0 14px; margin: 0 -14px; }
+  .strip span, .dot { display: block; height: 104px; line-height: 104px; font-weight: 900; font-size: 106px; letter-spacing: -0.03em; color: var(--hot); font-feature-settings: "tnum"; }
+  .dot { width: 26px; text-align: center; }
+  .of { font-size: 30px; font-weight: 600; opacity: 0.6; margin: 0 0 18px 8px; }
+  #cTitle { font-size: 50px; font-weight: 700; letter-spacing: -0.01em; margin-top: 22px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cArtist { font-size: 26px; font-weight: 600; opacity: 0.66; margin-top: 6px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #viz { display: block; margin-top: 18px; }
+  .line { position: absolute; left: 0; width: 1080px; text-align: center; white-space: nowrap; }
+  .row { position: absolute; left: 120px; width: 840px; height: 148px; border-radius: 34px; display: flex; align-items: center; padding: 0 44px; }
+  .row b { font-size: 64px; font-weight: 800; letter-spacing: -0.01em; position: relative; }
+  .row b i { position: absolute; left: -10px; right: -10px; top: 54%; height: 7px; border-radius: 4px; background: #fff; transform-origin: 0 50%; }
+  .row svg { position: absolute; right: 40px; top: 42px; }
+  #ladder { position: absolute; left: 120px; top: 600px; width: 840px; border-radius: 42px; padding: 18px 0; transform-origin: 420px 330px; }
+  .lr { position: relative; height: 150px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; }
+  .lr + .lr { border-top: 1.5px solid rgba(255,255,255,0.10); }
+  .lr b { font-size: 68px; font-weight: 900; letter-spacing: 0.02em; }
+  .lr span { font-size: 44px; font-weight: 600; opacity: 0.8; font-feature-settings: "tnum"; }
+  .lr small { position: absolute; left: 50px; bottom: 14px; font-size: 27px; font-weight: 600; letter-spacing: 0.05em; color: var(--hot); }
+  .lr .hl { position: absolute; inset: 0 14px; border-radius: 28px; background: var(--hot); opacity: 0; }
+  #stamp { position: absolute; left: 500px; top: 980px; width: 430px; height: 268px; transform-origin: 50% 50%; opacity: 0; }
+  #stampIn { position: absolute; inset: 0; box-sizing: border-box; border: 9px solid var(--ink); border-radius: 18px; outline: 3px solid var(--ink); outline-offset: -21px;
+             background: rgba(14,4,6,0.62); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  #stampIn small { font-weight: 800; font-size: 23px; letter-spacing: 0.3em; margin-right: -0.3em; }
+  #stampIn b { font-weight: 900; font-size: 124px; line-height: 0.95; letter-spacing: 0.01em; }
+  #cta { left: 0; width: 1080px; top: 1440px; text-align: center; }
+  #cta i { font-style: normal; display: inline-block; background: var(--hot); color: #16060a; font-weight: 800; font-size: 34px; padding: 16px 30px; border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" class="abs" width="1080" height="1920"></canvas>
+  <canvas id="dots" class="abs" width="1080" height="1920" style="mix-blend-mode: overlay; opacity: 0.5"></canvas>
+  <canvas id="fx" class="abs" width="1080" height="1920"></canvas>
+  <div id="scene">
+    <div id="card" class="glass">
+      <div id="artWrap"><img id="artA"><img id="artB">
+        <div id="chip"><small>score</small><div id="digits"><div class="col" id="cU"><div class="strip"></div></div><div class="dot">.</div><div class="col" id="cT"><div class="strip"></div></div><div class="of">/10</div></div></div>
+      </div>
+      <div id="cTitle"></div><div id="cArtist"></div>
+      <canvas id="viz" width="608" height="104"></canvas>
+    </div>
+    <div id="ladder" class="glass">
+      <div class="lr"><div class="hl"></div><b style="position:relative;top:-14px">PEAK</b><span style="position:relative;top:-14px">9.0 +</span><small>EARNED, NEVER GIVEN</small></div>
+      <div class="lr"><b>REPLAY</b><span>7.5 – 8.9</span></div>
+      <div class="lr"><b>DECENT</b><span>6.0 – 7.4</span></div>
+      <div class="lr"><b>SKIP</b><span>below 6.0</span></div>
+    </div>
+    <div id="stamp"><div id="stampIn"><small>FROM THE NEXT VIDEO</small><b>STRICT</b><small>NO FREE POINTS</small></div></div>
+  </div>
+  <div class="abs hand" id="hook" style="left:0;width:1080px;top:270px;text-align:center;font-size:104px"></div>
+  <div class="abs hand" id="note1" style="font-size:96px"></div>
+  <div class="abs hand" id="delta" style="font-size:92px"></div>
+  <div class="line" id="w1" style="top:610px;font-size:74px;font-weight:700;letter-spacing:0.16em">FROM NOW ON</div>
+  <div class="line" id="w2" style="top:720px;font-size:236px;font-weight:900;letter-spacing:-0.02em;line-height:1">I RATE</div>
+  <div class="line" id="w3" style="top:948px;font-size:236px;font-weight:900;letter-spacing:-0.02em;line-height:1;color:var(--hot)">HARDER.</div>
+  <svg class="abs" id="ul" width="1080" height="1920" style="pointer-events:none"><path id="ulp" d="M150 1218 C 330 1196, 560 1232, 760 1204 S 900 1206, 936 1214" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/></svg>
+  <div class="abs serif" id="h3" style="left:128px;top:486px;font-size:58px;color:var(--cool)">what changes</div>
+  <div id="rows"></div>
+  <div class="abs hand" id="note3" style="font-size:96px"></div>
+  <div class="abs serif" id="h4" style="left:128px;top:506px;font-size:58px;color:var(--cool)">the scale</div>
+  <div class="abs hand" id="note4" style="font-size:96px"></div>
+  <div class="abs" id="cta"><i>send me your funk ↓</i></div>
+  <div class="abs hand" id="wm" style="left:auto;right:46px;top:196px;font-size:50px;opacity:0.38;transform-origin:100% 50%">@mxzhphxnkk</div>
+  <div class="abs" id="vig" style="width:1080px;height:1920px;pointer-events:none;background:radial-gradient(ellipse 75% 62% at 50% 44%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.5) 100%)"></div>
+  <canvas class="abs" id="grain" width="540" height="960" style="width:1080px;height:1920px;mix-blend-mode:overlay;opacity:0.22;pointer-events:none"></canvas>
+  <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
+</div>
+<script>const BUILD = new URLSearchParams(location.search).get('build') || '/work/announce/build'; document.write(`<script src="${BUILD}/data.js"><\/script>`);</script>
+<script>
+(async function () {
+  const D = window.DATA, FPS = D.fps, NF = D.nframes, T = D.T, W = 1080, H = 1920, $ = id => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, k) => a + (b - a) * k, prog = (t, t0, d) => clamp((t - t0) / d);
+  const eo3 = x => 1 - Math.pow(1 - x, 3), eo5 = x => 1 - Math.pow(1 - x, 5), ei3 = x => x * x * x, eio = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const spring = (t, t0, f = 2.6, z = 0.5) => { const x = t - t0; if (x <= 0) return 0; const w = 2 * Math.PI * f, d = z * w, wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-d * x) * (Math.cos(wd * x) + d / wd * Math.sin(wd * x)); };
+  const rng = s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), mixc = (a, b, k) => a.map((v, i) => Math.round(lerp(v, b[i], k))), css = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  // two moods: the generous past (violet) and the strict future (crimson); everything is tinted from the mix
+  const PA = { deep: hex('#07041a'), cool: hex('#4a2ab8'), hot: hex('#b48cff') }, PB = { deep: hex('#140204'), cool: hex('#b3101c'), hot: hex('#ff3b46') };
+  // impact envelope from the timeline (the sounds are made from the same times)
+  const EV = [...T.cards.map((c, i) => [c, 0.28]), [T.words[0], 0.7], [T.words[1], 0.6], [T.words[2], 1], ...T.rows.map(r => [r + 0.42, 0.45]), [T.ladder + 0.9, 0.4], [T.stamp, 1]];
+  const hitAt = t => { let h = 0; for (const [a, g] of EV) { const x = t - a; if (x >= 0) h += g * Math.exp(-x / 0.2) * clamp(x / 0.02); } return clamp(h); };
+  const tS = new Float32Array(NF); { let acc = 0; for (let i = 0; i < NF; i++) { acc += (1 / FPS) * (0.2 + 2.2 * Math.pow(hitAt(i / FPS), 1.3)); tS[i] = acc; } }
+
+  const gl = $('bg').getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
+  const VS = `#version 300 es
+  in vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+  const NOISE = `
+  vec3 permute(vec3 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+  float snoise(vec2 v){
+    const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+    vec2 i = floor(v + dot(v, C.yy)); vec2 x0 = v - i + dot(i, C.xx);
+    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1; i = mod(i, 289.0);
+    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0); m = m*m; m = m*m;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0; vec3 h = abs(x) - 0.5; vec3 ox = floor(x + 0.5); vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+    vec3 g; g.x = a0.x * x0.x + h.x * x0.y; g.yz = a0.yz * x12.xz + h.yz * x12.yw; return 130.0 * dot(m, g);
+  }
+  float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++){ s += a * snoise(p); p = p * 2.02 + vec2(17.1, 9.7); a *= 0.45; } return s; }`;
+  const FS_FOG = `#version 300 es
+  precision highp float; uniform vec2 uRes; uniform float uT; uniform float uZoom; out vec4 o; ${NOISE}
+  void main(){
+    vec2 uv = gl_FragCoord.xy / uRes; vec2 p = (uv - 0.5) * vec2(uRes.x / uRes.y, 1.0) * 1.05 * uZoom;
+    float t = uT;
+    vec2 q = vec2(fbm(p + vec2(0.0, t * 0.05)), fbm(p + vec2(5.2, 1.3) - vec2(t * 0.04, 0.0)));
+    vec2 r = vec2(fbm(p + 1.2 * q + vec2(1.7, 9.2) + t * 0.06), fbm(p + 1.2 * q + vec2(8.3, 2.8) - t * 0.05));
+    float v = fbm(p + 1.3 * r);
+    float far = fbm(p * 0.45 + vec2(t * 0.015, -t * 0.02) + 3.0);
+    o = vec4(smoothstep(-0.55, 0.85, v), smoothstep(-0.6, 0.7, far), 0.0, 1.0);
+  }`;
+  const FS_COMP = `#version 300 es
+  precision highp float; uniform sampler2D uS; uniform vec2 uRes; uniform vec3 uBase; uniform vec3 uMid; uniform vec3 uHi;
+  uniform float uGain; uniform float uT; uniform float uSeed; uniform float uHit; uniform float uAtm; uniform float uDim; out vec4 o;
+  float h12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+  void main(){
+    vec2 fc = gl_FragCoord.xy; vec2 uv = fc / uRes; float asp = uRes.x / uRes.y;
+    vec4 s = texture(uS, uv); float fog = s.r, far = s.g;
+    vec3 col = mix(uBase * 0.55, uBase * 1.6, uv.y);                         // deep base, a little lighter up top
+    col += uMid * far * 0.16;                                                 // distant haze
+    col += uMid * pow(fog, 1.7) * 0.64 * uGain * (1.0 + 0.35 * (uAtm - 1.0)); // near fog wisps
+    col += uHi * smoothstep(0.72, 1.0, fog) * 0.12 * uGain;                   // faint lime in the densest wisps
+    // light rays from above, slowly swaying
+    vec2 d = (uv - vec2(0.7, 1.22)) * vec2(asp, 1.0); float ang = atan(d.x, -d.y); float dist = length(d);
+    float rays = (0.5 + 0.5 * sin(ang * 23.0 + uT * 0.35)) * (0.5 + 0.5 * sin(ang * 9.0 - uT * 0.22 + 1.7));
+    rays = pow(rays, 2.4) * smoothstep(1.9, 0.25, dist) * (0.75 + 0.25 * fog);
+    col += mix(uMid, vec3(1.0), 0.5) * rays * (0.3 + 0.14 * uHit) * (1.0 + 0.7 * (uAtm - 1.0));
+    // bloom behind the card
+    vec2 cq = (uv - vec2(0.5, 0.56)) * vec2(asp, 1.0);
+    col += mix(uMid, uHi, 0.25) * exp(-dot(cq, cq) * 5.0) * (0.16 + 0.22 * uHit) * (1.0 + 0.5 * (uAtm - 1.0));
+    vec2 v = uv - 0.5; col *= 1.0 - 0.95 * dot(v * vec2(1.0, 0.72), v * vec2(1.0, 0.72));
+    col *= uDim;
+    col += (h12(fc + uSeed) - 0.5) * 0.03;                                    // fine film grain
+    o = vec4(col, 1.0);
+  }`;
+  function program(fs) {
+    const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+    const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr)); return pr;
+  }
+  const pFog = program(FS_FOG), pComp = program(FS_COMP);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const SW = 162, SH = 288;
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, SW, SH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+
+  const U = (pr, n) => gl.getUniformLocation(pr, n);
+  function drawBg(fi, ts, hit, P) {
+    const v3 = c => c.map(x => x / 255), C_BASE = v3(P.deep).map(x => x * 0.22), C_MID = v3(P.cool).map(x => x * 0.9), C_HI = v3(P.hot);
+    const bind = pr => { gl.useProgram(pr); const loc = gl.getAttribLocation(pr, 'p'); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0); };
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, SW, SH); bind(pFog);
+    gl.uniform2f(U(pFog, 'uRes'), SW, SH); gl.uniform1f(U(pFog, 'uT'), ts); gl.uniform1f(U(pFog, 'uZoom'), 1.0 - 0.03 * hit); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); bind(pComp);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(U(pComp, 'uS'), 0);
+    gl.uniform2f(U(pComp, 'uRes'), W, H); gl.uniform3f(U(pComp, 'uBase'), ...C_BASE); gl.uniform3f(U(pComp, 'uMid'), ...C_MID); gl.uniform3f(U(pComp, 'uHi'), ...C_HI);
+    gl.uniform1f(U(pComp, 'uGain'), 1.0 + 0.5 * hit); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), 1.3); gl.uniform1f(U(pComp, 'uDim'), 0.62);
+    gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish();
+  }
+  { const d = $('dots').getContext('2d'), stp = 22; d.fillStyle = '#fff';
+    for (let r = 0, y = 0; y < H + stp; y += stp / 2, r++) for (let x = (r % 2) * stp / 2; x < W + stp; x += stp) { const v = Math.abs(y / H - 0.47) * 2, k = clamp((v - 0.22) / 0.78), rad = stp * 0.44 * Math.pow(k, 0.8); if (rad > 0.6) { d.beginPath(); d.arc(x, y, rad, 0, 6.3); d.fill(); } } }
+  const GR = (() => { const g = $('grain').getContext('2d'), tiles = [], R9 = rng(99); for (let k = 0; k < 6; k++) { const c = document.createElement('canvas'); c.width = 540; c.height = 960; const x = c.getContext('2d'), im = x.createImageData(540, 960); for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (R9() - 0.5) * 150; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } x.putImageData(im, 0, 0); tiles.push(c); } return fi => g.drawImage(tiles[fi % 6], 0, 0); })();
+  const R = rng(20261124), dust = Array.from({ length: 150 }, () => ({ x: R() * W, y: R() * H, z: 0.25 + R() * 0.75, ph: R() * 6.28, sw: 10 + R() * 34 })), fx = $('fx').getContext('2d');
+
+  await document.fonts.load('900 60px "TikTok Sans Variable"'); await document.fonts.load('400 60px "Nanum Pen Script"'); await document.fonts.load('italic 400 34px "Instrument Serif"'); await document.fonts.ready;
+  const IM = []; for (let i = 0; i < D.cards.length; i++) { const im = new Image(); im.src = `${BUILD}/c${i}.jpg`; await im.decode(); IM.push(im); }
+  for (const id of ['cU', 'cT']) $(id).firstChild.innerHTML = Array.from({ length: 21 }, (_, i) => `<span>${i % 10}</span>`).join('');
+  const setScore = v => { const tn = v * 10, u = Math.floor(v + 1e-6), fr = tn - Math.floor(tn + 1e-6), tpos = (Math.floor(tn + 1e-6) % 10) + fr, upos = u + (tpos > 9 ? tpos - 9 : 0); $('cT').firstChild.style.transform = `translateY(${-104 * tpos}px)`; $('cU').firstChild.style.transform = `translateY(${-104 * upos}px)`; };
+  const ROWS = [['pity points', 0], ['inflated scores', 0], ['honest scores only', 1]];
+  $('rows').innerHTML = ROWS.map(([s, ok], i) => `<div class="row glass" id="r${i}" style="top:${590 + i * 178}px"><b>${s}<i></i></b><svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">${ok ? '<path d="M10 34 L26 50 L56 14" pathLength="1" stroke-dasharray="1"/>' : '<path d="M14 14 L50 50" pathLength="1" stroke-dasharray="1"/><path d="M50 14 L14 50" pathLength="1" stroke-dasharray="1"/>'}</svg></div>`).join('');
+  const ulLen = $('ulp').getTotalLength(); $('ulp').style.strokeDasharray = ulLen;
+  const NOTES = ['+2.0', '+1.5', '+2.4', '+1.8', '+2.2', '+1.6', '+2.5', '+2.0'], viz = $('viz').getContext('2d'), RV = rng(5), vph = Array.from({ length: 48 }, () => RV() * 6.28);
+  $('hook').textContent = 'quick announcement ↓'; $('note1').textContent = 'way too generous.'; $('note3').textContent = 'no more free 9s'; $('note4').textContent = 'earn it.';
+
+  window.NFRAMES = NF;
+  window.renderFrame = fi => {
+    const t = fi / FPS, hit = hitAt(t), mood = eio(prog(t, T.drop - 0.15, 0.9));
+    const P = { deep: mixc(PA.deep, PB.deep, mood), cool: mixc(PA.cool, PB.cool, mood), hot: mixc(PA.hot, PB.hot, mood) }, st = $('stage').style;
+    st.setProperty('--hot', css(P.hot)); st.setProperty('--cool', css(mixc(P.cool, [255, 255, 255], 0.45))); st.setProperty('--ink', css(P.hot));
+    st.setProperty('--glassA', css(mixc(P.cool, [20, 14, 26], 0.72), 0.5)); st.setProperty('--glassB', css(mixc(P.deep, [10, 8, 14], 0.4), 0.62)); st.setProperty('--edge', css(mixc(P.hot, [255, 255, 255], 0.5), 0.26));
+    drawBg(fi, tS[fi], hit, P);
+    fx.clearRect(0, 0, W, H);
+    for (const d of dust) { const x = ((d.x + Math.sin(t * 0.5 + d.ph) * d.sw * d.z) % W + W) % W, y = ((d.y - tS[fi] * 60 * d.z - t * 14 * d.z) % H + H) % H, a = (0.22 + 0.5 * d.z) * (0.6 + 0.4 * Math.sin(t * 2.1 + d.ph)) * (1 + 0.6 * hit);
+      fx.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.6), clamp(a)); fx.beginPath(); fx.arc(x, y, 1.2 + 1.8 * d.z, 0, 6.3); fx.fill(); }
+    const shake = 14 * Math.exp(-Math.max(0, t - T.words[2]) / 0.16) * (t >= T.words[2] ? 1 : 0) + 18 * Math.exp(-Math.max(0, t - T.stamp) / 0.16) * (t >= T.stamp ? 1 : 0);
+    const shx = shake * Math.sin(t * 91), shy = shake * Math.cos(t * 77);
+
+    // ---- 1) the old scores: covers of past videos flick by, every one a 9
+    { const hk = $('hook'), hi_ = eo3(prog(t, 0.05, 0.5)), ho = prog(t, 2.5, 0.35); hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
+    { const n = $('note1'), a = eo3(prog(t, 2.85, 0.45)), o = prog(t, T.drop - 0.12, 0.25); n.style.left = '236px'; n.style.top = '262px'; n.style.opacity = 1 - o; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = `rotate(-4deg) translateY(${-30 * o}px)`; }
+    const card = $('card'), cin = spring(t, 0.0, 1.7, 0.72), cout = ei3(prog(t, T.drop, 0.5));
+    if (t < T.drop + 0.55) {
+      let k = 0; while (k + 1 < T.cards.length && t >= T.cards[k + 1]) k++;
+      const pk = eo5(prog(t, T.cards[k], 0.34)), prev = Math.max(0, k - 1), first = t < T.cards[0] || k === 0;
+      $('artA').src = IM[first ? 0 : prev].src; $('artB').src = IM[k].src;
+      $('artA').style.transform = `translateX(${first ? 0 : -100 * pk}%) scale(${1 + 0.06 * (first ? 0 : pk)})`; $('artB').style.transform = `translateX(${first ? 100 : 100 - 100 * pk}%)`; if (first) $('artB').style.transform = 'translateX(100%)';
+      const c = D.cards[k]; $('cTitle').textContent = c.title; $('cArtist').textContent = c.artist; const tk = first ? 1 : eo3(prog(t, T.cards[k] + 0.06, 0.28));
+      $('cTitle').style.opacity = tk; $('cTitle').style.transform = `translateY(${14 * (1 - tk)}px)`; $('cArtist').style.opacity = 0.66 * tk;
+      const from = first ? 0 : D.cards[prev].score, sc = first ? lerp(0, c.score, eo5(prog(t, 0.15, 0.7))) : lerp(from, c.score, eo5(prog(t, T.cards[k], 0.3)));
+      const fall = t >= T.drop ? lerp(sc, 0, eo3(prog(t, T.drop, 0.45))) : sc; setScore(Math.round(fall * 100) / 100);
+      const jit = 2.2 * prog(t, T.cards[7] + 0.25, 0.3) * (t < T.drop ? 1 : 0);
+      $('chip').style.transform = `translate(${jit * Math.sin(t * 83)}px, ${jit * Math.cos(t * 71)}px) scale(${1 + 0.07 * hit})`;
+      card.style.opacity = clamp(prog(t, 0, 0.25)) * (1 - prog(t, T.drop + 0.2, 0.3));
+      card.style.transform = `translate3d(0, ${(1 - cin) * 420 + cout * 1250 - 16 * hit}px, ${-cout * 300}px) rotateX(${3 * Math.sin(t * 0.9) + 14 * cout}deg) rotateY(${5 * Math.sin(t * 0.7 + 1)}deg) rotateZ(${7 * cout}deg) scale(${1 + 0.03 * hit})`;
+      viz.clearRect(0, 0, 608, 104); for (let b = 0; b < 48; b++) { const h = 10 + 78 * clamp((0.5 + 0.5 * hit) * (0.45 + 0.55 * Math.abs(Math.sin(t * 5.3 + vph[b]) * Math.sin(t * 2.1 + vph[b] * 1.7))) * (1 - 0.35 * b / 48)); viz.fillStyle = css(mixc(P.hot, [255, 255, 255], 0.75), 0.9); viz.fillRect(b * 12.7, 104 - h, 7.5, h); }
+      const dl = $('delta'), dk = t >= T.cards[1] && t < T.drop ? k : -1;
+      if (dk > 0) { const x = t - T.cards[dk], a = spring(t, T.cards[dk], 4, 0.55), o = prog(x, 0.26, 0.16); dl.textContent = NOTES[dk]; dl.style.left = (640 + 34 * (dk % 2)) + 'px'; dl.style.top = (760 - 40 * x) + 'px'; dl.style.opacity = clamp(x / 0.05) * (1 - o); dl.style.transform = `rotate(${dk % 2 ? 6 : -7}deg) scale(${0.6 + 0.4 * a})`; } else dl.style.opacity = 0;
+    } else { card.style.opacity = 0; $('delta').style.opacity = 0; }
+
+    // ---- 2) the statement
+    const out2 = t0 => eio(prog(t, 7.3 + t0, 0.4));
+    { const a = eo5(prog(t, T.words[0], 0.6)), o = out2(0), e = $('w1'); e.style.opacity = a * (1 - o) * 0.82; e.style.clipPath = `inset(0 ${50 - 50 * a}% 0 ${50 - 50 * a}%)`; e.style.transform = `translate(${shx}px, ${28 * (1 - a) - 70 * o + shy}px)`; e.style.letterSpacing = (0.3 - 0.14 * a) + 'em'; }
+    { const s = spring(t, T.words[1], 2.4, 0.6), o = out2(0.05), e = $('w2'); e.style.opacity = clamp(prog(t, T.words[1], 0.08)) * (1 - o); e.style.transform = `translate(${shx}px, ${70 * (1 - s) - 70 * o + shy}px) scale(${1.12 - 0.12 * s})`; }
+    { const s = spring(t, T.words[2], 3.0, 0.48), o = out2(0.1), e = $('w3'); e.style.opacity = clamp(prog(t, T.words[2], 0.05)) * (1 - o); e.style.transform = `translate(${shx}px, ${-70 * o + shy}px) scale(${1.9 - 0.9 * s})`; e.style.textShadow = `0 0 ${50 + 60 * hit}px ${css(P.hot, 0.5)}`; }
+    { const a = eo3(prog(t, T.words[2] + 0.32, 0.5)), o = out2(0.12); $('ulp').style.strokeDashoffset = ulLen * (1 - a); $('ul').style.opacity = (a > 0 ? 1 : 0) * (1 - o); $('ul').style.transform = `translate(${shx}px, ${-70 * o + shy}px)`; }
+
+    // ---- 3) what changes
+    const out3 = i => eio(prog(t, 11.15 + 0.06 * i, 0.38));
+    { const a = eo3(prog(t, T.rows[0] - 0.12, 0.5)), o = out3(0), e = $('h3'); e.style.opacity = a * (1 - o); e.style.transform = `translate(${-30 * (1 - a) - 80 * o}px, 0)`; }
+    ROWS.forEach(([s, ok], i) => { const e = $('r' + i), a = eo5(prog(t, T.rows[i], 0.6)), o = out3(i + 1), m = prog(t, T.rows[i] + 0.42, 0.34), mk = eo3(m), pop = spring(t, T.rows[i] + 0.42, 3.2, 0.5);
+      const dim = ok ? 1 : 1 - 0.5 * eo3(prog(t, T.rows[i] + 0.55, 0.5));
+      e.style.opacity = a * (1 - o) * dim; e.style.transform = `translate(${110 * (1 - a) - 140 * o}px, 0) scale(${ok ? 1 + 0.045 * (m > 0 ? 1 - pop : 0) * -1 + 0.045 * Math.exp(-Math.max(0, t - T.rows[i] - 0.42) / 0.25) * (m > 0 ? 1 : 0) : 1})`;
+      e.querySelector('b i').style.transform = `scaleX(${ok ? 0 : mk})`; e.style.borderColor = ok && m > 0 ? css(P.hot, 0.5 + 0.5 * mk) : ''; e.style.boxShadow = ok ? `0 0 ${60 * mk}px ${css(P.hot, 0.28 * mk)}` : 'none';
+      const ps = e.querySelectorAll('svg path'); ps.forEach((p, j) => { p.style.stroke = ok ? css(P.hot) : '#fff'; p.style.strokeDashoffset = 1 - eo3(prog(t, T.rows[i] + 0.42 + 0.12 * j, 0.26)); }); });
+    { const n = $('note3'), a = eo3(prog(t, T.rows[2] + 0.75, 0.45)), o = out3(4); n.style.left = '430px'; n.style.top = '1136px'; n.style.opacity = (a > 0 ? 1 : 0) * (1 - o); n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = `rotate(-3deg) translateX(${-120 * o}px)`; }
+
+    // ---- 4) the scale, 5) the stamp
+    { const a = eo3(prog(t, T.ladder - 0.05, 0.5)), e = $('h4'); e.style.opacity = a; e.style.transform = `translate(${-30 * (1 - a)}px, 0)`; }
+    { const L = $('ladder'), a = spring(t, T.ladder, 1.9, 0.7), sb = t >= T.stamp ? Math.exp(-(t - T.stamp) / 0.2) : 0; L.style.opacity = clamp(prog(t, T.ladder, 0.22));
+      L.style.transform = `translate3d(${shx}px, ${(1 - a) * 260 + shy + 10 * sb}px, 0) rotateX(${8 * (1 - a) + 2 * Math.sin(t * 0.8)}deg) rotateY(${3 * Math.sin(t * 0.6 + 1)}deg) scale(${1 - 0.02 * sb})`;
+      L.querySelectorAll('.lr').forEach((r, i) => { const k = eo5(prog(t, T.ladder + 0.12 + 0.13 * i, 0.55)); r.style.opacity = k * (i === 0 ? 1 : 0.92 - 0.14 * i); r.style.transform = `translateX(${60 * (1 - k)}px)`; });
+      const hk = eo3(prog(t, T.ladder + 0.9, 0.5)); L.querySelector('.hl').style.opacity = 0.16 * hk + 0.1 * hit * hk; L.querySelector('.hl').style.clipPath = `inset(0 ${100 - 100 * hk}% 0 0)`; L.querySelector('small').style.opacity = eo3(prog(t, T.ladder + 1.1, 0.4)); L.querySelector('.lr b').style.color = css(mixc([255, 255, 255], P.hot, hk)); }
+    { const n = $('note4'), a = eo3(prog(t, T.ladder + 1.5, 0.4)); n.style.left = '150px'; n.style.top = '1262px'; n.style.opacity = a > 0 ? 1 : 0; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = 'rotate(-4deg)'; }
+    { const s = $('stamp'), x = t - T.stamp, land = clamp(x / 0.11), k = ei3(land), set = spring(t, T.stamp + 0.11, 5, 0.4); s.style.opacity = x < 0 ? 0 : clamp(x / 0.05) * 0.96;
+      s.style.transform = `translate(${shx}px, ${shy}px) rotate(${-9 + 5 * (1 - k)}deg) scale(${land < 1 ? 2.6 - 1.6 * k : 1 + 0.07 * (1 - set)})`; }
+    { const c = $('cta'), a = spring(t, T.cta, 2.6, 0.6); c.style.opacity = clamp(prog(t, T.cta, 0.15)); c.style.transform = `translateY(${40 * (1 - a)}px) scale(${1 + 0.04 * hit})`; }
+    $('wm').style.transform = `scale(${1 + 0.06 * hit})`;
+    GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.2), prog(t, NF / FPS - 0.3, 0.3));
+  };
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
