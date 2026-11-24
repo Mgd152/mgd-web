@@ -5,4 +5,3 @@ Link tải trực tiếp: `https://raw.githubusercontent.com/Mgd152/mgd-web/clau
 
 | Ngày thêm (UTC) | Video | Thông tin | Bài |
 |---|---|---|---|
-| 2026-11-24 | [loading.mp4](https://raw.githubusercontent.com/Mgd152/mgd-web/claude/brave-edison-d7wcyg/promo-video/delivery/loading.mp4) | [loading.txt](https://raw.githubusercontent.com/Mgd152/mgd-web/claude/brave-edison-d7wcyg/promo-video/delivery/loading.txt) | JXNDRO - FUNK LOADING (SLOWED) |
