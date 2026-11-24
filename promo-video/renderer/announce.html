@@ -46,7 +46,9 @@
              background: rgba(14,4,6,0.62); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
   #stampIn small { font-weight: 800; font-size: 23px; letter-spacing: 0.3em; margin-right: -0.3em; }
   #stampIn b { font-weight: 900; font-size: 124px; line-height: 0.95; letter-spacing: 0.01em; }
-  #cta { left: 0; width: 1080px; top: 1440px; text-align: center; }
+  #subs { position: absolute; left: 0; width: 1080px; top: 1318px; text-align: center; font-weight: 800; font-size: 60px; letter-spacing: -0.005em; white-space: nowrap; text-shadow: 0 4px 22px rgba(0,0,0,0.85), 0 0 3px rgba(0,0,0,0.9); }
+  #subs span { display: inline-block; margin: 0 0.19em; transform-origin: 50% 80%; }
+  #cta { left: 0; width: 1080px; top: 1476px; text-align: center; }
   #cta i { font-style: normal; display: inline-block; background: var(--hot); color: #16060a; font-weight: 800; font-size: 34px; padding: 16px 30px; border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
 </style>
 </head>
@@ -81,13 +83,14 @@
   <div class="abs hand" id="note3" style="font-size:96px"></div>
   <div class="abs serif" id="h4" style="left:128px;top:506px;font-size:58px;color:var(--cool)">the scale</div>
   <div class="abs hand" id="note4" style="font-size:96px"></div>
+  <div id="subs"></div>
   <div class="abs" id="cta"><i>send me your funk ↓</i></div>
   <div class="abs hand" id="wm" style="left:auto;right:46px;top:196px;font-size:50px;opacity:0.38;transform-origin:100% 50%">@mxzhphxnkk</div>
   <div class="abs" id="vig" style="width:1080px;height:1920px;pointer-events:none;background:radial-gradient(ellipse 75% 62% at 50% 44%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.5) 100%)"></div>
   <canvas class="abs" id="grain" width="540" height="960" style="width:1080px;height:1920px;mix-blend-mode:overlay;opacity:0.22;pointer-events:none"></canvas>
   <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
 </div>
-<script>const BUILD = new URLSearchParams(location.search).get('build') || '/work/announce/build'; document.write(`<script src="${BUILD}/data.js"><\/script>`);</script>
+<script>const BUILD = new URLSearchParams(location.search).get('build') || '/work/announce/build'; document.write(`<script src="${BUILD}/data.js"><\/script>`); if (new URLSearchParams(location.search).get('subs') !== '0') document.write(`<script src="${BUILD}/subs.js"><\/script>`);</script>
 <script>
 (async function () {
   const D = window.DATA, FPS = D.fps, NF = D.nframes, T = D.T, W = 1080, H = 1920, $ = id => document.getElementById(id);
@@ -257,11 +260,16 @@
       L.style.transform = `translate3d(${shx}px, ${(1 - a) * 260 + shy + 10 * sb}px, 0) rotateX(${8 * (1 - a) + 2 * Math.sin(t * 0.8)}deg) rotateY(${3 * Math.sin(t * 0.6 + 1)}deg) scale(${1 - 0.02 * sb})`;
       L.querySelectorAll('.lr').forEach((r, i) => { const k = eo5(prog(t, T.ladder + 0.12 + 0.13 * i, 0.55)); r.style.opacity = k * (i === 0 ? 1 : 0.92 - 0.14 * i); r.style.transform = `translateX(${60 * (1 - k)}px)`; });
       const hk = eo3(prog(t, T.peak, 0.45)); L.querySelector('.hl').style.opacity = 0.16 * hk + 0.1 * hit * hk; L.querySelector('.hl').style.clipPath = `inset(0 ${100 - 100 * hk}% 0 0)`; L.querySelector('small').style.opacity = eo3(prog(t, T.peak + 0.2, 0.4)); L.querySelector('.lr b').style.color = css(mixc([255, 255, 255], P.hot, hk)); }
-    { const n = $('note4'), a = eo3(prog(t, T.peak + 0.58, 0.4)); n.style.left = '150px'; n.style.top = '1262px'; n.style.opacity = a > 0 ? 1 : 0; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = 'rotate(-4deg)'; }
+    { const n = $('note4'), a = eo3(prog(t, T.peak + 0.58, 0.4)); n.style.left = '150px'; n.style.top = '1262px'; n.style.opacity = a > 0 && !window.SUBS ? 1 : 0; n.style.clipPath = `inset(0 ${100 - 100 * a}% 0 0)`; n.style.transform = 'rotate(-4deg)'; }
     { const s = $('stamp'), x = t - T.stamp, land = clamp(x / 0.11), k = ei3(land), set = spring(t, T.stamp + 0.11, 5, 0.4); s.style.opacity = x < 0 ? 0 : clamp(x / 0.05) * 0.96;
       s.style.transform = `translate(${shx}px, ${shy}px) rotate(${-9 + 5 * (1 - k)}deg) scale(${land < 1 ? 2.6 - 1.6 * k : 1 + 0.07 * (1 - set)})`; }
     { const c = $('cta'), a = spring(t, T.cta, 2.6, 0.6); c.style.opacity = clamp(prog(t, T.cta, 0.15)); c.style.transform = `translateY(${40 * (1 - a)}px) scale(${1 + 0.04 * hit})`; }
     $('wm').style.transform = `scale(${1 + 0.06 * hit})`;
+    { const SB = window.SUBS || [], el = $('subs'); let cur = -1; SB.forEach((ph, j) => { if (t >= ph[0][1] - 0.1 && t < ph[ph.length - 1][2] + 0.22) cur = j; });   // captions: one phrase at a time, the word being spoken lights up
+      if (cur < 0) el.style.opacity = 0; else { const ph = SB[cur], t0 = ph[0][1] - 0.1, t1 = ph[ph.length - 1][2] + 0.22, a = eo3(prog(t, t0, 0.16)), o = prog(t, t1 - 0.14, 0.14);
+        if (el.dataset.k !== String(cur)) { el.dataset.k = String(cur); el.innerHTML = ph.map(w => `<span>${w[0]}</span>`).join(''); }
+        el.style.opacity = a * (1 - o); el.style.transform = `translateY(${16 * (1 - a)}px)`;
+        [...el.children].forEach((sp, j) => { const w = ph[j], on = t >= w[1] - 0.03, k = on ? spring(t, w[1] - 0.03, 4, 0.6) : 0, live = on && t < w[2] + 0.05; sp.style.color = live ? css(mixc(P.hot, [255, 255, 255], 0.25)) : '#fff'; sp.style.opacity = on ? 1 : 0.4; sp.style.transform = `scale(${1 + 0.05 * (live ? k : 0) + 0.08 * (on ? Math.max(0, 1 - k) : 0)})`; }); } }
     GR(fi); $('fade').style.opacity = Math.max(1 - prog(t, 0, 0.2), prog(t, NF / FPS - 0.3, 0.3));
   };
   window.READY = true;
