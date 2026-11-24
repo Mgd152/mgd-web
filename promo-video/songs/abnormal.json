@@ -6,7 +6,7 @@
   "artist": "DJ V12 & SXID",
   "start": 4.3,
   "target": 17.6,
-  "drop_at": 8.32,
+  "drop_at": 12.44,
   "bpm": 115.4,
   "particles": "ash",
   "leaf_colors": "#1a1a1a,#f2f2f2,#bdbdbd",
@@ -17,7 +17,7 @@
   "cta": "send me your funk",
   "pal": "#050505,#5a5a5e,#f2f2f2,#ffffff",
   "bg_dim": 0.5,
-  "story": "0.9:6.2,2.5:6.8,4.02:8.8",
+  "story": "0.9:6.2,4.03:6.8,8.14:8.8",
   "score": 8.8,
-  "notes": "Batch from the owner's playlist. Audio = store preview (first 30 s). Owner: the drop is where the very heavy low bass is, not the section at 0:16.6 I picked first. In the preview the heavy low bass comes in at 0:08.32 and grows until 0:16.1. Score is mine."
+  "notes": "Batch from the owner's playlist. Audio = store preview (first 30 s). Owner: the drop is at ~0:12 of the track (heavy low bass), not 0:16.6 and not 0:08.3 where the bass first appears. Measured 0:12.44: the bass hit where the mid layer comes in too. Score is mine."
 }
