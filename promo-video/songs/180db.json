@@ -6,18 +6,19 @@
   "artist": "Akuran",
   "start": 0.0,
   "target": 20.0,
-  "drop_at": 8.06,
+  "drop_at": 5.9,
   "bpm": 83.3,
   "particles": "ash",
   "leaf_colors": "#2a2a2e,#bdbdc4,#ffffff",
   "pal": "#040405,#4a4a52,#e6e6ec,#ffffff",
-  "story": "0.9:5.2,4.4:5.8,8.06:7.7",
+  "story": "0.9:5.2,3.0:5.8,5.9:7.7",
   "score": 7.7,
-  "notes": "From the Drive folder. Owner: score 7.7, no drop given. The track has no clear drop in its first minute (the kick runs from 0:00 and layers come in slowly); I put the score jump at 0:08.06, a bar line where the mid layer is in. Not confirmed.",
+  "notes": "From the Drive folder. Owner: score 7.7, drop at about 6 s; snapped to the kick at 0:05.90. Dark grade (owner: dark songs get a dark filter).",
   "atmos": 1.4,
   "sway": 1,
   "energy": 1.3,
   "glitch": false,
   "cta": "send me your funk",
-  "bg_dim": 0.6
+  "bg_dim": 0.6,
+  "mood": "dark"
 }

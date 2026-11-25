@@ -29,6 +29,8 @@ p.add_argument('--react', default='')                    # sensitivity 'th,gain,
 p.add_argument('--atmos', type=float, default=1.0)       # atmosphere density: 1 = base; higher = more fog, rays, particles, embers, haze
 p.add_argument('--sway', type=float, default=0.0)        # rhythmic card sway: 0 = off, 1 = pendulum swing per bar
 p.add_argument('--energy', type=float, default=1.0)      # reaction strength preset (1 = calm, ~1.6 = hard / motivation)
+p.add_argument('--fall', default='auto')                  # the card flashes and drops away at the end, as if eliminated: 'auto' = when the final score is below 6.5 (owner's idea for low scores), '1' / '0' to force
+p.add_argument('--mood', default='')                      # 'dark' = a darker, colder grade for songs with a dark vibe: dimmer fog, heavy vignette, more grain, less colour
 p.add_argument('--glitch', action='store_true')         # white flash on the drop (the RGB split was removed)
 p.add_argument('--judge_crop', default='')               # portrait of the cover character 'x0,y0,x1,y1' (0..1): it pops up at the end and gives the score
 p.add_argument('--judge_img', default='')                # cut-out character PNG (transparent background) used instead of a crop of the cover
@@ -341,6 +343,7 @@ feat = {
     'judge': bool(a.judge_crop or a.judge_img), 'judgeCut': bool(a.judge_img), 'judge2': bool(a.judge_img and a.judge_img2), 'judgeLine': a.judge_line,
     'scene': a.scene, 'bgDim': a.bg_dim, 'bgFx': a.bg_fx, 'model3d': bool(a.model), 'modelFloat': a.model_float, 'modelDrive': a.model_drive, 'modelTint': a.model_tint, 'modelAt': [float(v) for v in a.model_at.split(',')] if a.model_at else None, 'obj3dAlpha': a.obj3d_alpha, 'fxAlpha': a.fx_alpha, 'obj3dSoft': a.obj3d_soft, 'bgObjAt': [[float(v) for v in e.split(',')] for e in a.bg_obj_at.split(';')] if a.bg_obj_at else None, 'muffled': (muf_ if (a.muffled or a.mid_drive) else None), 'watermark': a.watermark, 'voiceAt': voice_at, 'voiceDur': voice_dur, 'voiceEnv': voice_env, 'dots': a.dots, 'judgeAt': a.judge_at, 'judgeOpen': a.judge_open, 'kick': a.kick, 'wobble': [float(x) for x in a.wobble.split(',')], 'stars': a.stars, 'bgObjs': len(bg_objs),
     'hook': a.hook, 'tier': a.tier,
+    'fall': (a.fall == '1') or (a.fall == 'auto' and a.score is not None and float(a.score) < 6.5), 'mood': a.mood,
     'atmos': a.atmos, 'sway': a.sway, 'energy': a.energy, 'glitch': a.glitch,
     'react': dict(zip(['th', 'gain', 'pre'], map(float, a.react.split(',')))) if a.react else None,
     'score': a.score if a.score is not None else (float(a.story.split(',')[-1].split(':')[1]) if a.story else None),
