@@ -19,6 +19,7 @@ The owner writes in Vietnamese; answer in Vietnamese.
    - Measure BPM from the bass bar period (autocorrelation of the low-band envelope). The beat tracker often doubles or misreads tempo on slowed phonk.
 4. **Preset**:
    - **Clip length**: 15–20 s. Default is 2 bars before the drop, 4–5 bars of drop, then 2 bars for the stamp and CTA. If the owner gives a start time, use `start` plus `target`.
+   - **Score: always ask the owner first** (owner, 2026-11-25: "sau bài nào phải hỏi điểm t trước"). Do not invent a score and do not render before the owner has given it; he now rates harder and wants no inflated scores. The same holds for songs taken from the Drive folder by the schedule: ask in the chat and wait.
    - **Score**: use the owner's `story` / `score` if given, e.g. "từ giây 2 lên 6.7, giây 11 lên 9.2" → `"story": "0.9:3.1,2.0:6.7,10.96:9.2"`. Snap each change to the nearest musical hit.
    - **Palette**: automatic, unless the cover is near-monochrome. Then set `pal` by hand from the cover's own colours, and pick an accent that pops on the glass (light peach on red, bright red on black).
    - **Motif**: take it from the cover: leaves, maple, ash, or none.
