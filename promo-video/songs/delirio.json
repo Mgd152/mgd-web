@@ -1,0 +1,23 @@
+{
+  "slug": "delirio",
+  "track": "assets/delirio/track.mp3",
+  "cover": "assets/delirio/cover.jpg",
+  "title": "MONTAGEM DELÍRIO (SUPER SLOWED)",
+  "artist": "ZXVREN",
+  "start": 14.0,
+  "target": 20.0,
+  "drop_at": 22.0,
+  "bpm": 90.7,
+  "particles": "ash",
+  "leaf_colors": "#3a0006,#ff3b3b,#ffd0d0",
+  "pal": "#140204,#b3101c,#ff3b3b,#fff0f0",
+  "story": "0.9:4.0,4.4:4.6,8.0:6.0",
+  "score": 6.0,
+  "notes": "From the Drive folder. Owner: score 6, drop at about 18.6 s of the 22 s preview I sent (preview started at 0:03.1) = 0:21.7; measured 0:22.00 (bass back in after the gap and riser).",
+  "atmos": 1.4,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "bg_dim": 0.6
+}

@@ -1,0 +1,23 @@
+{
+  "slug": "brega",
+  "track": "assets/brega/track.mp3",
+  "cover": "assets/brega/cover.jpg",
+  "title": "BREGA DO LOVE (SUPER SLOWED)",
+  "artist": "Nxxkz, -Prey, Silo & Mc Gw",
+  "start": 6.02,
+  "target": 20.0,
+  "drop_at": 14.02,
+  "bpm": 137.8,
+  "particles": "leaves",
+  "leaf_colors": "#8a8f98,#e8eef6,#ffffff",
+  "pal": "#050506,#5a5e68,#e8eef6,#ffffff",
+  "story": "0.9:6.4,4.4:7.0,8.0:9.0",
+  "score": 9.0,
+  "notes": "From the Drive folder. Owner: score 9; drop measured by me at 0:14.02 (after a short silence), the owner heard the preview and did not correct it. Pale leaf shapes stand for the doves' feathers on the cover.",
+  "atmos": 1.4,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "bg_dim": 0.6
+}
