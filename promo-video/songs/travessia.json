@@ -1,0 +1,19 @@
+{
+  "slug": "travessia",
+  "track": "assets/travessia/track.mp3",
+  "cover": "assets/travessia/cover.png",
+  "title": "Travessia",
+  "artist": "MGD",
+  "drop_at": 17.885,
+  "bpm": 119,
+  "bars_intro": 2,
+  "bars_main": 5,
+  "bars_out": 2,
+  "particles": "leaves",
+  "atmos": 1.0,
+  "sway": 1,
+  "energy": 1.0,
+  "glitch": false,
+  "cta": "send me your funk",
+  "notes": "Drop 1 at 0:17.9; palette picked automatically from the cover (lime + sky blue). Score story automatic."
+}

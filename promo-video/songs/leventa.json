@@ -1,0 +1,23 @@
+{
+  "slug": "leventa",
+  "track": "assets/leventa/track.mp3",
+  "cover": "assets/leventa/cover.jpg",
+  "title": "LEVENTA!",
+  "artist": "yatashi, MGD & LLOYDS PH",
+  "start": 13.44,
+  "target": 20.0,
+  "drop_at": 21.44,
+  "bpm": 129.2,
+  "particles": "ash",
+  "leaf_colors": "#3a0006,#ff3b46,#ffd0d0",
+  "atmos": 1.4,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "pal": "#140204,#b3101c,#ff3b46,#fff0f0",
+  "bg_dim": 0.6,
+  "story": "0.9:6.4,4.4:7.0,8.0:9.0",
+  "score": 9.0,
+  "notes": "First song from the shared Drive folder (GPT upload), full mp3. No .txt with drop/score: drop measured by me at 0:21.44 (bass enters after the riser; a heavier second part starts at 0:31.56, inside the clip). Score is mine. Title as in the file tag (LEVENTA!); the store album is spelled LEVANTA!."
+}

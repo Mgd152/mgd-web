@@ -1,0 +1,953 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/node_modules/@fontsource-variable/tiktok-sans/standard.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/instrument-serif/400-italic.css">
+<link rel="stylesheet" href="/node_modules/@fontsource/nanum-pen-script/400.css">
+<style>
+  html, body { margin: 0; background: #000; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: 'TikTok Sans Variable', sans-serif; color: #fff; }
+  .layer { position: absolute; left: 0; top: 0; }
+  .abs { position: absolute; left: 0; top: 0; }
+  .serif { font-family: 'Instrument Serif'; font-style: italic; font-weight: 400; }
+  .hand { font-family: 'Nanum Pen Script'; font-weight: 400; white-space: nowrap; }
+
+  #scene { position: absolute; inset: 0; perspective: 1900px; perspective-origin: 540px 820px; }
+  /* card: tinted glass, artwork on top */
+  #card { position: absolute; left: 210px; top: 372px; width: 660px; padding: 26px; box-sizing: border-box; border-radius: 42px;
+          background: linear-gradient(180deg, var(--glassA), var(--glassB)); border: 1.5px solid var(--edge);
+          backdrop-filter: blur(28px) saturate(1.3); -webkit-backdrop-filter: blur(28px) saturate(1.3);
+          transform-origin: 330px 480px; }
+  #glare { position: absolute; inset: 0; border-radius: 42px; pointer-events: none; mix-blend-mode: soft-light; }
+  /* rubber stamp for the final score */
+  #stamp { position: absolute; left: 296px; top: 416px; width: 344px; height: 214px; transform-origin: 50% 50%; pointer-events: none; opacity: 0; }
+  #stampIn { position: absolute; inset: 0; box-sizing: border-box; border: 8px solid var(--ink); border-radius: 16px; outline: 3px solid var(--ink); outline-offset: -19px;
+             background: rgba(14,4,4,0.5); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+             -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  #stampIn small { font-weight: 800; font-size: 21px; letter-spacing: 0.34em; margin-right: -0.34em; }
+  #stNum { display: flex; align-items: baseline; }
+  #stNum b { font-weight: 900; font-size: 118px; line-height: 0.92; letter-spacing: -0.03em; font-variation-settings: "wdth" 88; }
+  #stNum i { font-style: normal; font-weight: 800; font-size: 38px; margin-left: 6px; }
+  #artWrap { position: relative; width: 608px; height: 608px; border-radius: 28px; overflow: hidden; }
+  #art { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* holographic foil over the artwork */
+  #holo { position: absolute; inset: 0; mix-blend-mode: color-dodge; background-size: 260% 260%; pointer-events: none; }
+  #holo2 { position: absolute; inset: 0; mix-blend-mode: overlay; background-size: 220% 220%; pointer-events: none; }
+  /* score chip over the artwork corner */
+  #chip { position: absolute; right: 18px; bottom: 18px; width: 262px; height: 158px; border-radius: 26px; box-sizing: border-box; padding: 16px 20px 18px;
+          background: rgba(4,14,22,0.46); border: 1.5px solid rgba(255,255,255,0.2);
+          backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); transform-origin: 100% 100%; }
+  #chip small { display: block; font-size: 19px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.75; }
+  #digits { display: flex; align-items: flex-end; height: 104px; margin-top: 2px; }
+  .col { height: 104px; overflow: hidden; padding: 0 14px; margin: 0 -14px; }
+  .strip span, .dot { display: block; height: 104px; line-height: 104px; font-weight: 900; font-size: 106px; letter-spacing: -0.03em; color: var(--hot);
+                      font-variation-settings: "wdth" 100; font-feature-settings: "tnum"; }
+  .dot { width: 26px; text-align: center; }
+  .of { font-size: 30px; font-weight: 600; opacity: 0.6; margin: 0 0 18px 8px; }
+  #segs { display: none; }
+  .seg { flex: 1; height: 9px; border-radius: 2px; background: rgba(255,255,255,0.16); overflow: hidden; }
+  .seg i { display: block; height: 100%; width: 0; background: var(--hot); }
+
+  #cTitle { font-size: 54px; font-weight: 700; letter-spacing: -0.01em; margin-top: 22px; line-height: 1.05; }
+  #cArtist { font-size: 26px; font-weight: 600; opacity: 0.66; margin-top: 6px; letter-spacing: 0.02em; }
+  #lower { position: relative; height: 130px; margin-top: 12px; }
+  #viz, #verdict { position: absolute; left: 0; top: 0; width: 608px; }
+  #viz { top: 6px; }
+  #vizDrop { position: absolute; top: 116px; width: 4px; height: 12px; border-radius: 1px; background: var(--hot); margin-left: -2px; }
+  #verdict .lab { font-size: 34px; color: var(--cool); }
+  #vline { font-size: 42px; font-weight: 600; line-height: 1.18; margin-top: 2px; text-wrap: balance; }
+  #vline span { display: inline-block; margin-right: 0.24em; }
+  #times { display: flex; justify-content: space-between; font-size: 22px; font-weight: 600; opacity: 0.66; margin-top: 10px; font-feature-settings: "tnum"; }
+
+  #cta { left: 0; width: 1080px; text-align: center; }
+  #cta i { font-style: normal; display: inline-block; background: var(--hot); color: #07140b; font-weight: 800; font-size: 34px;
+           padding: 16px 30px; border-radius: 16px; letter-spacing: -0.005em; box-shadow: 0 14px 40px rgba(0,0,0,0.35); }
+  /* the cover character pops up from the corner at the end and gives the score */
+  #judge { position: absolute; left: -34px; top: 1330px; width: 470px; transform-origin: 30% 100%; opacity: 0; filter: drop-shadow(0 0 26px rgba(0,0,0,0.55)); }
+  #judgeSay { position: absolute; left: 110px; top: 1292px; transform-origin: 20% 100%; opacity: 0; background: #fff; color: #111; font-weight: 700; font-size: 40px;
+              padding: 10px 20px 12px; border-radius: 14px; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+  #hook { left: 0; width: 1080px; top: 286px; text-align: center; font-size: 104px; color: #fff; text-shadow: 0 3px 16px rgba(0,0,0,0.6); opacity: 0; }
+  .delta { font-size: 92px; color: #fff; text-shadow: 0 3px 14px rgba(0,0,0,0.7); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="rgb" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+    <feOffset id="rOff" in="r" dx="0" dy="0" result="r2"/>
+    <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" result="gb"/>
+    <feOffset id="gbOff" in="gb" dx="0" dy="0" result="gb2"/>
+    <feBlend in="r2" in2="gb2" mode="screen"/>
+  </filter>
+</svg>
+<div id="stage">
+  <canvas id="bg" class="layer" width="1080" height="1920"></canvas>
+  <canvas id="dots" class="layer" width="1080" height="1920" style="mix-blend-mode: overlay; display: none"></canvas>
+  <canvas id="fxBack" class="layer" width="1080" height="1920"></canvas>
+  <canvas id="g3d" class="layer" style="width:1080px;height:1920px;display:none"></canvas>
+  <div class="layer" id="muf" style="width:1080px;height:1920px;background:#000;opacity:0"></div>   <!-- darkens the background only (muffled passages); the card stays bright -->
+  <div id="scene">
+    <div id="card">
+      <div id="artWrap">
+        <img id="art">
+        <div id="holo"></div><div id="holo2"></div>
+        <div id="chip">
+          <small id="chipLab">score</small>
+          <div id="digits"><div class="col" id="cU"><div class="strip"></div></div><div class="dot">.</div><div class="col" id="cT"><div class="strip"></div></div><div class="of">/10</div></div>
+          <div id="segs"></div>
+        </div>
+      </div>
+      <div id="cTitle"></div>
+      <div id="cArtist"></div>
+      <div id="lower">
+        <canvas id="viz" width="608" height="104"></canvas><div id="vizDrop"></div>
+        <div id="verdict"><div class="lab serif">verdict</div><div id="vline"></div></div>
+      </div>
+      <div id="times"><span id="tA"></span><span id="tB"></span></div>
+      <div id="stamp"><div id="stampIn"><small id="stTop">FINAL SCORE</small><div id="stNum"><b id="stScore"></b><i>/10</i></div><small id="stBot"></small></div></div>
+      <div id="glare"></div>
+    </div>
+  </div>
+  <canvas id="fxFront" class="layer" width="1080" height="1920"></canvas>
+  <div class="abs hand" id="hook"></div>
+  <div class="abs hand" id="wm" style="left: auto; right: 46px; top: 196px; font-size: 50px; color: #fff; opacity: 0.38; text-shadow: 0 2px 10px rgba(0,0,0,0.6); transform-origin: 100% 50%;"></div>
+  <div class="abs hand delta" id="d1"></div>
+  <img id="judge"><img id="judge2" style="position:absolute;opacity:0"><div id="judgeSay"></div>
+  <div class="abs" id="cta"><i></i></div>
+  <div class="abs" id="flash" style="width:1080px;height:1920px;background:#fff;opacity:0"></div>
+  <div class="abs" id="vig" style="width:1080px;height:1920px;pointer-events:none;background:radial-gradient(ellipse 75% 62% at 50% 44%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.5) 100%)"></div>
+  <canvas class="abs" id="grain" width="540" height="960" style="width:1080px;height:1920px;mix-blend-mode:overlay;opacity:0.22;pointer-events:none"></canvas>
+  <div class="abs" id="fade" style="width:1080px;height:1920px;background:#000;opacity:0"></div>
+</div>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script>const BUILD = new URLSearchParams(location.search).get('build') || '/build'; document.write(`<script src="${BUILD}/features.js"><\/script>`);</script>
+<script>
+(async function () {
+  const F = window.FEATURES, P = F.palette, FPS = F.fps, NF = F.nframes;
+  const W = 1080, H = 1920, BAR = F.bar, BEAT = 60 / F.bpm;
+  const T_DROP = F.drop, T_VERD = F.scanEnd, T_CTA = T_VERD + BAR, T_END = F.dur;
+  const rgbOf = h => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const rgbaOf = (h, a) => `rgba(${rgbOf(h).join(',')},${a})`;
+  const root = document.documentElement.style;
+  for (const k in P) root.setProperty('--' + k, P[k]);
+  root.setProperty('--glassA', rgbaOf(P.deep, 0.42)); root.setProperty('--glassB', rgbaOf(P.deep, 0.22));
+  root.setProperty('--edge', rgbaOf(P.cool, 0.38));
+  const hot = rgbOf(P.hot), cool = rgbOf(P.cool);
+
+  // ---- reaction strength (one place to tune how hard everything hits) ----
+  const A = F.atmos || 1;
+  const SWAY = F.sway || 0;                                                 // rhythmic pendulum sway of the card (0 = off)                                                   // atmosphere density (1 = Travessia level)
+  const E = F.energy || 1;                                                   // reaction strength preset: 1 = calm/funk, ~1.6 = hard/motivation
+  const K = { shake: 10 * E, rot: 0.8 * E, scale: 0.035 * E, glow: Math.min(0.8, 0.5 * E), art: 0.16 * E, chip: 0.05 * E, bgSpeed: 3.4 * E, bgZoom: 0.06 * E, bgGain: 0.15 * E, tilt: 1.6 * E };
+
+  const FINAL = F.score || 8.7;
+  // default score story follows the song: one step per bar after the drop, scaled by that bar's loudness
+  const STORY = F.story || (() => {
+    const st = [[Math.min(0.9, T_DROP * 0.4), 3.1]];
+    if (T_DROP > 5) st.push([T_DROP * 0.55, 4.6]);                          // long build: one step up halfway
+    const bars = []; for (let b = T_DROP; b < T_VERD - 0.01; b += BAR) bars.push(b);
+    const lv = bars.map(b0 => { let m = 0, n = 0; for (let f = Math.round(b0 * FPS); f < Math.min(NF, Math.round((b0 + BAR) * FPS)); f++) { m += F.loud[f]; n++; } return n ? m / n : 0; });
+    const lo = Math.min(...lv), hi = Math.max(...lv);
+    const n = bars.length;                                               // rise towards the final score, nudged by each bar's energy
+    bars.forEach((b0, i) => { const base = 7.2 + (FINAL + 0.2 - 7.2) * (n > 1 ? i / (n - 1) : 1), nudge = 0.5 * ((hi > lo ? (lv[i] - lo) / (hi - lo) : 0.5) - 0.5);
+      st.push([b0, Math.round(Math.min(9.6, base + nudge) * 10) / 10]); });
+    st.push([T_VERD, FINAL]); return st;
+  })();
+
+  // ---------- helpers ----------
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const prog = (t, a, d) => clamp((t - a) / d);
+  const eOutCubic = x => 1 - Math.pow(1 - x, 3);
+  const eOutBack = (x, s = 1.7) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
+  const impulse = (t, at, decay) => t < at ? 0 : Math.exp(-(t - at) / decay);
+  function hash(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const fmt = s => { const m = Math.floor(s / 60), r = Math.floor(s - m * 60); return `${m}:${String(r).padStart(2, '0')}`; };
+  const $ = id => document.getElementById(id);
+  const RX = F.react || { th: 0.22, gain: 1.0, pre: 0.3 };                 // sensitivity: lower th / higher gain = reacts to softer hits
+  const MUF = F.muffled || null, inMuf = tt_ => MUF ? clamp((tt_ - MUF[0]) / 0.35) * clamp((MUF[1] - tt_) / 0.35) : 0;   // 0..1 inside a muffled passage, with soft edges
+  const hitAt = fi => { const e = F.env[clamp(fi, 0, NF - 1)], tt_ = fi / FPS; return Math.pow(clamp((e - RX.th) / (1 - RX.th) * RX.gain), 1.1) * (tt_ >= T_DROP ? 1 : Math.max(RX.pre, 1.0 * inMuf(tt_))); };
+
+  // background / particle clock: each hit pushes it forward, then it coasts
+  const tS = new Float32Array(NF);
+  { let acc = 0; for (let i = 0; i < NF; i++) { const h = hitAt(i); acc += (1 / FPS) * (0.16 + K.bgSpeed * Math.pow(h, 1.3)); tS[i] = acc; } }
+
+  // ---------- WebGL: soft fog + light rays, coloured from the cover ----------
+  const gl = $('bg').getContext('webgl2', { preserveDrawingBuffer: true, antialias: false });
+  const VS = `#version 300 es
+  in vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+  const NOISE = `
+  vec3 permute(vec3 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+  float snoise(vec2 v){
+    const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+    vec2 i = floor(v + dot(v, C.yy)); vec2 x0 = v - i + dot(i, C.xx);
+    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1; i = mod(i, 289.0);
+    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0); m = m*m; m = m*m;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0; vec3 h = abs(x) - 0.5; vec3 ox = floor(x + 0.5); vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+    vec3 g; g.x = a0.x * x0.x + h.x * x0.y; g.yz = a0.yz * x12.xz + h.yz * x12.yw; return 130.0 * dot(m, g);
+  }
+  float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++){ s += a * snoise(p); p = p * 2.02 + vec2(17.1, 9.7); a *= 0.45; } return s; }`;
+  const FS_FOG = `#version 300 es
+  precision highp float; uniform vec2 uRes; uniform float uT; uniform float uZoom; out vec4 o; ${NOISE}
+  void main(){
+    vec2 uv = gl_FragCoord.xy / uRes; vec2 p = (uv - 0.5) * vec2(uRes.x / uRes.y, 1.0) * 1.05 * uZoom;
+    float t = uT;
+    vec2 q = vec2(fbm(p + vec2(0.0, t * 0.05)), fbm(p + vec2(5.2, 1.3) - vec2(t * 0.04, 0.0)));
+    vec2 r = vec2(fbm(p + 1.2 * q + vec2(1.7, 9.2) + t * 0.06), fbm(p + 1.2 * q + vec2(8.3, 2.8) - t * 0.05));
+    float v = fbm(p + 1.3 * r);
+    float far = fbm(p * 0.45 + vec2(t * 0.015, -t * 0.02) + 3.0);
+    o = vec4(smoothstep(-0.55, 0.85, v), smoothstep(-0.6, 0.7, far), 0.0, 1.0);
+  }`;
+  const FS_COMP = `#version 300 es
+  precision highp float; uniform sampler2D uS; uniform vec2 uRes; uniform vec3 uBase; uniform vec3 uMid; uniform vec3 uHi;
+  uniform float uGain; uniform float uT; uniform float uSeed; uniform float uHit; uniform float uAtm; uniform float uDim; out vec4 o;
+  float h12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+  void main(){
+    vec2 fc = gl_FragCoord.xy; vec2 uv = fc / uRes; float asp = uRes.x / uRes.y;
+    vec4 s = texture(uS, uv); float fog = s.r, far = s.g;
+    vec3 col = mix(uBase * 0.55, uBase * 1.6, uv.y);                         // deep base, a little lighter up top
+    col += uMid * far * 0.16;                                                 // distant haze
+    col += uMid * pow(fog, 1.7) * 0.64 * uGain * (1.0 + 0.35 * (uAtm - 1.0)); // near fog wisps
+    col += uHi * smoothstep(0.72, 1.0, fog) * 0.12 * uGain;                   // faint lime in the densest wisps
+    // light rays from above, slowly swaying
+    vec2 d = (uv - vec2(0.7, 1.22)) * vec2(asp, 1.0); float ang = atan(d.x, -d.y); float dist = length(d);
+    float rays = (0.5 + 0.5 * sin(ang * 23.0 + uT * 0.35)) * (0.5 + 0.5 * sin(ang * 9.0 - uT * 0.22 + 1.7));
+    rays = pow(rays, 2.4) * smoothstep(1.9, 0.25, dist) * (0.75 + 0.25 * fog);
+    col += mix(uMid, vec3(1.0), 0.5) * rays * (0.3 + 0.14 * uHit) * (1.0 + 0.7 * (uAtm - 1.0));
+    // bloom behind the card
+    vec2 cq = (uv - vec2(0.5, 0.56)) * vec2(asp, 1.0);
+    col += mix(uMid, uHi, 0.25) * exp(-dot(cq, cq) * 5.0) * (0.16 + 0.22 * uHit) * (1.0 + 0.5 * (uAtm - 1.0));
+    vec2 v = uv - 0.5; col *= 1.0 - 0.95 * dot(v * vec2(1.0, 0.72), v * vec2(1.0, 0.72));
+    col *= uDim;
+    col += (h12(fc + uSeed) - 0.5) * 0.03;                                    // fine film grain
+    o = vec4(col, 1.0);
+  }`;
+  function program(fs) {
+    const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+    const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr)); return pr;
+  }
+  const pFog = program(FS_FOG), pComp = program(FS_COMP);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const SW = 162, SH = 288;
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, SW, SH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const v3 = c => c.map(x => x / 255);
+  const C_BASE = v3(rgbOf(P.deep)).map(x => x * 0.22), C_MID = v3(cool).map(x => x * 0.9), C_HI = v3(hot);
+  const U = (pr, n) => gl.getUniformLocation(pr, n);
+  function drawBg(fi, ts, hit) {
+    const bind = pr => { gl.useProgram(pr); const loc = gl.getAttribLocation(pr, 'p'); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0); };
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, SW, SH); bind(pFog);
+    gl.uniform2f(U(pFog, 'uRes'), SW, SH); gl.uniform1f(U(pFog, 'uT'), ts); gl.uniform1f(U(pFog, 'uZoom'), 1.0 - K.bgZoom * hit);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H); bind(pComp);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(U(pComp, 'uS'), 0);
+    gl.uniform2f(U(pComp, 'uRes'), W, H); gl.uniform3f(U(pComp, 'uBase'), ...C_BASE); gl.uniform3f(U(pComp, 'uMid'), ...C_MID); gl.uniform3f(U(pComp, 'uHi'), ...C_HI);
+    gl.uniform1f(U(pComp, 'uGain'), 1.0 + K.bgGain * hit); gl.uniform1f(U(pComp, 'uT'), ts); gl.uniform1f(U(pComp, 'uSeed'), (fi % 7) * 13.7); gl.uniform1f(U(pComp, 'uHit'), hit); gl.uniform1f(U(pComp, 'uAtm'), A); gl.uniform1f(U(pComp, 'uDim'), F.bgDim || 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish();
+  }
+
+  // ---------- atmosphere: dust, sparkles, drifting leaves (deterministic, time-driven) ----------
+  const R = rng(20261117);
+  const dust = Array.from({ length: Math.round(150 * A) }, () => ({ x: R() * W, y: R() * H, z: 0.25 + R() * 0.75, ph: R() * 6.28, sw: 10 + R() * 34 }));
+  const bokeh = Array.from({ length: Math.round(16 * A) }, () => ({ x: R() * W, y: R() * H, z: 0.5 + R() * 0.5, ph: R() * 6.28, r: 10 + R() * 26, tint: R() }));
+  const sparks = Array.from({ length: F.stars ? Math.round(30 * A) : 0 }, () => ({ x: 40 + R() * (W - 80), y: 120 + R() * (H - 360), ph: R() * 5, per: 1.5 + R() * 1.8, size: 16 + R() * 34, front: R() < 0.4, tint: R() }));
+  const leaves = Array.from({ length: Math.round(18 * A) }, (_, i) => ({ x: R() * W, y: R() * H, z: i < Math.round(6 * A) ? 1 : 0.35 + R() * 0.45, len: 0, vx: 18 + R() * 40, vy: 60 + R() * 70, rot: R() * 6.28, spin: (R() - 0.5) * 2.4, ph: R() * 6.28, hue: R() }));
+  leaves.forEach(l => { l.len = (l.z >= 1 ? 120 + R() * 70 : 40 + R() * 46) * (F.particles === 'ash' ? 0.16 : F.particles === 'snow' ? 0.3 : 1); if (F.particles === 'ash') { l.vy *= 0.6; l.vx *= 0.7; } if (F.particles === 'snow') { l.vy = Math.abs(l.vy) * 0.55 + 30; l.vx *= 0.35; l.spin *= 0.5; } });
+  const fxB = $('fxBack').getContext('2d'), fxF = $('fxFront').getContext('2d');
+  const wrap = (v, m, pad) => ((v % (m + 2 * pad)) + (m + 2 * pad)) % (m + 2 * pad) - pad;
+
+  function leafPath(c, L) {
+    const w = L * 0.32;
+    c.beginPath(); c.moveTo(-L / 2, 0);
+    c.bezierCurveTo(-L * 0.2, -w, L * 0.25, -w * 0.9, L / 2, 0);
+    c.bezierCurveTo(L * 0.25, w * 0.9, -L * 0.2, w, -L / 2, 0); c.closePath();
+  }
+  const LEAF_COL = F.leafColors || null;
+  function maplePath(c, L) {
+    c.beginPath();
+    for (const [ang, sc] of [[-Math.PI / 2, 0.62], [-Math.PI / 2 - 0.9, 0.5], [-Math.PI / 2 + 0.9, 0.5], [-Math.PI / 2 - 1.95, 0.3], [-Math.PI / 2 + 1.95, 0.3]]) {
+      const len = L * sc, w = len * 0.42;
+      c.save(); c.rotate(ang);
+      c.moveTo(0, 0); c.bezierCurveTo(len * 0.3, -w, len * 0.7, -w * 0.7, len, 0); c.bezierCurveTo(len * 0.7, w * 0.7, len * 0.3, w, 0, 0);
+      c.restore();
+    }
+  }
+  // Cheap blur: draw on a spare canvas k times smaller, then stretch it back over the frame. ctx.filter = 'blur()' gives
+  // the same look but costs seconds per frame in headless Chromium (software canvas), so nothing per-frame uses it.
+  const SOFT = {};
+  function soft(key, k) {
+    let o = SOFT[key];
+    if (!o) { const cv = document.createElement('canvas'); cv.width = Math.ceil(W / k); cv.height = Math.ceil(H / k); o = SOFT[key] = { cv, c: cv.getContext('2d'), k }; }
+    o.c.setTransform(1, 0, 0, 1, 0, 0); o.c.clearRect(0, 0, o.cv.width, o.cv.height); o.c.setTransform(1 / k, 0, 0, 1 / k, 0, 0); o.c.K = k; return o;
+  }
+  function softDraw(dst, o, alpha, op) { dst.save(); dst.imageSmoothingEnabled = true; dst.imageSmoothingQuality = 'high'; dst.globalAlpha = alpha == null ? 1 : alpha; if (op) dst.globalCompositeOperation = op; dst.drawImage(o.cv, 0, 0, W, H); dst.restore(); }
+  function drawLeaf(c, l, t, ts) {
+    const x = wrap(l.x + (t * l.vx + ts * l.vx * 0.9) * l.z + Math.sin(t * 1.1 + l.ph) * 40 * l.z, W, 160);
+    const y = wrap(l.y + (t * l.vy + ts * l.vy * 0.9) * l.z + Math.cos(t * 0.9 + l.ph) * 24 * l.z, H, 160);
+    const L = l.len, near = l.z >= 1;
+    c.save(); c.translate(x, y); c.rotate(l.rot + (t + ts) * l.spin + Math.sin(t * 1.6 + l.ph) * 0.45);
+    c.scale(1, 0.55 + 0.45 * Math.cos(t * 2.6 + l.ph));                                  // flutter
+    c.globalAlpha = near ? 0.75 : 0.35 + 0.4 * l.z;
+    const g = c.createLinearGradient(-L / 2, 0, L / 2, 0);
+    if (LEAF_COL) { const k = l.hue; g.addColorStop(0, LEAF_COL[0]); g.addColorStop(0.5, LEAF_COL[k < 0.5 ? 1 : 2]); g.addColorStop(1, LEAF_COL[k < 0.5 ? 2 : 1]); }
+    else {
+      const dark = `rgb(${Math.round(hot[0] * 0.25)},${Math.round(hot[1] * 0.45)},${Math.round(hot[2] * 0.2)})`;
+      g.addColorStop(0, dark); g.addColorStop(0.55, `rgb(${Math.round(hot[0] * 0.75)},${Math.round(hot[1] * 0.85)},${Math.round(hot[2] * 0.55)})`); g.addColorStop(1, `rgb(${hot.join(',')})`);
+    }
+    if (F.particles === 'snow') {   // six-armed snowflakes, each arm with two little branches
+      c.scale(1, 1 / (0.55 + 0.45 * Math.cos(t * 2.6 + l.ph))); c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineCap = 'round'; c.lineWidth = Math.max(1.6, L * 0.07) / (c.K || 1) * (c.K ? Math.min(c.K, 2) : 1);
+      c.shadowColor = 'rgba(210,235,255,0.9)'; c.shadowBlur = 8 / (c.K || 1);
+      for (let a6 = 0; a6 < 6; a6++) { c.rotate(Math.PI / 3); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -L * 0.5); c.moveTo(0, -L * 0.3); c.lineTo(L * 0.12, -L * 0.42); c.moveTo(0, -L * 0.3); c.lineTo(-L * 0.12, -L * 0.42); c.stroke(); }
+    }
+    else if (F.particles === 'ash') { c.beginPath(); c.moveTo(-L * 0.5, -L * 0.3); c.lineTo(L * 0.45, -L * 0.45); c.lineTo(L * 0.55, L * 0.25); c.lineTo(-L * 0.35, L * 0.5); c.closePath(); if (LEAF_COL) { c.fillStyle = LEAF_COL[l.hue < 0.5 ? 1 : 2]; c.shadowColor = c.fillStyle; c.shadowBlur = 14 / (c.K || 1); } else c.fillStyle = `rgba(235,226,224,${0.55 + 0.4 * l.hue})`; c.fill(); }
+    else if (F.particles === 'maple') { maplePath(c, L * 1.25); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,230,210,0.22)'; c.lineWidth = Math.max(1, L / 70); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, L * 0.3); c.stroke(); }
+    else { leafPath(c, L); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = Math.max(1, L / 60); c.beginPath(); c.moveTo(-L / 2, 0); c.lineTo(L * 0.45, 0); c.stroke(); }
+    c.restore(); c.globalAlpha = 1;
+  }
+  function star(c, x, y, s, rot, col, a) {
+    c.save(); c.translate(x, y); c.rotate(rot); c.globalAlpha = a;
+    c.shadowColor = col; c.shadowBlur = s * 0.9; c.fillStyle = '#ffffff';
+    c.beginPath();
+    for (const [L, w] of [[s, s * 0.09], [s * 0.55, s * 0.07]]) {
+      for (let k = 0; k < 2; k++) { c.rotate(k ? Math.PI / 2 : 0); c.moveTo(-L, 0); c.quadraticCurveTo(0, -w, L, 0); c.quadraticCurveTo(0, w, -L, 0); }
+      c.rotate(Math.PI / 4 - Math.PI / 2);
+    }
+    c.fill(); c.restore();
+  }
+  const embers = Array.from({ length: Math.round(110 * clamp(A - 1, 0, 1.2)) }, () => ({ x: R() * W, y: R() * H, z: 0.3 + R() * 0.7, ph: R() * 6.28, vy: 70 + R() * 120, sw: 20 + R() * 50, front: R() < 0.25 }));
+  const hazes = A > 1.2 ? Array.from({ length: 4 }, (_, i) => ({ x: R() * W, y: i % 2 ? H * (0.82 + R() * 0.15) : H * (0.03 + R() * 0.12), r: 380 + R() * 260, ph: R() * 6.28 })) : [];
+  // ---- per-cover scenery (preset key "scene"); muted silhouettes tinted from the cover ----
+  const deepC = rgbOf(P.deep);
+  const tone = (c, k, a) => `rgba(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)},${a})`;
+  const RS = rng(4242);
+  const grassFar = Array.from({ length: 170 }, () => ({ x: RS() * (W + 80) - 40, h: 110 + RS() * 230, w: 7 + RS() * 9, ph: RS() * 6.28, lean: (RS() - 0.5) * 60, k: RS() }));
+  const grassNear = Array.from({ length: 70 }, () => ({ x: RS() * (W + 120) - 60, h: 200 + RS() * 300, w: 14 + RS() * 18, ph: RS() * 6.28, lean: (RS() - 0.5) * 110, k: RS() }));
+  const vines = Array.from({ length: 9 }, (_, i) => { const left = i % 2 === 0; return { x: left ? RS() * 300 - 20 : W - RS() * 300 + 20, len: 240 + RS() * 420, ph: RS() * 6.28, n: 5 + Math.floor(RS() * 5), sz: 34 + RS() * 30, dir: left ? 1 : -1 }; });
+  const fronds = Array.from({ length: 22 }, (_, i) => { const left = i % 2 === 0, u = RS();
+    return { x: left ? -40 + RS() * 120 : W + 40 - RS() * 120, y: H + 30 - RS() * 160, len: 300 + RS() * 330, ph: RS() * 6.28, k: RS(),
+             a: left ? -Math.PI / 2 + 0.15 + u * 1.15 : -Math.PI / 2 - 0.15 - u * 1.15 }; });
+  function blades(c, arr, t, hit, baseY) {
+    c.beginPath();
+    for (const g of arr) {
+      const sway = (Math.sin(t * 1.1 + g.ph + g.x * 0.004) * 0.6 + Math.sin(t * 2.3 + g.ph * 2) * 0.25) * g.h * 0.16 + hit * g.h * 0.10 * Math.sin(g.ph);
+      const tx = g.x + g.lean + sway, ty = baseY - g.h;
+      c.moveTo(g.x - g.w / 2, baseY + 10);
+      c.quadraticCurveTo(g.x - g.w * 0.2 + sway * 0.25, baseY - g.h * 0.55, tx, ty);
+      c.quadraticCurveTo(g.x + g.w * 0.6 + sway * 0.25, baseY - g.h * 0.5, g.x + g.w / 2, baseY + 10);
+    }
+    c.fill();
+  }
+  function drawGarden(t, hit) {
+    const mixc = [(hot[0] + deepC[0]) / 2, (hot[1] + deepC[1]) / 2, (hot[2] + deepC[2]) / 2];
+    // hanging vines in the top corners
+    for (const v of vines) {
+      const sw = Math.sin(t * 0.8 + v.ph) * 26 + hit * 10 * Math.sin(v.ph);
+      fxB.strokeStyle = tone(mixc, 0.38, 0.8); fxB.lineWidth = 3;
+      fxB.beginPath(); fxB.moveTo(v.x, -10); fxB.quadraticCurveTo(v.x + sw * 0.3, v.len * 0.5, v.x + sw + v.dir * 30, v.len); fxB.stroke();
+      for (let k = 1; k <= v.n; k++) {
+        const u = k / v.n, px = v.x + (sw + v.dir * 30) * u * u, py = v.len * u, side = k % 2 ? 1 : -1;
+        fxB.save(); fxB.translate(px, py); fxB.rotate(Math.PI / 2 + side * 0.9 + Math.sin(t * 1.3 + v.ph + k) * 0.15);
+        fxB.fillStyle = tone(mixc, 0.42 + 0.2 * (k % 3) / 2, 0.85); leafPath(fxB, v.sz * (0.7 + 0.3 * u)); fxB.fill(); fxB.restore();
+      }
+    }
+    // out-of-focus foliage framing the bottom corners, like plants close to the lens
+    fxF.save(); fxF.filter = 'blur(9px)';
+    for (const f of fronds) {
+      const sw = Math.sin(t * 0.7 + f.ph) * 0.07 + hit * 0.03 * Math.sin(f.ph * 3);
+      fxF.save(); fxF.translate(f.x, f.y); fxF.rotate(f.a + sw);
+      const gr = fxF.createLinearGradient(0, 0, f.len, 0);
+      gr.addColorStop(0, tone(deepC, 0.12, 0.95)); gr.addColorStop(1, tone(mixc, 0.3 + 0.25 * f.k, 0.9));
+      fxF.fillStyle = gr; fxF.translate(f.len / 2, 0); leafPath(fxF, f.len); fxF.fill(); fxF.restore();
+    }
+    fxF.restore();
+  }
+  function drawAtmos(fi, t, ts, hit, cardRect) {
+    fxB.clearRect(0, 0, W, H); fxF.clearRect(0, 0, W, H);
+    if (F.scene === 'garden') drawGarden(t, hit);
+    if ((F.bgFx || '').includes('blades')) {   // katanas drifting in the depth of the scene, slowly turning; rim lit in the accent colour
+      if (!drawAtmos.bl) { const R3 = rng(1213), bl = []; for (let i = 0; i < 3; i++) { const z = 0.45 + 0.7 * (i / 2); bl.push({ z, x: W * ((i * 0.37 + 0.12 + 0.1 * R3()) % 1), y: H * R3(), a0: R3() * 6.28, w: (R3() - 0.5) * 0.5, vy: 26 + 40 * R3(), len: 330 + 520 * z, ph: R3() * 6.28 }); } drawAtmos.bl = bl; }
+      for (const b of drawAtmos.bl) {
+        const bk = 1 + Math.abs(0.95 - b.z) * 5.6, so = soft('blade' + b.z, bk), c = so.c, L = b.len, x = b.x + Math.sin(t * 0.35 + b.ph) * 40 * b.z, y = wrap(b.y + (t * b.vy + ts * b.vy * 0.5) * b.z, H, L * 0.7);
+        c.save(); c.translate(x, y); c.rotate(b.a0 + t * b.w + 0.12 * Math.sin(t * 0.8 + b.ph));
+        const th = L * 0.034;
+        c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = (22 + 26 * hit) / bk;
+        const g = c.createLinearGradient(0, -th, 0, th); g.addColorStop(0, '#f4dfe0'); g.addColorStop(0.42, '#6d5a5e'); g.addColorStop(0.5, '#1b0c10'); g.addColorStop(1, '#0a0406');
+        c.fillStyle = g; c.beginPath(); c.moveTo(-L * 0.12, -th * 0.55); c.quadraticCurveTo(L * 0.3, -th * 1.9, L * 0.72, -th * 0.2); c.lineTo(L * 0.66, th * 0.75); c.quadraticCurveTo(L * 0.3, -th * 0.3, -L * 0.12, th * 0.6); c.closePath(); c.fill();
+        c.shadowBlur = 0; c.strokeStyle = rgbaOf(P.hot, 0.55 + 0.45 * hit); c.lineWidth = Math.max(1.5, th * 0.16); c.beginPath(); c.moveTo(-L * 0.12, th * 0.6); c.quadraticCurveTo(L * 0.3, -th * 0.3, L * 0.66, th * 0.75); c.stroke();
+        c.fillStyle = '#12070a'; c.beginPath(); c.roundRect(-L * 0.4, -th * 0.62, L * 0.28, th * 1.24, th * 0.4); c.fill();
+        c.strokeStyle = rgbaOf(P.cool, 0.85); c.lineWidth = Math.max(1.5, th * 0.2); for (let k = 0; k < 7; k++) { const hx = -L * 0.385 + k * L * 0.037; c.beginPath(); c.moveTo(hx, -th * 0.62); c.lineTo(hx + L * 0.03, th * 0.62); c.stroke(); }
+        c.fillStyle = '#d9b7a0'; c.beginPath(); c.ellipse(-L * 0.12, 0, th * 0.34, th * 1.5, 0, 0, 6.3); c.fill();
+        c.restore(); softDraw(fxB, so, clamp(0.3 + 0.62 * b.z));
+      }
+    }
+    if (BGO.length && !(F.bgFx || '').includes('pines')) {   // cut-out objects (e.g. the cover's own snake heads) floating in the depth of the scene
+      if (F.bgObjAt) {   // placed by the preset: faint pictures sunk into the scene (washed with the background colour), drifting a little
+        F.bgObjAt.forEach(([sx, sy, wd, al, flip, fl], i) => {   // fl = how freely it floats (0 = almost still, 1 = weightless drift and slow tumble)
+          const im = BGO[i % BGO.length], so = soft('bgo' + i, 2.2), c = so.c, ph = i * 2.1, sc = wd / im.width * (1 + 0.035 * BNC[fi]);
+          const f_ = fl || 0, tw = t + 0.35 * ts;   // the hits nudge it along its path
+          const x = W * sx + Math.sin(t * 0.3 + ph) * 26 + f_ * (190 * Math.sin(tw * 0.21 + ph * 1.3) + 60 * Math.sin(tw * 0.47 + ph)), y = H * sy + Math.cos(t * 0.24 + ph * 1.7) * 18 - 8 * BNC[fi] + f_ * (120 * Math.cos(tw * 0.17 + ph * 0.7) + 45 * Math.sin(tw * 0.39 + ph * 2));
+          c.save(); c.translate(x, y); c.rotate(0.03 * Math.sin(t * 0.4 + ph) + f_ * (0.3 * Math.sin(tw * 0.19 + ph * 1.1) + 0.1 * Math.sin(tw * 0.43 + ph))); c.scale(1 + 0.1 * f_ * Math.sin(tw * 0.26 + ph * 0.5), 1 + 0.1 * f_ * Math.sin(tw * 0.26 + ph * 0.5)); c.scale((flip || 1) * sc, sc); c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = (26 + 30 * hit) / so.k;
+          c.drawImage(im, -im.width / 2, -im.height / 2); c.restore();
+          c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = rgbaOf(P.deep, 0.35); c.fillRect(0, 0, so.cv.width, so.cv.height); c.fillStyle = rgbaOf(P.cool, 0.3); c.fillRect(0, 0, so.cv.width, so.cv.height); c.globalCompositeOperation = 'source-over';
+          softDraw(fxB, so, al + 0.07 * hit);
+        });
+      } else {
+      const slots = [[0.8, 0.13, 1.0, -1, 0]];
+      slots.forEach(([sx, sy, z, flip, oi], i) => {
+        const im = BGO[oi % BGO.length], so = soft('bgo' + i, 3), c = so.c, ph = i * 2.1, sc = 560 / im.width * (1 + 0.05 * hit);
+        const x = W * sx + Math.sin(t * 0.42 + ph) * 46 * z + Math.sin(ts * 0.6 + ph) * 14, y = H * sy + Math.cos(t * 0.33 + ph * 1.7) * 60 * z;
+        c.save(); c.translate(x, y); c.rotate(0.16 * Math.sin(t * 0.5 + ph) + (i % 2 ? 0.25 : -0.2)); c.scale(flip * sc, sc);
+        c.shadowColor = rgbaOf(P.hot, 0.95); c.shadowBlur = (34 + 40 * hit) / 3;
+        c.drawImage(im, -im.width / 2, -im.height / 2); c.restore(); softDraw(fxB, so, 0.17 + 0.09 * hit);
+      });
+    }
+    }
+    if ((F.bgFx || '').includes('lightning')) {   // forked lightning behind the card: one bolt on every strong hit after the drop, a rare faint one before it
+      if (!drawAtmos.lt) { const R6 = rng(4711), lt = []; let last = -99;
+        const mk = (f, pow) => { const side = lt.length % 2 ? 1 : -1, x0 = W * (0.5 + side * (0.12 + 0.36 * R6())), pts = [[x0, -30]], br = []; let x = x0, y = -30; const yEnd = H * (0.45 + 0.5 * R6());
+          while (y < yEnd) { y += 60 + 90 * R6(); x += (R6() - 0.5) * 190; pts.push([x, y]); if (R6() < 0.3 && pts.length > 2) { const b = [[x, y]]; let bx = x, by = y; const dir = R6() < 0.5 ? -1 : 1; for (let k = 0; k < 3 + Math.floor(R6() * 3); k++) { bx += dir * (40 + 80 * R6()); by += 40 + 70 * R6(); b.push([bx, by]); } br.push(b); } }
+          lt.push({ f, pts, br, pow }); };
+        for (let i = 1; i < NF; i++) { const tt_ = i / FPS;
+          if (tt_ >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.5) { last = i; mk(i, 1); }
+          else if (tt_ < T_DROP - 0.6 && tt_ > 1.5 && F.env[i] > 0.4 && F.env[i - 1] <= 0.4 && i - last > FPS * 2.2) { last = i; mk(i, 0.45); } }
+        drawAtmos.lt = lt; }
+      const so = soft('bolt', 1.6), c = so.c; c.lineCap = 'round'; c.lineJoin = 'round'; let any = false, flash = 0;
+      for (const b of drawAtmos.lt) {
+        const dt = (fi - b.f) / FPS; if (dt < 0 || dt > 0.42) continue; any = true;
+        const fl = (dt < 0.05 ? 1 : dt < 0.1 ? 0.35 : dt < 0.16 ? 0.9 : Math.pow(1 - (dt - 0.16) / 0.26, 1.5)) * b.pow; flash = Math.max(flash, fl);   // strike, flicker, fade
+        const path = (pp, lw, col) => { c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); pp.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); };
+        c.globalAlpha = fl; c.shadowColor = rgbaOf(P.hot, 1); c.shadowBlur = 30 / so.k;
+        path(b.pts, 9, rgbaOf(P.hot, 0.9)); b.br.forEach(q => path(q, 4, rgbaOf(P.hot, 0.7)));
+        c.shadowBlur = 0; path(b.pts, 3.2, '#ffffff'); b.br.forEach(q => path(q, 1.6, 'rgba(255,255,255,0.9)'));
+      }
+      if (any) { softDraw(fxB, so, 0.9, 'lighter'); fxB.save(); fxB.globalCompositeOperation = 'lighter'; fxB.fillStyle = rgbaOf(P.hot, 0.07 * flash); fxB.fillRect(0, 0, W, H); fxB.restore(); }
+    }
+    if ((F.bgFx || '').includes('crystals')) {   // glass prisms tumbling weightlessly: faceted shards in the cover's colour with a thin spectrum edge; they flare on the hits
+      const CR = [[0.84, 0.2, 1.0, 0], [0.13, 0.36, 0.72, 1], [0.86, 0.68, 0.62, 2], [0.15, 0.84, 0.9, 3], [0.5, 0.06, 0.5, 4]], bn = BNC[fi], tw = t + 0.3 * ts;
+      CR.forEach(([cx_, cy_, z, i]) => {
+        const so = soft('cryst' + i, 1.4 + (1 - z) * 2.6), c = so.c, S_ = (70 + 95 * z) * (1 + 0.08 * bn), ph = i * 2.4;
+        const x = W * cx_ + 130 * z * Math.sin(tw * 0.2 + ph) + 40 * Math.sin(tw * 0.46 + ph * 2), y = H * cy_ + 100 * z * Math.cos(tw * 0.16 + ph * 1.3) + 34 * Math.sin(tw * 0.41 + ph) - 12 * bn;
+        c.save(); c.translate(x, y); c.rotate(tw * (0.12 + 0.05 * i) * (i % 2 ? 1 : -1) + ph); c.shadowColor = rgbaOf(P.hot, 0.95); c.shadowBlur = (18 + 34 * hit) / so.k;
+        const k = 0.5 + 0.5 * Math.sin(tw * 0.5 + ph);                                 // the ridge slides as the prism turns
+        const top = [0, -S_ * 1.25], bot = [0, S_ * 1.25], l = [-S_ * 0.5, -S_ * 0.1], r = [S_ * 0.5, S_ * 0.05], m = [S_ * (k - 0.5) * 0.5, 0];
+        const face = (pts, col) => { c.fillStyle = col; c.beginPath(); pts.forEach(([px, py], n) => n ? c.lineTo(px, py) : c.moveTo(px, py)); c.closePath(); c.fill(); };
+        face([top, l, m], rgbaOf(P.hot, 0.55)); c.shadowBlur = 0; face([top, m, r], 'rgba(255,255,255,0.8)'); face([l, bot, m], rgbaOf(P.cool, 0.85)); face([m, bot, r], rgbaOf(P.hot, 0.32));
+        c.lineJoin = 'round'; c.lineWidth = Math.max(1.5, S_ * 0.022); c.strokeStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); [top, l, bot, r].forEach(([px, py], n) => n ? c.lineTo(px, py) : c.moveTo(px, py)); c.closePath(); c.moveTo(top[0], top[1]); c.lineTo(m[0], m[1]); c.lineTo(bot[0], bot[1]); c.moveTo(l[0], l[1]); c.lineTo(m[0], m[1]); c.lineTo(r[0], r[1]); c.stroke();
+        const sp = c.createLinearGradient(r[0], r[1], bot[0], bot[1]); ['#ff5a7a', '#ffd24a', '#6dff8f', '#4ff3ff', '#8f7bff'].forEach((col, n) => sp.addColorStop(n / 4, col));   // spectrum on one edge
+        c.lineWidth = Math.max(2, S_ * 0.05); c.strokeStyle = sp; c.globalAlpha = 0.55 + 0.45 * hit; c.beginPath(); c.moveTo(r[0], r[1]); c.lineTo(bot[0], bot[1]); c.stroke();
+        c.restore(); softDraw(fxB, so, 0.3 + 0.4 * z + 0.1 * hit);
+      });
+    }
+    if ((F.bgFx || '').includes('glitch')) {   // VHS / glitch light like on the cover: a slow scan band, and on every strong hit a burst of thin neon streaks torn sideways
+      const so = soft('glitch', 2), c = so.c; c.globalCompositeOperation = 'lighter';
+      const yb = ((t * 150) % (H + 500)) - 250, gb = c.createLinearGradient(0, yb - 130, 0, yb + 130); gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(0.5, rgbaOf(P.hot, 0.16)); gb.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = gb; c.fillRect(0, yb - 130, W, 260);
+      if (!drawAtmos.gl) { const gl = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.3) { last = i; gl.push(i); } } drawAtmos.gl = gl; }
+      for (const f0 of drawAtmos.gl) {
+        const dt = (fi - f0) / FPS; if (dt < 0 || dt > 0.3) continue; const a = Math.pow(1 - dt / 0.3, 1.3), step = Math.floor(dt * 30);   // the streaks jump a few times, then die
+        for (let n = 0; n < 9; n++) {
+          const h1 = hash(f0 * 0.37 + n * 5.1 + step * 1.7), h2 = hash(f0 * 0.91 + n * 2.3 + step), h3 = hash(f0 * 1.3 + n * 7.7);
+          const y = H * h1, wd = W * (0.18 + 0.6 * h2), x = (W - wd) * h3 + (h2 - 0.5) * 80, th = 3 + 16 * hash(n * 3.3 + f0);
+          c.fillStyle = n % 3 === 0 ? `rgba(255,255,255,${0.5 * a})` : n % 3 === 1 ? rgbaOf(P.hot, 0.6 * a) : `rgba(110,230,255,${0.45 * a})`; c.fillRect(x, y, wd, th);
+        }
+      }
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.8, 'lighter');
+    }
+    if ((F.bgFx || '').includes('halo')) {   // light bursting from behind the card: an eclipse-like corona, long god rays that turn slowly, an anamorphic streak; all swell on the hits
+      const so = soft('halo', 3), c = so.c, bn = BNC[fi], cx = W / 2, cy = cardRect ? cardRect.top + cardRect.height * 0.46 : H * 0.42, live_ = t >= T_DROP ? 1 : 0.45 + 0.25 * clamp(t / Math.max(T_DROP, 0.1));
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 34; i++) {   // god rays
+        const a = hash(i * 7.31) * 6.283 + t * (0.05 + 0.05 * hash(i * 1.7)) * (i % 2 ? 1 : -1), wd = 0.012 + 0.05 * hash(i * 3.3), len = (700 + 900 * hash(i * 5.9)) * (0.75 + 0.3 * bn + 0.25 * Math.sin(t * 0.7 + i)) * live_;
+        const g = c.createRadialGradient(cx, cy, 200, cx, cy, 200 + len); g.addColorStop(0, rgbaOf(P.hot, 0.34 * live_)); g.addColorStop(0.35, rgbaOf(P.cool, 0.14 * live_)); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.beginPath(); c.moveTo(cx, cy); c.arc(cx, cy, 200 + len, a - wd, a + wd); c.closePath(); c.fill();
+      }
+      const R0 = 470 * (1 + 0.05 * bn), cg = c.createRadialGradient(cx, cy, R0 * 0.72, cx, cy, R0 * 1.5);   // corona ring around the card
+      cg.addColorStop(0, 'rgba(0,0,0,0)'); cg.addColorStop(0.3, rgbaOf(P.white || '#ffffff', (0.3 + 0.35 * hit) * live_)); cg.addColorStop(0.42, rgbaOf(P.hot, (0.42 + 0.3 * hit) * live_)); cg.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = cg; c.fillRect(0, 0, W, H);
+      const fl = c.createLinearGradient(0, 0, W, 0); fl.addColorStop(0, 'rgba(0,0,0,0)'); fl.addColorStop(0.5, rgbaOf(P.hot, (0.25 + 0.55 * hit) * live_)); fl.addColorStop(1, 'rgba(0,0,0,0)');   // anamorphic streak
+      c.fillStyle = fl; c.fillRect(0, cy + 430 - 5 - 10 * hit, W, 10 + 20 * hit);
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.85, 'lighter');
+    }
+    if ((F.bgFx || '').includes('orbs')) {   // big soft glowing orbs rising slowly, like something radioactive in the air; they swell and brighten on the hits
+      const so = soft('orbs', 4), c = so.c, bn = BNC[fi]; c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 16; i++) {
+        const z = 0.4 + 0.6 * hash(i * 3.1), x = W * hash(i * 7.7) + Math.sin(t * 0.3 + i) * 60, y = wrap(H * hash(i * 5.3) - (t * (30 + 50 * z) + ts * 30), H, 300), r = (70 + 150 * z) * (1 + 0.25 * bn);
+        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgbaOf(P.hot, (0.5 + 0.4 * hit) * z)); g.addColorStop(0.35, rgbaOf(P.hot, 0.2 * z)); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over'; softDraw(fxB, so, 0.8, 'lighter');
+    }
+    if ((F.bgFx || '').includes('moon')) {   // a big pale moon behind the card: soft halo, a few craters, it swells a little with the hits
+      const so = soft('moon', 2), c = so.c, bn = BNC[fi], mx = W * 0.74 + Math.sin(t * 0.12) * 14, my = H * 0.15 + Math.cos(t * 0.1) * 10, R0 = 215 * (1 + 0.035 * bn);
+      const halo = c.createRadialGradient(mx, my, R0 * 0.8, mx, my, R0 * 2.6); halo.addColorStop(0, rgbaOf(P.hot, 0.42 + 0.25 * hit)); halo.addColorStop(0.4, rgbaOf(P.cool, 0.16)); halo.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = halo; c.fillRect(mx - R0 * 2.7, my - R0 * 2.7, R0 * 5.4, R0 * 5.4);
+      const g = c.createRadialGradient(mx - R0 * 0.35, my - R0 * 0.35, R0 * 0.1, mx, my, R0); g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#f3e6f4'); g.addColorStop(1, '#cdb4d6');
+      c.fillStyle = g; c.beginPath(); c.arc(mx, my, R0, 0, 6.3); c.fill();
+      c.fillStyle = 'rgba(150,120,170,0.28)'; for (const [dx, dy, rr] of [[-0.3, -0.1, 0.2], [0.25, 0.3, 0.26], [0.35, -0.35, 0.13], [-0.15, 0.45, 0.12], [0.02, -0.02, 0.09]]) { c.beginPath(); c.ellipse(mx + dx * R0, my + dy * R0, rr * R0, rr * R0 * 0.85, 0.4, 0, 6.3); c.fill(); }
+      softDraw(fxB, so, 0.5 + 0.1 * hit);
+    }
+    if ((F.bgFx || '').includes('trails')) {   // light trails, like cars passing in the night: one shoots across on every strong hit after the drop
+      if (!drawAtmos.tr) { const R5 = rng(909), tr = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.4) { last = i; tr.push({ f: i, y: H * (0.1 + 0.8 * R5()), dir: tr.length % 2 ? 1 : -1, tilt: (R5() - 0.5) * 0.16, col: tr.length % 3 === 2 ? 2 : tr.length % 2, w: 5 + 6 * R5(), z: 0.5 + 0.5 * R5() }); } } drawAtmos.tr = tr; }
+      const so = soft('trails', 2.5), c = so.c; c.lineCap = 'round'; let any = false;
+      for (const k of drawAtmos.tr) {
+        const dt = (fi - k.f) / FPS; if (dt < 0 || dt > 1.1) continue; any = true;
+        const u = dt / 1.1, headX = k.dir > 0 ? -200 + (W + 900) * Math.pow(u, 0.7) : W + 200 - (W + 900) * Math.pow(u, 0.7), len = 620 * k.z * (1 - 0.5 * u), a = Math.pow(1 - u, 1.2);
+        c.save(); c.translate(headX, k.y); c.rotate(k.tilt * k.dir);
+        const g = c.createLinearGradient(0, 0, -k.dir * len, 0), col = k.col === 2 ? '#ffffff' : k.col ? '#7fe0ff' : P.hot; g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.globalAlpha = a; c.strokeStyle = g; c.shadowColor = col; c.shadowBlur = 16 / so.k; c.lineWidth = k.w * k.z; c.beginPath(); c.moveTo(0, 0); c.lineTo(-k.dir * len, 0); c.stroke();
+        c.lineWidth = k.w * k.z * 0.4; c.strokeStyle = 'rgba(255,255,255,0.9)'; c.beginPath(); c.moveTo(0, 0); c.lineTo(-k.dir * len * 0.35, 0); c.stroke();
+        c.restore();
+      }
+      if (any) softDraw(fxB, so, 0.85, 'lighter');
+    }
+    if ((F.bgFx || '').includes('butterflies')) {   // pale butterflies drifting through the scene, soft and glowing like on a long exposure; every hit makes them flutter harder
+      const BF = [[0.82, 0.16, 1.0, 0], [0.86, 0.62, 0.55, 2], [0.16, 0.8, 0.85, 3]], bn = BNC[fi];
+      BF.forEach(([bx, by, z, i]) => {
+        const so = soft('bfly' + i, 2 + (1 - z) * 2.5), c = so.c, S_ = (90 + 120 * z) * (1 + 0.1 * bn);
+        const x = W * bx + Math.sin(t * 0.22 + i * 2.3) * 90 * z + Math.sin(t * 0.5 + i) * 18, y = H * by + Math.cos(t * 0.18 + i * 1.7) * 110 * z - 14 * z * bn + Math.sin(t * 0.7 + i * 3) * 12;
+        const flap = 0.5 - 0.5 * Math.cos(t * (1.25 + i * 0.12) + i * 1.9 + ts * 0.25), open = 0.14 + 0.86 * flap, head = Math.sin(t * 0.22 + i * 2.3 + 1.2) * 0.4 + (i % 2 ? 0.5 : -0.4);   // slow motion: one wing beat takes about five seconds
+        c.save(); c.translate(x, y); c.rotate(head); c.shadowColor = 'rgba(255,255,255,0.9)'; c.shadowBlur = (26 + 30 * hit) / so.k;
+        for (const sd of [-1, 1]) {
+          c.save(); c.scale(sd * open, 1);
+          const g = c.createRadialGradient(S_ * 0.25, -S_ * 0.1, S_ * 0.05, S_ * 0.3, -S_ * 0.05, S_ * 0.75); g.addColorStop(0, 'rgba(255,255,255,0.98)'); g.addColorStop(0.7, 'rgba(232,232,240,0.9)'); g.addColorStop(1, 'rgba(190,190,205,0.7)');
+          c.fillStyle = g; c.beginPath(); c.moveTo(0, -S_ * 0.05); c.bezierCurveTo(S_ * 0.15, -S_ * 0.75, S_ * 0.95, -S_ * 0.8, S_ * 0.8, -S_ * 0.18); c.bezierCurveTo(S_ * 0.72, S_ * 0.05, S_ * 0.3, S_ * 0.05, 0, S_ * 0.02); c.fill();   // fore wing
+          c.beginPath(); c.moveTo(0, S_ * 0.02); c.bezierCurveTo(S_ * 0.5, S_ * 0.02, S_ * 0.7, S_ * 0.35, S_ * 0.42, S_ * 0.58); c.bezierCurveTo(S_ * 0.2, S_ * 0.66, S_ * 0.05, S_ * 0.35, 0, S_ * 0.12); c.fill();   // hind wing
+          c.restore();
+        }
+        c.shadowBlur = 0; c.fillStyle = 'rgba(30,30,36,0.9)'; c.beginPath(); c.ellipse(0, S_ * 0.03, S_ * 0.035, S_ * 0.26, 0, 0, 6.3); c.fill();
+        c.restore(); softDraw(fxB, so, 0.3 + 0.36 * z + 0.08 * hit);
+      });
+    }
+    if ((F.bgFx || '').includes('pines')) {   // Christmas trees at the bottom corners, one small and far: snow on the tiers, lights that blink with the music
+      const TR = [[0.9, 1.03, 1.0, 640], [0.07, 1.02, 0.82, 520], [0.7, 0.985, 0.5, 300]], bn = BNC[fi];
+      TR.forEach(([tx, ty, z, hgt], i) => {
+        const so = soft('pine' + i, 3.2 + (1 - z) * 3), c = so.c, Ht = hgt * (1 + 0.025 * bn), Wd = Ht * 0.56;
+        c.save(); c.translate(W * tx, H * ty); c.rotate(0.02 * Math.sin(t * 0.8 + i * 2) + 0.012 * bn * (i % 2 ? 1 : -1));
+        if (BGO.length) { const im = BGO[0], iw = Ht * 1.1 * im.width / im.height; c.drawImage(im, -iw / 2, -Ht * 1.1, iw, Ht * 1.1); }   // the owner's own tree picture (bg_objs) instead of the drawn tree
+        else {
+        c.fillStyle = '#2a1408'; c.fillRect(-Wd * 0.06, -Ht * 0.12, Wd * 0.12, Ht * 0.14);
+        for (let k = 0; k < 4; k++) {   // tiers from the bottom up
+          const y0 = -Ht * (0.1 + 0.2 * k), y1 = y0 - Ht * 0.36, hw = Wd * 0.5 * (1 - 0.2 * k);
+          const g = c.createLinearGradient(-hw, 0, hw, 0); g.addColorStop(0, '#07301c'); g.addColorStop(0.5, '#14663a'); g.addColorStop(1, '#062615');
+          c.fillStyle = g; c.beginPath(); c.moveTo(-hw, y0); c.quadraticCurveTo(0, y0 + Ht * 0.04, hw, y0); c.lineTo(0, y1); c.closePath(); c.fill();
+          c.fillStyle = 'rgba(245,250,255,0.9)'; c.beginPath(); c.moveTo(-hw, y0); c.quadraticCurveTo(-hw * 0.5, y0 - Ht * 0.035, -hw * 0.25, y0 - Ht * 0.01); c.quadraticCurveTo(0, y0 - Ht * 0.05, hw * 0.3, y0 - Ht * 0.012); c.quadraticCurveTo(hw * 0.6, y0 - Ht * 0.04, hw, y0); c.quadraticCurveTo(0, y0 + Ht * 0.04, -hw, y0); c.fill();   // snow along the edge of the tier
+          for (let n = 0; n < 4; n++) {   // lights
+            const u = hash(i * 31 + k * 7 + n * 3.3), lx = (u - 0.5) * hw * 1.3 * (0.75 - 0.12 * n), ly = y0 - Ht * (0.05 + 0.065 * n), on = 0.45 + 0.55 * Math.max(0, Math.sin(t * 3 + u * 20)) + 0.5 * hit;
+            c.fillStyle = ['#ffd24a', '#ff4d5e', '#ffffff', '#7fd0ff'][(k + n + i) % 4]; c.globalAlpha = Math.min(1, on); c.shadowColor = c.fillStyle; c.shadowBlur = 12 / (c.K || 1);
+            c.beginPath(); c.arc(lx, ly, Ht * 0.013, 0, 6.3); c.fill(); c.globalAlpha = 1; c.shadowBlur = 0;
+          }
+        }
+        c.fillStyle = '#ffd24a'; c.shadowColor = '#ffd24a'; c.shadowBlur = (14 + 16 * hit) / (c.K || 1); c.translate(0, -Ht * 1.07); c.beginPath();   // star on top
+        for (let p5 = 0; p5 < 10; p5++) { const rr = Ht * (p5 % 2 ? 0.022 : 0.05), aa = -Math.PI / 2 + p5 * Math.PI / 5; c.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr); } c.closePath(); c.fill();
+        }
+        c.restore();
+        // sink the tree into the scene: wash it with the background colour, fade its top half out, then lay it in faintly
+        c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = rgbaOf(P.deep, 0.5); c.fillRect(0, 0, so.cv.width, so.cv.height);
+        c.globalCompositeOperation = 'destination-in'; const y0f = (H * ty - hgt * 1.15) / so.k, y1f = (H * ty) / so.k, fg = c.createLinearGradient(0, y0f, 0, y1f);
+        fg.addColorStop(0, 'rgba(0,0,0,0.45)'); fg.addColorStop(0.5, 'rgba(0,0,0,0.85)'); fg.addColorStop(1, 'rgba(0,0,0,1)'); c.fillStyle = fg; c.fillRect(0, 0, so.cv.width, so.cv.height); c.globalCompositeOperation = 'source-over';
+        softDraw(fxB, so, 0.4 + 0.16 * z + 0.06 * hit);
+      });
+    }
+    if ((F.bgFx || '').includes('rings')) {   // a few gold rings turning slowly in the depth of the scene; they pop with the hits
+      // two tidy arcs of rings framing the card, like a ring trail: one arching over it, one cupping it from below.
+      // They spin in a wave from left to right and pop one after another on each hit.
+      const RG = []; for (let k = 0; k < 5; k++) { const u = k / 4, e2 = 4 * u * (1 - u); RG.push([0.14 + 0.72 * u, 0.135 - 0.085 * e2, 0.78 + 0.22 * e2, k]); RG.push([0.14 + 0.72 * u, 0.735 + 0.07 * e2, 0.62 + 0.2 * e2, k]); }
+      RG.forEach(([rx_, ry_, z, k], i) => {
+        const bn = BNC[Math.max(0, fi - k * 3)];
+        const so = soft('ring' + i, 1 + (1 - z) * 2.2), c = so.c, R0 = (34 + 30 * z) * (1 + 0.16 * bn), th = R0 * 0.24, spin = Math.cos(t * 1.6 - k * 0.7 + (i % 2) * 1.2);
+        const x = W * rx_, y = H * ry_ + Math.sin(t * 0.9 + k * 0.8) * 8 - 22 * z * bn;
+        c.save(); c.translate(x, y); c.scale(0.22 + 0.78 * Math.abs(spin), 1);
+        const g = c.createLinearGradient(-R0, -R0, R0, R0); g.addColorStop(0, '#fff3a8'); g.addColorStop(0.35, '#ffc93a'); g.addColorStop(0.7, '#d98a12'); g.addColorStop(1, '#8a4e06');
+        c.lineWidth = th + 6; c.strokeStyle = '#3a1e02'; c.beginPath(); c.arc(0, 0, R0, 0, 6.3); c.stroke();
+        c.lineWidth = th; c.strokeStyle = g; c.beginPath(); c.arc(0, 0, R0, 0, 6.3); c.stroke();
+        c.lineWidth = th * 0.22; c.strokeStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.arc(0, 0, R0 + th * 0.18, Math.PI * 1.05, Math.PI * 1.55); c.stroke();
+        c.lineWidth = th * 0.2; c.strokeStyle = 'rgba(90,40,0,0.5)'; c.beginPath(); c.arc(0, 0, R0 - th * 0.22, 0.1, Math.PI * 0.8); c.stroke();
+        c.restore();
+        const gw = soft('ringGlow', 9); gw.c.setTransform(1, 0, 0, 1, 0, 0); gw.c.drawImage(so.cv, 0, 0, gw.cv.width, gw.cv.height);
+        softDraw(fxB, gw, 0.3 + 0.4 * hit, 'lighter'); softDraw(fxB, so, 0.42 + 0.5 * z);
+      });
+    }
+    if ((F.bgFx || '').includes('chains')) {   // a few heavy chains hanging across the scene behind the card, swaying slightly
+      // [x0, y0, x1, y1, sag, link size, depth z]; z > 1 = close to the lens: big, blurred, drawn in front of the card
+      const CH = (F.bgFx || '').includes('chains-x')
+        ? [[-0.06, 0.13, 1.06, 0.60, 26, 54, 1.0], [1.06, 0.17, -0.06, 0.66, 30, 40, 0.78], [-0.06, 0.80, 1.06, 0.87, 46, 27, 0.55], [0.50, 1.04, 1.08, 0.70, 30, 110, 1.6]]   // taut chains crossing behind the card, one low and far, one out of focus in the corner
+        : [[-0.08, 0.02, 0.62, -0.03, 230, 46, 1.0], [0.42, 1.04, 1.1, 0.5, 200, 38, 0.8], [-0.1, 0.62, 0.38, 1.05, 150, 30, 0.6]];
+      CH.forEach(([ax, ay, bx, by, sag, sz0, z], ci) => {   // links are drawn plain on a spare canvas, then composited once with blur and glow (fast)
+        const x0 = ax * W, y0 = ay * H, x1 = bx * W, y1 = by * H, bn = BNC[fi], zz = Math.min(z, 1.2), sz = sz0 * (1 + 0.07 * bn);
+        // the chains dance: every hit yanks them (the same spring as the card), they dip, and a ripple runs along the links
+        const sg = sag * (1 + 0.06 * Math.sin(t * 0.7 + ci * 2)) + (26 + 0.22 * sag) * zz * bn * (ci % 2 ? -1 : 1), sw = Math.sin(t * 0.55 + ci * 1.9) * 26 * zz;
+        const len_ = Math.hypot(x1 - x0, y1 - y0), nx = -(y1 - y0) / len_, ny = (x1 - x0) / len_, rip = (9 + 9 * zz) * bn;
+        const P_ = u => { const e = 4 * u * (1 - u), w = rip * e * Math.sin(u * 19 - t * 13 + ci * 2.1); return [x0 + (x1 - x0) * u + sw * e + nx * w, y0 + (y1 - y0) * u + sg * e + ny * w]; };
+        const N = Math.round(len_ * 1.06 / (sz0 * 0.86));
+        const so = soft('chain' + ci, z > 1 ? 2.6 : 1 + (1 - z) * 1.6), c = so.c; c.lineCap = 'round'; c.lineJoin = 'round';   // far chains only a little soft
+        // steel links with volume: a face-on ring and an edge-on link alternate; each has a dark edge, a body, a lit band,
+        // a specular line and a shaded underside, tinted by the cover's colours
+        const mixc_ = (g, cc, k) => `rgb(${g.map((v, j) => Math.round(v * (1 - k) + cc[j] * k)).join(',')})`;
+        const cDark = mixc_([14, 11, 16], cool, 0.12), cBody = mixc_([92, 88, 100], cool, 0.22), cLit = mixc_([176, 172, 186], hot, 0.16), cRim = rgbaOf(P.hot, 0.55);
+        const th = sz * 0.21, rx = sz * 0.62, ry = sz * 0.36;
+        const ring = (lw, col, dy, a0, a1) => { c.strokeStyle = col; c.lineWidth = lw; c.beginPath();
+          if (a0 === undefined) c.roundRect(-rx, -ry + dy, rx * 2, ry * 2, ry); else c.ellipse(0, dy, rx, ry, 0, a0, a1); c.stroke(); };
+        const links = []; for (let i = 0; i <= N; i++) { const [x, y] = P_(i / N), [xn, yn] = P_((i + 0.5) / N), [xp, yp] = P_((i - 0.5) / N); links.push([x, y, Math.atan2(yn - yp, xn - xp)]); }
+        for (let pass = 0; pass < 2; pass++) links.forEach(([x, y, ang], i) => {   // rings first, then the edge-on links that pass through them
+          if ((i % 2 === 0) !== (pass === 0)) return;
+          c.save(); c.translate(x, y); c.rotate(ang);
+          const up = Math.cos(ang) >= 0 ? -1 : 1;                                  // keep the light coming from the top of the screen
+          if (i % 2 === 0) {
+            ring(th + sz * 0.07, cDark, 0); ring(th, cBody, 0); ring(th * 0.5, cLit, up * th * 0.14);
+            ring(th * 0.3, 'rgba(0,0,0,0.38)', -up * th * 0.3); ring(th * 0.16, cRim, -up * th * 0.36, up < 0 ? 0.25 : Math.PI + 0.25, up < 0 ? Math.PI - 0.25 : 2 * Math.PI - 0.25);
+            ring(th * 0.13, 'rgba(255,255,255,0.9)', up * th * 0.27, up < 0 ? Math.PI * 1.12 : Math.PI * 0.12, up < 0 ? Math.PI * 1.62 : Math.PI * 0.62);
+          } else {
+            const L2 = sz * 0.56, g = c.createLinearGradient(0, up * th * 0.62, 0, -up * th * 0.62);
+            g.addColorStop(0, cDark); g.addColorStop(0.2, cLit); g.addColorStop(0.3, '#ffffff'); g.addColorStop(0.42, cLit); g.addColorStop(0.7, cBody); g.addColorStop(1, cDark);
+            c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.roundRect(-L2 - sz * 0.05, -th * 0.62 - sz * 0.04, 2 * L2 + sz * 0.1, th * 1.24 + sz * 0.08, th * 0.7); c.fill();   // contact shadow on the rings
+            c.fillStyle = g; c.beginPath(); c.roundRect(-L2, -th * 0.6, 2 * L2, th * 1.2, th * 0.6); c.fill();
+            c.strokeStyle = cRim; c.lineWidth = th * 0.12; c.beginPath(); c.moveTo(-L2 * 0.8, -up * th * 0.5); c.lineTo(L2 * 0.8, -up * th * 0.5); c.stroke();
+          }
+          c.restore();
+        });
+        const gw = soft('chainGlow', 9); gw.c.setTransform(1, 0, 0, 1, 0, 0); gw.c.drawImage(so.cv, 0, 0, gw.cv.width, gw.cv.height); gw.c.globalCompositeOperation = 'source-in'; gw.c.fillStyle = rgbaOf(P.hot, 1); gw.c.fillRect(0, 0, gw.cv.width, gw.cv.height); gw.c.globalCompositeOperation = 'source-over';
+        const dst = z > 1 ? fxF : fxB; softDraw(dst, gw, (0.3 + 0.4 * hit) * (0.5 + 0.5 * Math.min(1, z)), 'lighter'); softDraw(dst, so, z > 1 ? 0.92 : 0.55 + 0.4 * z);
+      });
+    }
+    if ((F.bgFx || '').includes('snakes')) {   // a few pale snakes gliding slowly through the depth of the scene
+      if (!drawAtmos.sn) { const R4 = rng(4242), sn = []; for (let i = 0; i < 3; i++) { const z = 0.5 + 0.6 * (i / 2); sn.push({ z, y0: H * (0.16 + 0.34 * i + 0.06 * R4()), dir: i % 2 ? -1 : 1, sp: 70 + 50 * R4(), len: 620 + 420 * z, amp: 60 + 50 * R4(), wl: 300 + 160 * R4(), ph: R4() * 6.28, tilt: (R4() - 0.5) * 0.5, off: R4() }); } drawAtmos.sn = sn; }
+      for (const k of drawAtmos.sn) {
+        const c = fxB, span = W + k.len * 2 + 300, head = ((k.off * span + (t * k.sp + ts * k.sp * 0.5) * k.z) % span) - k.len - 150, N = 46, th = 15 + 17 * k.z;
+        const pt = u => { const d = head - u * k.len; return [d, Math.sin(d / k.wl * 6.283 + k.ph + t * 1.6) * k.amp * (0.45 + 0.55 * u)]; };
+        c.save(); c.translate(W / 2, k.y0); c.rotate(k.tilt); c.scale(k.dir, 1); c.translate(-W / 2, 0);
+        c.globalAlpha = clamp(0.35 + 0.6 * k.z); c.filter = `blur(${(Math.abs(1.0 - k.z) * 6).toFixed(1)}px)`; c.lineCap = 'round';
+        c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = 20 + 24 * hit;
+        for (let i = N - 1; i >= 0; i--) {   // tail first, so the head is drawn on top
+          const u0 = i / N, u1 = (i + 1) / N, [x0, y0] = pt(u0), [x1, y1] = pt(u1), w = th * (u0 < 0.08 ? 0.8 + 2.5 * u0 : Math.pow(1 - u0, 0.7) * 1.05 + 0.06);
+          c.strokeStyle = i % 5 === 2 ? rgbaOf(P.hot, 0.9) : (i % 2 ? '#eef7e6' : '#cfe3c6'); c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x0, y0); c.stroke(); if (i === 4) c.shadowBlur = 0;
+        }
+        const [hx, hy] = pt(0), [nx, ny] = pt(0.03), ha = Math.atan2(hy - ny, hx - nx);
+        c.translate(hx, hy); c.rotate(ha); c.fillStyle = '#f3faec'; c.beginPath(); c.moveTo(-th * 0.5, -th * 0.62); c.quadraticCurveTo(th * 0.9, -th * 0.8, th * 1.5, 0); c.quadraticCurveTo(th * 0.9, th * 0.8, -th * 0.5, th * 0.62); c.closePath(); c.fill();
+        c.fillStyle = rgbaOf(P.hot, 1); c.shadowColor = c.fillStyle; c.shadowBlur = 12; for (const sg of [-1, 1]) { c.beginPath(); c.ellipse(th * 0.55, sg * th * 0.36, th * 0.2, th * 0.11, sg * 0.4, 0, 6.3); c.fill(); }
+        const fl = Math.sin(t * 5 + k.ph) > 0.55 ? 1 : 0; if (fl) { c.strokeStyle = '#ff4466'; c.shadowBlur = 0; c.lineWidth = Math.max(2, th * 0.1); c.beginPath(); c.moveTo(th * 1.45, 0); c.lineTo(th * 2.1, 0); c.lineTo(th * 2.5, -th * 0.22); c.moveTo(th * 2.1, 0); c.lineTo(th * 2.5, th * 0.22); c.stroke(); }
+        c.restore();
+      }
+    }
+    if ((F.bgFx || '').includes('slash')) {   // blade cuts of light behind the card, one per strong hit after the drop
+      if (!drawAtmos.sl) { const R2 = rng(77), sl = []; let last = -99; for (let i = 1; i < NF; i++) { if (i / FPS >= T_DROP - 0.02 && hitAt(i) > 0.55 && hitAt(i - 1) <= 0.55 && i - last > FPS * 0.28) { last = i; const side = sl.length % 2 ? 1 : -1; sl.push({ f: i, x: W * (0.5 + side * (0.08 + 0.3 * R2())), y: H * (0.12 + 0.76 * R2()), ang: side * (0.5 + 0.75 * R2()) + (R2() < 0.3 ? Math.PI / 2 : 0), len: 900 + 900 * R2(), w: 7 + 9 * R2() }); } } drawAtmos.sl = sl; }
+      for (const s of drawAtmos.sl) {
+        const dt = (fi - s.f) / FPS; if (dt < 0 || dt > 0.55) continue;
+        const grow = clamp(dt / 0.07), fade = Math.pow(1 - dt / 0.55, 1.6), L = s.len * (0.25 + 0.75 * grow), wd = s.w * fade * 1.4;
+        const c = fxB; c.save(); c.translate(s.x, s.y); c.rotate(s.ang); c.globalCompositeOperation = 'lighter';
+        c.shadowColor = rgbaOf(P.hot, 1); c.shadowBlur = 46;
+        for (const [k, col] of [[1, rgbaOf(P.hot, 0.75 * fade)], [0.36, `rgba(255,244,244,${0.95 * fade})`]]) {
+          c.fillStyle = col; c.beginPath(); c.moveTo(-L / 2, 0); c.quadraticCurveTo(0, -wd * k, L / 2, 0); c.quadraticCurveTo(0, wd * k, -L / 2, 0); c.fill();
+        }
+        c.restore();
+      }
+    }
+    if (F.fxAlpha != null && F.fxAlpha < 1) { fxB.save(); fxB.shadowBlur = 0; fxB.globalAlpha = 1; fxB.filter = 'none'; fxB.globalCompositeOperation = 'destination-in'; fxB.fillStyle = `rgba(0,0,0,${F.fxAlpha})`; fxB.fillRect(0, 0, W, H); fxB.restore(); }   // fx_alpha: everything drawn so far (the bg_fx things) is faded back; particles after this keep their strength
+    // warm embers rising, a short streak each; brighter and faster on the hits
+    for (const e of embers) {
+      const c = e.front ? fxF : fxB;
+      const x = wrap(e.x + Math.sin(t * 0.9 + e.ph) * e.sw * e.z, W, 30), y = wrap(e.y - (t * e.vy + ts * e.vy * 0.6) * e.z, H, 40);
+      const fl = 0.55 + 0.45 * Math.sin(t * 9 + e.ph * 3), a = clamp((0.35 + 0.5 * e.z) * fl * (1 + 0.7 * hit));
+      const len = (6 + 12 * e.z) * (1 + hit), wd = 1.2 + 1.6 * e.z;
+      c.save(); c.shadowColor = rgbaOf(P.hot, 0.9); c.shadowBlur = 10 * e.z;
+      c.fillStyle = `rgba(${Math.round(lerp(hot[0], 255, 0.3))},${Math.round(lerp(hot[1], 160, 0.4))},${Math.round(lerp(hot[2], 90, 0.5))},${a})`;
+      c.fillRect(x - wd / 2, y, wd, len); c.restore();
+    }
+    // dust motes, rising slowly, faster when the bass pushes
+    for (const d of dust) {
+      const x = wrap(d.x + Math.sin(ts * 0.35 + t * 0.4 + d.ph) * d.sw * d.z, W, 20), y = wrap(d.y - ts * 46 * d.z - t * 16 * d.z, H, 20);
+      const a = (0.28 + 0.6 * d.z) * (0.6 + 0.4 * Math.sin(t * 2.1 + d.ph)) * (1 + 0.6 * hit);
+      fxB.fillStyle = `rgba(${Math.round(lerp(255, cool[0], 0.35))},${Math.round(lerp(255, cool[1], 0.35))},${Math.round(lerp(255, cool[2], 0.35))},${clamp(a)})`;
+      fxB.shadowColor = rgbaOf(P.cool, 0.8); fxB.shadowBlur = 6 * d.z;
+      const r = 0.9 + 2.8 * d.z; fxB.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    fxB.shadowBlur = 0;
+    // soft out-of-focus light blobs, drifting up
+    for (const b of bokeh) {
+      const x = wrap(b.x + Math.sin(t * 0.3 + b.ph) * 30, W, 60), y = wrap(b.y - (t * 22 + ts * 30) * b.z, H, 60);
+      const col = b.tint < 0.6 ? cool : hot, a = (0.10 + 0.12 * b.z) * (0.7 + 0.3 * Math.sin(t * 1.3 + b.ph)) * (1 + 0.8 * hit);
+      const gr = fxB.createRadialGradient(x, y, 0, x, y, b.r * (1 + 0.15 * hit));
+      gr.addColorStop(0, `rgba(${col.join(',')},${a})`); gr.addColorStop(1, `rgba(${col.join(',')},0)`);
+      fxB.fillStyle = gr; fxB.fillRect(x - b.r * 1.2, y - b.r * 1.2, b.r * 2.4, b.r * 2.4);
+    }
+    // soft haze drifting in front of everything, top and bottom edges
+    for (const hz of hazes) {
+      const x = hz.x + Math.sin(t * 0.12 + hz.ph) * 140, y = hz.y + Math.cos(t * 0.1 + hz.ph) * 40, r = hz.r;
+      const gr = fxF.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, rgbaOf(P.cool, 0.16 * (1 + 0.4 * hit))); gr.addColorStop(1, rgbaOf(P.cool, 0));
+      fxF.fillStyle = gr; fxF.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    if (['leaves', 'maple', 'ash', 'snow'].includes(F.particles || 'leaves')) { const sN = soft('leafN', 4), sB = soft('leafB', 2); for (const l of leaves) drawLeaf(l.z >= 1 ? sN.c : sB.c, l, t, ts); softDraw(fxB, sB); softDraw(fxF, sN); }
+    // sparkles twinkle in and out, more on the hits
+    for (const s of sparks) {
+      const u = ((t + s.ph) % s.per) / s.per, life = u < 0.4 ? Math.sin(Math.PI * u / 0.4) : 0;
+      const a = life * (0.55 + 0.45 * hit); if (a < 0.02) continue;
+      const col = s.tint < 0.5 ? rgbaOf(P.cool, 1) : rgbaOf(P.hot, 1);
+      star(s.front ? fxF : fxB, s.x, s.y + Math.sin(t + s.ph) * 6, s.size * (0.6 + 0.5 * life) * (1 + 0.35 * hit), t * 0.4 + s.ph, col, a);
+    }
+    // score-lock burst: glints pop around the chip
+    const lockU = (t - T_VERD - 0.15) / 0.9;
+    if (lockU > 0 && lockU < 1 && cardRect) {
+      const cx = cardRect.left + cardRect.width * (468 / 660), cy = cardRect.top + cardRect.width * (523 / 660);
+      // ink specks thrown out by the impact
+      const iu = clamp(lockU * 2.2);
+      if (iu < 1) for (let i = 0; i < 18; i++) {
+        const ang = hash(i * 5.1) * 6.283, rr = (150 + 120 * hash(i * 2.7)) * eOutCubic(iu) + 120, sz = (3 + 7 * hash(i * 9.1)) * (1 - iu);
+        fxF.fillStyle = rgbaOf(P.hot, 0.9 * (1 - iu)); fxF.fillRect(cx + Math.cos(ang) * rr * 1.2 - sz / 2, cy + Math.sin(ang) * rr * 0.8 - sz / 2, sz, sz);
+      }
+      if (F.stars) for (let i = 0; i < 9; i++) {
+        const ang = i / 9 * 6.283 + 0.4, rr = 90 + 170 * eOutCubic(lockU) * (0.6 + 0.4 * hash(i + 3)), life = Math.sin(Math.PI * lockU);
+        star(fxF, cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr * 0.8, (16 + 22 * hash(i)) * life, ang, i % 2 ? rgbaOf(P.hot, 1) : rgbaOf(P.cool, 1), life);
+      }
+    }
+  }
+
+  // ---------- content ----------
+  await document.fonts.load('900 106px "TikTok Sans Variable"');
+  await document.fonts.load('700 54px "TikTok Sans Variable"');
+  await document.fonts.load('italic 400 34px "Instrument Serif"');
+  await document.fonts.load('400 60px "Nanum Pen Script"');
+  await document.fonts.ready;
+  let draw3d = null;   // real 3D props (three.js), drawn behind the card
+  if (F.model3d) {
+    const THREE = await import('three'), { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), { makeModel } = await import('./model3d.js'), cv = $('g3d'), m = F.modelAt || [];
+    cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.7;
+    { // screen effect like the cover art's: the model keeps its form and shading but is pulled into the cover's tone, with hard contrast and a neon glow around it
+      const c3 = new THREE.Color(P.hot), hs = {}; c3.getHSL(hs); const hue = Math.round(hs.h * 360 - 38), mono = hs.s < 0.12;
+      cv.style.filter = `grayscale(0.85) contrast(1.45) brightness(0.95) ${mono ? '' : `sepia(0.9) hue-rotate(${hue}deg) saturate(${(2.2 + 1.2 * hs.s).toFixed(2)})`} drop-shadow(0 0 22px ${rgbaOf(P.hot, 0.55)})`; }
+    draw3d = await makeModel(THREE, GLTFLoader, cv, { W: 1080, H: 1920, url: BUILD + '/model.glb', cool: P.cool, hot: P.hot, y: m[0] ?? -3.3, size: m[1] ?? 5.2, spin: m[2] ?? 0.5, yaw: m[3] ?? 0.6, pitch: m[4] ?? 0.12, tint: F.modelTint || null, drive: F.modelDrive || 0, float: F.modelFloat || 0 });
+  }
+  if ((F.bgFx || '').includes('swords3d')) {
+    const THREE = await import('/node_modules/three/build/three.module.js'), { makeSwords } = await import('./swords3d.js'), cv = $('g3d');
+    cv.style.display = 'block'; cv.style.opacity = F.obj3dAlpha || 0.9;
+    const k3 = F.obj3dSoft || 1; draw3d = await makeSwords(THREE, cv, { W: Math.round(1080 / k3), H: Math.round(1920 / k3), cool: P.cool, hot: P.hot, drop: T_DROP });   // obj3dSoft > 1: rendered smaller and stretched = out of focus
+  }
+  $('art').src = BUILD + '/cover_sq.jpg';
+  if (F.judge) $('judge').src = BUILD + '/judge.png'; else $('judge').remove();
+  if (F.judge && F.judge2) $('judge2').src = BUILD + '/judge2.png'; else $('judge2').remove();
+  const BGO = []; for (let i = 0; i < (F.bgObjs || 0); i++) { const im = new Image(); im.src = BUILD + '/bgobj' + i + '.png'; await im.decode(); BGO.push(im); }
+  await Promise.all([...document.images].map(im => im.decode()));
+
+  $('cTitle').textContent = F.title;
+  $('judgeSay').textContent = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
+  document.documentElement.style.setProperty('--ink', P.hot);
+  $('stScore').textContent = (F.score ?? STORY[STORY.length - 1][1]).toFixed(1);
+  $('hook').textContent = F.hook || '';
+  $('stBot').textContent = (F.stampLine || [(F.artist || '').split(/,|&/)[0].trim(), (F.title || '').replace(/\s*\(.*\)\s*/g, '')].filter(Boolean).join(' · ')).toUpperCase();
+  { const sc_ = F.score ?? STORY[STORY.length - 1][1];                    // the channel's own rating titles
+    $('stBot').textContent = F.tier || (sc_ >= 9 ? 'PEAK' : sc_ >= 7.5 ? 'REPLAY' : sc_ >= 6 ? 'DECENT' : 'SKIP');
+    $('stBot').style.fontSize = '34px'; $('stBot').style.fontWeight = 900; }
+  for (const el of [$('stTop'), $('stBot')]) { el.style.whiteSpace = 'nowrap'; el.style.display = 'inline-block'; const w = el.scrollWidth; if (w > 290) el.style.transform = `scale(${290 / w})`; }
+  { const mc = document.createElement('canvas'); mc.width = 344; mc.height = 214; const m = mc.getContext('2d'), RR = rng(77);
+    m.fillStyle = '#fff'; m.fillRect(0, 0, 344, 214); m.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 1400; i++) { m.globalAlpha = 0.25 + 0.75 * RR(); const w = 1 + RR() * 3.5, h = 1 + RR() * 2.5; m.fillRect(RR() * 344, RR() * 214, w, h); }
+    for (let i = 0; i < 14; i++) { m.globalAlpha = 0.35 + 0.4 * RR(); m.beginPath(); m.ellipse(RR() * 344, RR() < 0.5 ? RR() * 30 : 214 - RR() * 30, 10 + RR() * 30, 3 + RR() * 8, RR() * 3, 0, 6.283); m.fill(); }
+    const url = `url(${mc.toDataURL()})`; $('stampIn').style.webkitMaskImage = url; $('stampIn').style.maskImage = url; }
+  $('cArtist').textContent = F.artist || '';
+  $('tB').textContent = fmt(T_END);
+  $('cta').querySelector('i').textContent = (F.cta || 'send me your funk') + ' ↓';
+  const vWords = (F.line || '').split(' ').filter(Boolean).map(w => { const s = document.createElement('span'); s.textContent = w; $('vline').appendChild(s); return s; });
+  for (const id of ['cU', 'cT']) { const st = $(id).querySelector('.strip'); for (let d = 0; d <= 10; d++) { const s = document.createElement('span'); s.textContent = d % 10; st.appendChild(s); } }
+  const segs = []; for (let i = 0; i < 10; i++) { const s = document.createElement('div'); s.className = 'seg'; s.appendChild(document.createElement('i')); $('segs').appendChild(s); segs.push(s.firstChild); }
+  $('vizDrop').style.left = (T_DROP / T_END * 608) + 'px';
+  $('holo').style.backgroundImage = `linear-gradient(115deg, transparent 30%, ${rgbaOf(P.cool, 0.0)} 38%, ${rgbaOf(P.cool, 0.55)} 44%, rgba(255,255,255,0.55) 48%, ${rgbaOf(P.hot, 0.5)} 52%, ${rgbaOf(P.cool, 0.45)} 56%, transparent 64%)`;
+  $('holo2').style.backgroundImage = `linear-gradient(60deg, transparent 20%, rgba(255,120,220,0.18) 35%, ${rgbaOf(P.cool, 0.22)} 45%, ${rgbaOf(P.hot, 0.22)} 55%, rgba(255,230,120,0.16) 65%, transparent 80%)`;
+
+  const viz = $('viz').getContext('2d');
+  function drawViz(fi, hit, live, pr) {
+    const s = F.spec[clamp(fi, 0, NF - 1)], nb = s.length, w = 608, h = 104, gap = 4, bw = (w - gap * (nb - 1)) / nb;
+    viz.clearRect(0, 0, w, h);
+    const litN = pr * nb, g = live ? hit : 0;
+    for (let j = 0; j < nb; j++) {
+      const v = s[j], bh = Math.max(6, v * (h - 4)), x = j * (bw + gap), y = h - bh, lit = clamp(litN - j);
+      viz.shadowBlur = 0; viz.fillStyle = 'rgba(255,255,255,0.2)'; viz.fillRect(x, y, bw, bh);
+      if (lit > 0) {
+        const m = 0.55 * g * v;
+        viz.globalAlpha = lit; viz.shadowColor = `rgba(${hot.join(',')},${0.85 * g})`; viz.shadowBlur = 18 * g;
+        viz.fillStyle = `rgb(${Math.round(lerp(255, hot[0], m))},${Math.round(lerp(255, hot[1], m))},${Math.round(lerp(255, hot[2], m))})`;
+        viz.fillRect(x, y, bw, bh); viz.globalAlpha = 1;
+      }
+    }
+    viz.shadowBlur = 0;
+  }
+  // kick 'bounce' (AVEE-style): the card is a mass on a spring pulled by the hit envelope. Same direction every time,
+  // a continuous curve from frame to frame, so it reads as a bounce and never as dropped frames.
+  const BNC = new Float32Array(NF);
+  { let x = 0, v = 0; const w = 2 * Math.PI * 7.5, zeta = 0.42, sub = 8, dt = 1 / FPS / sub;
+    for (let i = 0; i < NF; i++) { const tgt = hitAt(i); for (let k = 0; k < sub; k++) { v += (w * w * (tgt - x) - 2 * zeta * w * v) * dt; x += v * dt; } BNC[i] = x; } }
+  const T_STAMP = T_VERD + 0.15;                                            // the moment the stamp hits
+  const wob = new Float32Array(NF);
+  { let w = 0, target = 0, hold = -1, last = -9, prev = 0;
+    for (let i = 0; i < NF; i++) {
+      const t = i / FPS, h = hitAt(i), near = STORY.some(st => t >= st[0] - 0.1 && t < st[0] + 0.9);
+      const wk = (F.wobble || [1, 1])[t < T_DROP ? 0 : 1];                 // how restless the score is before / after the drop (1 = the usual rare +-0.1)
+      const trig = t < T_DROP ? F.env[i] > 0.4 && F.env[Math.max(0, i - 1)] <= 0.4 : h > 0.55 && prev <= 0.55;   // before the drop the reactions are damped, so listen to the raw envelope
+      if (wk > 0 && trig && t - last > 4.0 / wk && !near && t < T_VERD - 0.5 && t > STORY[0][0] + 0.8 && hash(i * 3.7) < 0.6 * Math.max(1, wk)) {
+        const opts = wk >= 2 ? [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3] : [-0.1, 0.1]; target = opts[Math.floor(hash(i * 7.3) * opts.length)]; hold = t + 0.45 + 0.4 * hash(i * 1.9); last = t;
+      }
+      if (t > hold || near || t >= T_VERD) target = 0;
+      w += (target - w) * (1 - Math.exp(-(1 / FPS) / 0.07)); wob[i] = w; prev = h;
+    }
+  }
+  function scoreAt(t) {
+    let idx = -1, at = -1, to = 0, from = 0;
+    for (let i = 0; i < STORY.length; i++) if (t >= STORY[i][0]) { idx = i; at = STORY[i][0]; to = STORY[i][1]; from = i ? STORY[i - 1][1] : 0; }
+    if (idx < 0) return { v: null };
+    return { v: lerp(from, to, eOutCubic(prog(t, at, idx === 0 ? 0.6 : 0.5))), idx, at, delta: to - from };
+  }
+  function setOdo(v) {
+    const t10 = Math.round(v * 1000) / 100, dT = Math.floor(t10) % 10, offT = t10 - Math.floor(t10);
+    const carry = (t10 % 10) > 9 ? (t10 % 10) - 9 : 0, u = Math.floor(v + 1e-6);
+    $('cT').querySelector('.strip').style.transform = `translateY(${-(dT + offT) * 104}px)`;
+    $('cU').querySelector('.strip').style.transform = `translateY(${-((u % 10) + carry) * 104}px)`;
+  }
+
+  window.renderFrame = function (fi) {
+    const t = fi / FPS, live = t >= T_DROP, hit = hitAt(fi), ts = tS[fi];
+
+    drawBg(fi, ts, hit);
+
+    // holographic card: slow 3D sway + small kick on hits
+    const cIn = eOutCubic(prog(t, 0.1, 0.7));
+    const amp = K.shake * Math.pow(hit, 1.2) + 18 * impulse(t, T_VERD + 0.15, 0.09);
+    // the card jumps to a new spot every frame while a hit lasts (the owner tried a smooth glide: it had no punch)
+    const BO = F.kick === 'bounce', bn = BNC[fi], st_ = 0.6 * K.shake * Math.pow(hit, 1.2) + 18 * impulse(t, T_VERD + 0.15, 0.09);   // bounce keeps 60% of the shake for force
+    const sx = BO ? (hash(fi * 1.7) - 0.5) * 2 * st_ : (hash(fi * 1.7) - 0.5) * 2 * amp, sy = BO ? (hash(fi * 2.3 + 9) - 0.5) * 2 * st_ - 1.6 * K.shake * bn : (hash(fi * 2.3 + 9) - 0.5) * 2 * amp;
+    // gentle dangling sway: hangs from the top edge, slow and a little irregular, plus a soft bob
+    const TAU = 2 * Math.PI, sw = 0.75 * Math.sin(TAU * t / 4.6 + 0.3) + 0.25 * Math.sin(TAU * t / 2.9 + 1.1);
+    const swZ = 1.4 * SWAY * sw, swY = 6 * SWAY * Math.sin(TAU * t / 3.7 + 0.8);
+    const ax = 3.2 * Math.sin(t * 0.62 + 0.4) + K.tilt * (BO ? bn : hit), ay = 5 * Math.sin(t * 0.47 + 1.3) + 2.5 * SWAY * sw + (BO ? 0 : K.tilt * hit * (hash(fi) - 0.5) * 2);
+    const rz = (hash(fi * 3.1 + 5) - 0.5) * 2 * K.rot * hit * (BO ? 0.5 : 1);
+    const card = $('card');
+    card.style.opacity = cIn; card.style.filter = cIn < 1 ? `blur(${(1 - cIn) * 14}px)` : 'none';
+    card.style.transform = `translate(${sx}px, ${sy + swY + (1 - cIn) * 60}px) translateY(-480px) rotateZ(${swZ}deg) translateY(480px) rotateX(${ax}deg) rotateY(${ay}deg) rotateZ(${rz}deg) scale(${0.9 * (0.94 + 0.06 * cIn) * (1 + (BO ? 1.9 * K.scale * bn : K.scale * hit))})`;
+    const g = live ? hit : 0;
+    card.style.boxShadow = `0 40px 110px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 ${36 + 100 * g}px ${3 * g}px rgba(${hot.join(',')},${K.glow * g})`;
+    card.style.borderColor = g > 0.03 ? `rgba(${hot.join(',')},${0.35 + 0.55 * g})` : '';
+    $('art').style.filter = `brightness(${1 + (live ? K.art * hit : 0) + 0.35 * impulse(t, T_VERD + 0.15, 0.12)}) saturate(${1 + (live ? 1.5 * K.art * hit : 0)})`;
+    // foil sheen follows the tilt; it also sweeps across on the drop and on the final score
+    const sweep = 120 * (eOutCubic(prog(t, T_DROP, 0.7)) - 1) * (t >= T_DROP ? 1 : 0) + 140 * eOutCubic(prog(t, T_VERD, 0.8)) - (t >= T_VERD ? 140 : 0) + (t >= T_DROP && t < T_DROP + 0.7 ? 0 : 0);
+    const hx = 50 + ay * 5 + (t >= T_DROP && t < T_DROP + 0.7 ? 120 * (prog(t, T_DROP, 0.7) - 0.5) : 0) + (t >= T_VERD && t < T_VERD + 0.8 ? 140 * (prog(t, T_VERD, 0.8) - 0.5) : 0);
+    $('holo').style.backgroundPosition = `${hx}% ${50 - ax * 5}%`;
+    $('holo').style.opacity = 0.42 + 0.3 * hit + 0.35 * Math.sin(Math.PI * prog(t, T_DROP, 0.7)) + 0.4 * Math.sin(Math.PI * prog(t, T_VERD, 0.8));
+    $('holo2').style.backgroundPosition = `${50 - ay * 4}% ${50 + ax * 4}%`; $('holo2').style.opacity = 0.7;
+    $('glare').style.background = `radial-gradient(ellipse 70% 45% at ${50 + ay * 4}% ${20 - ax * 4}%, rgba(255,255,255,${0.22 + 0.15 * hit}), transparent 70%)`;
+    drawViz(fi, hit, live, clamp(t / T_END));
+    $('tA').textContent = fmt(t);
+
+    // score chip
+    const sc = scoreAt(t), final = t >= T_VERD, lockP = eOutCubic(prog(t, T_VERD, 0.3));
+    const chip = $('chip');
+    setOdo(sc.v === null ? 0 : Math.max(0, sc.v + wob[fi])); $('digits').style.opacity = sc.v === null ? 0.25 : 1;
+    segs.forEach((s, i) => { s.style.width = `${clamp((sc.v || 0) - i) * 100}%`; });
+    chip.style.transform = `scale(${1 + 0.1 * Math.exp(-Math.max(0, t - (sc.at ?? -9)) / 0.14) * (sc.v === null ? 0 : 1) + K.chip * g})`;
+    chip.style.background = final ? `rgba(${hot.join(',')},${0.9 * lockP})` : 'rgba(4,14,22,0.46)';
+    chip.style.boxShadow = g > 0.03 && !final ? `0 0 ${24 + 60 * g}px rgba(${hot.join(',')},${0.55 * g})` : (final ? `0 0 ${60 * (1 - prog(t, T_VERD + 0.3, 1.2)) + 18}px rgba(${hot.join(',')},0.6)` : 'none');
+    const dark = final && lockP > 0.5;
+    chip.querySelectorAll('.strip span, .dot').forEach(el => { el.style.color = dark ? '#07140b' : P.hot; el.style.textShadow = dark ? 'none' : `0 0 18px ${rgbaOf(P.hot, 0.85)}, 0 0 44px ${rgbaOf(P.hot, 0.45)}, 0 2px 6px rgba(0,0,0,0.6)`; });
+    chip.querySelector('.of').style.color = dark ? '#07140b' : '#fff';
+    $('chipLab').textContent = final ? 'final score' : 'score'; $('chipLab').style.color = dark ? '#07140b' : '#fff';
+    $('segs').style.opacity = final ? 1 - lockP : 1;
+    chip.style.opacity = 1 - prog(t, T_STAMP - 0.02, 0.08);
+    // the stamp: falls fast, slams, settles with a tiny bounce
+    const stamp = $('stamp'), stp = prog(t, T_VERD, 0.15);
+    if (stp > 0) {
+      const after = Math.max(0, t - T_STAMP);
+      const s = stp < 1 ? lerp(2.6, 1, stp * stp) : 1 - 0.05 * Math.exp(-after / 0.07) * Math.cos(after * 46);
+      stamp.style.opacity = clamp(stp * 3);
+      stamp.style.transform = `rotate(${lerp(-24, -9, eOutCubic(stp))}deg) scale(${s})`;
+      stamp.style.filter = stp < 1 ? `blur(${(1 - stp) * 5}px)` : 'none';
+    } else stamp.style.opacity = 0;
+
+    // handwritten score delta
+    const cr = card.getBoundingClientRect(), k = 1, d1 = $('d1');
+    if (sc.v !== null && sc.idx > 0 && sc.idx < STORY.length - 1 && Math.abs(sc.delta) > 0.05 && t - sc.at < 1.2) {
+      const p = (t - sc.at) / 1.2;
+      d1.textContent = (sc.delta > 0 ? '+' : '−') + Math.abs(sc.delta).toFixed(1);
+      d1.style.left = (cr.left + cr.width * 0.55) + 'px'; d1.style.top = (cr.top + cr.width * 0.53 - 46 * eOutCubic(p)) + 'px';
+      d1.style.opacity = clamp(p * 6) * (1 - prog(p, 0.65, 0.35)); d1.style.transform = `rotate(-6deg)`;
+    } else d1.style.opacity = 0;
+
+    // verdict replaces the spectrum
+    const vP = 0;
+    $('viz').style.opacity = 1 - vP; $('vizDrop').style.opacity = 1 - vP; $('verdict').style.opacity = vP; $('verdict').style.transform = `translateY(${(1 - vP) * 16}px)`;
+    vWords.forEach((w, i) => { const p = eOutCubic(prog(t, T_VERD + 0.5 + i * BEAT / 2, 0.3)); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 12}px)`; });
+
+    if (draw3d) draw3d(t + 0.4 * ts, hit, BNC[fi], t);
+    drawAtmos(fi, t, ts, hit, cr);
+
+    const ctaP = eOutBack(prog(t, T_CTA, 0.35), 2);
+    const cta = $('cta'); cta.style.top = (cr.bottom + 46) + 'px'; cta.style.opacity = clamp(ctaP * 3);
+    cta.style.transform = `translate(${F.judge ? 200 : 0}px, ${(1 - clamp(ctaP)) * 24}px)`;
+    if (F.judge) {
+      const JS0 = F.judgeAt === 'start', TJ = JS0 ? 0.35 : T_STAMP + 0.45;   // judge_at start: the judge is there from the first second and watches the whole clip
+      const jr = prog(t, TJ, 1.0), jio = jr < 0.5 ? 4 * jr * jr * jr : 1 - Math.pow(-2 * jr + 2, 3) / 2;   // ease in-out rise
+      const tj = Math.max(0, t - (TJ + 1.0)), settle = 0.03 * Math.exp(-tj / 0.25) * Math.sin(tj * 9);             // soft settle after arriving
+      // judge_at intro: she rises for her spoken line, goes back down when it ends, and returns after the stamp as usual
+      const INTRO = F.judgeAt === 'intro', iA = Math.max(0.1, (F.voiceAt || 0.7) - 0.55), iB = (F.voiceAt || 0.7) + (F.voiceDur || 3) + 0.25;
+      const eio = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, ji = INTRO ? eio(prog(t, iA, 0.75)) * (1 - eio(prog(t, iB, 0.7))) : 0;
+      const jp = Math.max(jr, ji), je = Math.max(jio + (jr >= 1 ? settle : 0), ji), jg = $('judge');
+      jg.style.opacity = clamp(jp * 4);
+      if (F.judgeCut) {   // clean cut-out: rises to chest height, breathes, sways, and its neon outline pulses with the music
+        jg.style.left = '70px'; jg.style.width = '500px'; jg.style.top = '1452px'; jg.style.transformOrigin = '50% 100%';
+        // talking: while the line plays, the voice's loudness makes the character bob, lean and stretch on every syllable
+        const vi = Math.round((t - (F.voiceAt || 0)) * FPS), talking = INTRO && vi >= 0 && t < (F.voiceAt || 0) + (F.voiceDur || 0);
+        const vraw = !talking ? 0 : F.voiceEnv ? (F.voiceEnv[vi] || 0) : Math.pow(Math.abs(Math.sin(t * 13) * Math.sin(t * 5.3 + 1)), 0.6);   // no voice file yet: a stand-in chatter
+        drawAtmos.vs = (drawAtmos.vsF === fi - 1 ? drawAtmos.vs : 0) * 0.55 + vraw * 0.45; drawAtmos.vsF = fi; const talk = talking ? clamp(drawAtmos.vs * 1.5) : 0;
+        const breathe = 1 + 0.014 * Math.sin(t * 2.6) + 0.06 * talk, nod = 2.2 * Math.sin(t * 1.9) + 1.2 * Math.sin(t * 3.1 + 1) + 4 * talk * Math.sin(t * 7.3);
+        jg.style.transform = `translate(${-60 * (1 - Math.max(jio, ji))}px, ${(1 - je) * 620 + 5 * Math.sin(t * 2.6 + 0.6) * Math.max(jio, ji) - 10 * hit - 16 * talk}px) rotate(${3 + 12 * (1 - Math.max(jio, ji)) + nod * Math.max(jio, ji)}deg) scale(${1 + 0.02 * hit}, ${breathe + 0.02 * hit})`;
+        jg.style.filter = `drop-shadow(0 0 ${10 + 14 * hit}px ${rgbaOf(P.hot, 0.85)}) drop-shadow(0 0 ${34 + 30 * hit}px ${rgbaOf(P.cool, 0.7)})`;
+        $('judgeSay').style.top = '1368px';
+        if (F.judge2) {   // second pose for the spoken part: same motion, shown instead of the verdict pose until she/he has gone back down
+          const j2 = $('judge2'), first = t < iB + 0.75; j2.style.cssText = jg.style.cssText; j2.style.position = 'absolute';
+          j2.style.opacity = first ? jg.style.opacity : 0; if (first) jg.style.opacity = 0;
+        }
+      } else
+      jg.style.transform = `translateY(${(1 - je) * 560 + 6 * Math.sin(t * 2.2)}px) rotate(${6 + 1.5 * Math.sin(t * 1.7)}deg)`;
+      const js = $('judgeSay'), FINAL = F.judgeLine || ((F.score ?? STORY[STORY.length - 1][1]).toFixed(1) + '/10. trust me.');
+      let sp_ = eOutBack(prog(t, JS0 ? T_STAMP + 0.5 : T_STAMP + 1.5, 0.3), 2.2), say = FINAL;
+      if (JS0 && t < T_STAMP + 0.5) { say = F.judgeOpen || "let's hear it."; sp_ = eOutBack(prog(t, 1.3, 0.3), 2.2) * (1 - prog(t, 3.6, 0.2)); }   // a short opening line, gone before the drop matters
+      if (INTRO && t < iB + 0.2) { say = F.judgeOpen || ''; sp_ = say ? eOutBack(prog(t, iA + 0.6, 0.3), 2.2) * (1 - prog(t, iB - 0.15, 0.2)) : 0; }
+      if (js.textContent !== say) js.textContent = say;
+      js.style.opacity = sp_ > 0 ? 1 : 0; js.style.transform = `rotate(-4deg) scale(${sp_})`;
+    }
+
+    $('wm').style.transform = `translateY(${-7 * BNC[fi]}px) rotate(-3deg) scale(${1 + 0.14 * BNC[fi]})`;   // the channel mark pops with the beat
+    $('muf').style.opacity = 0.45 * inMuf(t);
+    GR(fi);
+    $('fade').style.opacity = prog(t, T_END - 0.25, 0.25);
+    { const hk = $('hook'), hi_ = eOutCubic(prog(t, 0.0, 0.5)), ho = prog(t, 1.9, 0.4);
+      hk.style.opacity = 1 - ho; hk.style.clipPath = `inset(0 ${100 - 100 * hi_}% 0 0)`; hk.style.transform = `rotate(-3deg) translateY(${-20 * ho}px)`; }
+    // hard tracks: white flash on the drop, short RGB split on the strongest hits
+    $('flash').style.opacity = F.glitch ? 0.6 * impulse(t, T_DROP, 0.06) : 0;
+    const gl_ = 0;   // RGB split on the hits removed for good (owner: the cyan fringe looks bad); glitch now only means the white flash on the drop
+    if (gl_ > 0.8) { $('stage').style.filter = 'url(#rgb)'; $('rOff').setAttribute('dx', gl_); $('gbOff').setAttribute('dx', -gl_); }
+    else $('stage').style.filter = 'none';
+  };
+  if (F.dots) {   // halftone layer over the fog: a 45-degree grid of dots, big at the top and bottom edges, fading out behind the card
+    const dc = $('dots'), d = dc.getContext('2d'), stp = 22; dc.style.display = 'block'; dc.style.opacity = F.dots; d.fillStyle = '#fff';
+    for (let r = 0, y = 0; y < H + stp; y += stp / 2, r++) for (let x = (r % 2) * stp / 2; x < W + stp; x += stp) {
+      const v = Math.abs(y / H - 0.47) * 2, k = clamp((v - 0.22) / 0.78), rad = stp * 0.44 * Math.pow(k, 0.8);
+      if (rad > 0.6) { d.beginPath(); d.arc(x, y, rad, 0, 6.3); d.fill(); }
+    }
+  }
+  $('wm').textContent = F.watermark ? '@' + F.watermark : '';
+  // screen look shared by every video, taken from how the cover arts are finished: film grain that changes every frame and a soft vignette.
+  // No drawn decoration: it only makes the picture read as one photographed image instead of clean layers.
+  const GR = (() => { const g = $('grain').getContext('2d'), tiles = []; const R9 = rng(99);
+    for (let k = 0; k < 6; k++) { const im = g.createImageData(540, 960), d = im.data; for (let i = 0; i < d.length; i += 4) { const v = 128 + (R9() + R9() - 1) * 120; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } tiles.push(im); }
+    return fi => g.putImageData(tiles[Math.floor(hash(fi * 1.7) * 6)], 0, 0); })();
+  window.NFRAMES = NF;
+  window.READY = true;
+})().catch(e => { console.error('INIT', e.message); });
+</script>
+</body>
+</html>
