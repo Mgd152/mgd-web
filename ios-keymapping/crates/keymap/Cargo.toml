@@ -1,0 +1,13 @@
+[package]
+name = "keymap"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Keyboard/mouse -> multi-touch keymapping for a mirrored iPhone (pure logic, no I/O)"
+
+[dependencies]
+# Same major versions Mirrorly's Cargo.lock already resolves (serde 1.0.229,
+# serde_json 1.0.154), so dropping this crate into Mirrorly adds no new packages.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
