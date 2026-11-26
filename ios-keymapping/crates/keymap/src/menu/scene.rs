@@ -28,6 +28,8 @@ pub enum Tone {
     FieldFocus,
     Disabled,
     Finger,
+    /// Translucent backing under canvas labels (legible over any picture).
+    Plate,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -219,7 +221,7 @@ pub fn palette(t: Tone) -> (&'static str, f64) {
         Tone::Ghost => ("#2563eb", 0.4),
         Tone::Guide => ("#ec4899", 1.0),
         Tone::Hatch => ("#6b7280", 0.35),
-        Tone::Warn => ("#d97706", 1.0),
+        Tone::Warn => ("#b45309", 1.0),
         Tone::Danger => ("#dc2626", 1.0),
         Tone::Card => ("#ffffff", 1.0),
         Tone::CardLine => ("#cbd5e1", 1.0),
@@ -232,6 +234,7 @@ pub fn palette(t: Tone) -> (&'static str, f64) {
         Tone::FieldFocus => ("#dbeafe", 1.0),
         Tone::Disabled => ("#94a3b8", 1.0),
         Tone::Finger => ("#38bdf8", 0.9),
+        Tone::Plate => ("#ffffff", 0.8),
     }
 }
 

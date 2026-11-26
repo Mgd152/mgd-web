@@ -195,6 +195,8 @@ enum HubAct {
     Stuck,
     Rules,
     Fix(Fix),
+    /// The problems of that row's file (the broken row's own button).
+    ShowProblems(usize),
     Restore,
     DiscardDraft,
     UndoDelete,
@@ -211,6 +213,9 @@ enum PopupCtx {
     Row(usize),
     Share,
 }
+
+/// Opacity of the whole Play overlay.
+const PLAY_ALPHA: f32 = 0.55;
 
 struct UndoToast {
     token: TrashToken,
@@ -613,7 +618,10 @@ impl<F: Fs> Shell<F> {
     }
 
     fn start_play(&mut self, now: u64, fx: &mut Vec<Effect>) {
-        if self.mode == Mode::Play {
+        // Only from Off or the Hub: a PlayStarted that arrives after the user
+        // already opened the editor (a click race) is dropped, so Play never
+        // runs with a live editor.
+        if !matches!(self.mode, Mode::Off | Mode::Hub) {
             return;
         }
         self.mode = Mode::Play;
@@ -625,7 +633,28 @@ impl<F: Fs> Shell<F> {
             .as_ref()
             .map(|(_, p)| (p.toggle_key.clone(), p.panic_key.clone()))
             .unwrap_or_else(|| ("Backquote".into(), "F8".into()));
-        Self::toast(fx, Msg::PlayOn { toggle, panic }, 5.0);
+        let helpers = self
+            .active
+            .as_ref()
+            .map_or(true, |(_, p)| {
+                !profile_binds(p, &self.prefs.sens_down_key)
+                    && !profile_binds(p, &self.prefs.sens_up_key)
+            })
+            .then(|| {
+                (
+                    self.prefs.sens_down_key.clone(),
+                    self.prefs.sens_up_key.clone(),
+                )
+            });
+        Self::toast(
+            fx,
+            Msg::PlayOn {
+                toggle,
+                panic,
+                helpers,
+            },
+            5.0,
+        );
         fx.push(Effect::Title);
     }
 
@@ -973,7 +1002,7 @@ impl<F: Fs> Shell<F> {
                     }
                 }
                 "Delete" => self.delete_row(self.sel, now),
-                "KeyZ" if mods.ctrl => self.undelete(),
+                "KeyZ" if mods.ctrl => self.undelete(fx),
                 "KeyV" if mods.ctrl => fx.push(Effect::RequestPaste),
                 _ => {}
             },
@@ -1038,19 +1067,23 @@ impl<F: Fs> Shell<F> {
         }
     }
 
-    fn undelete(&mut self) {
-        if let Some(t) = self.undo_toast.take() {
-            let was = t.name.clone();
-            if let Ok(file) = self.store.undelete(t.token)
-                && self.prefs.active.is_none()
-                && self.entries.is_empty()
-            {
-                self.prefs.active = Some(file);
-                self.save_prefs();
+    fn undelete(&mut self, fx: &mut Vec<Effect>) {
+        let Some(t) = self.undo_toast.as_ref() else {
+            return;
+        };
+        match self.store.undelete(t.token.clone()) {
+            Ok(file) => {
+                self.undo_toast = None;
+                if self.prefs.active.is_none() && self.entries.is_empty() {
+                    self.prefs.active = Some(file);
+                    self.save_prefs();
+                }
             }
-            let _ = was;
-            self.refresh();
+            // The offer stays so the user can try again; the file is still
+            // in the trash.
+            Err(_) => Self::toast(fx, Msg::SaveFailed, 6.0),
         }
+        self.refresh();
     }
 
     fn hub_act(&mut self, act: HubAct, env: &Env, now: u64, fx: &mut Vec<Effect>) {
@@ -1177,6 +1210,11 @@ impl<F: Fs> Shell<F> {
                     }
                 }
             },
+            HubAct::ShowProblems(i) => {
+                if let Some(e) = self.entries.get(i) {
+                    self.screen = Screen::Problems(e.file.clone());
+                }
+            }
             HubAct::Restore => self.restore_draft(env, fx),
             HubAct::DiscardDraft => {
                 if let Some(f) = self.draft_offer.take() {
@@ -1184,7 +1222,7 @@ impl<F: Fs> Shell<F> {
                     self.find_draft_offer();
                 }
             }
-            HubAct::UndoDelete => self.undelete(),
+            HubAct::UndoDelete => self.undelete(fx),
             HubAct::SensRevert => {
                 if let Some((file, from, _)) = self.prefs.last_sensitivity_change.clone()
                     && let Ok(p) = self.store.load(&file)
@@ -1488,6 +1526,8 @@ impl<F: Fs> Shell<F> {
         let v = &env.view;
         let lang = self.prefs.lang;
         let mut s = Scene::new(0, v.scale);
+        // Translucent, so the game's own HUD stays visible under the caps.
+        s.alpha = PLAY_ALPHA;
         for (i, c) in p.controls.iter().enumerate() {
             let ctr = v.to_px(pt_of(c));
             match c {
@@ -2015,7 +2055,7 @@ impl<F: Fs> Shell<F> {
                 let parts = split(r, &[3.0, 1.0], sc);
                 b.push(
                     w_btn(parts[0], Msg::Fix(Fix::ShowHowToFix), false, true),
-                    HubAct::Fix(Fix::ShowHowToFix),
+                    HubAct::ShowProblems(i),
                 );
                 b.push(
                     w_btn(parts[1], Msg::Verbatim("⋯".into()), false, true),
@@ -2114,6 +2154,7 @@ impl<F: Fs> Shell<F> {
                 kind: WidgetKind::Check {
                     label: Msg::NoticeAccept,
                     on: ticked,
+                    radio: false,
                 },
                 enabled: true,
             },

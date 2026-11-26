@@ -178,6 +178,9 @@ pub enum Msg {
     PlayOn {
         toggle: String,
         panic: String,
+        /// The sensitivity keys (down, up); `None` when the profile shadows
+        /// them, so the toast does not advertise keys that do nothing.
+        helpers: Option<(String, String)>,
     },
     PlayOff,
     PanicDone,
@@ -483,10 +486,19 @@ fn vi(m: &Msg) -> String {
         Msg::EscAgain => "Bấm Esc lần nữa để gán phím Esc, hoặc bấm Huỷ.".into(),
         Msg::MouseNotForToggle => "Phím bật/tắt và phím dừng phải là phím trên bàn phím.".into(),
         Msg::IntroToast => "Mới: chơi bằng bàn phím và chuột. Bấm nút Bàn phím trên thanh công cụ.".into(),
-        Msg::PlayOn { toggle, panic } => format!(
-            "Bàn phím ĐANG BẬT · {} thoát · {} dừng khẩn cấp · [ ] độ nhạy",
+        Msg::PlayOn {
+            toggle,
+            panic,
+            helpers,
+        } => format!(
+            "Bàn phím ĐANG BẬT · {} thoát · {} dừng khẩn cấp{}",
             key(toggle, l),
-            key(panic, l)
+            key(panic, l),
+            helpers.as_ref().map_or(String::new(), |(d, u)| format!(
+                " · {} {} độ nhạy",
+                key(d, l),
+                key(u, l)
+            ))
         ),
         Msg::PlayOff => "Đã tắt bàn phím.".into(),
         Msg::PanicDone => "Đã dừng khẩn cấp. Tất cả ngón tay đã nhấc.".into(),
@@ -544,21 +556,19 @@ fn vi(m: &Msg) -> String {
         }
         .into(),
         Msg::NoticeTitle => "Trước khi chơi bằng bàn phím và chuột".into(),
-        Msg::NoticeBullet(n) => match n {
+        Msg::NoticeBullet(n) => format!("• {}", match n {
             1 => "Nhà phát hành game (ví dụ Garena với Free Fire) có thể không cho phép phần mềm bên thứ ba. Chúng tôi chưa kiểm chứng luật hiện hành của họ. Bạn hãy tự đọc điều khoản của game trước.",
             2 => "Không có gì bảo đảm tài khoản an toàn, kể cả tài khoản phụ. Game cũng có thể xếp người chơi bàn phím–chuột vào nhóm ghép trận riêng; chúng tôi không biết và không can thiệp việc đó.",
             3 => "Phần mềm này chỉ đổi 1 phím = 1 lần chạm. Không macro, không tự bắn, không tự ngắm, không giảm giật, không che giấu gì.",
             _ => "Điều khiển nhiều ngón trên iPhone thật chưa được kiểm chứng.",
-        }
-        .into(),
+        }),
         Msg::NoticeAccept => "Tôi đã đọc và tự chịu trách nhiệm".into(),
         Msg::StuckTitle => "Điện thoại cứ như bị chạm mãi, hoặc không điều khiển được?".into(),
-        Msg::StuckStep(n) => match n {
+        Msg::StuckStep(n) => format!("{n}. {}", match n {
             1 => "Bấm F8 (dừng khẩn cấp): nhấc hết các ngón tay.",
             2 => "Vẫn kẹt: bấm F3 để khoá màn hình điện thoại, rồi mở khoá lại.",
             _ => "Vẫn chưa hết: rút cáp USB ra và cắm lại.",
-        }
-        .into(),
+        }),
         Msg::NewProfileName(n) => format!("Hồ sơ {n}"),
         Msg::ControlName { kind, n } => match (kind, n) {
             (Kind::Button, n) => format!("Nút {n}"),
@@ -590,10 +600,19 @@ fn en(m: &Msg) -> String {
         Msg::EscAgain => "Press Esc again to bind the Esc key, or press Cancel.".into(),
         Msg::MouseNotForToggle => "The on/off key and the stop key must be keyboard keys.".into(),
         Msg::IntroToast => "New: play with keyboard and mouse. Press the Keyboard button on the toolbar.".into(),
-        Msg::PlayOn { toggle, panic } => format!(
-            "Keyboard ON · {} exit · {} emergency stop · [ ] sensitivity",
+        Msg::PlayOn {
+            toggle,
+            panic,
+            helpers,
+        } => format!(
+            "Keyboard ON · {} exit · {} emergency stop{}",
             key(toggle, l),
-            key(panic, l)
+            key(panic, l),
+            helpers.as_ref().map_or(String::new(), |(d, u)| format!(
+                " · {} {} sensitivity",
+                key(d, l),
+                key(u, l)
+            ))
         ),
         Msg::PlayOff => "Keyboard is off.".into(),
         Msg::PanicDone => "Emergency stop. All fingers lifted.".into(),
@@ -651,21 +670,19 @@ fn en(m: &Msg) -> String {
         }
         .into(),
         Msg::NoticeTitle => "Before playing with keyboard and mouse".into(),
-        Msg::NoticeBullet(n) => match n {
+        Msg::NoticeBullet(n) => format!("• {}", match n {
             1 => "Game publishers (for example Garena with Free Fire) may not allow third-party software. We have not verified their current rules. Please read the game's terms yourself first.",
             2 => "Nothing guarantees that an account is safe, including a spare account. A game may also place keyboard-and-mouse players in a separate matchmaking pool; we do not know and do not interfere with that.",
             3 => "This software only turns 1 key into 1 touch. No macros, no auto-fire, no auto-aim, no recoil control, nothing hidden.",
             _ => "Multi-finger control on a real iPhone has not been verified.",
-        }
-        .into(),
+        }),
         Msg::NoticeAccept => "I have read this and take responsibility".into(),
         Msg::StuckTitle => "Does the phone act as if touched all the time, or not respond?".into(),
-        Msg::StuckStep(n) => match n {
+        Msg::StuckStep(n) => format!("{n}. {}", match n {
             1 => "Press F8 (emergency stop): it lifts every finger.",
             2 => "Still stuck: press F3 to lock the phone screen, then unlock it.",
             _ => "Still not fixed: unplug the USB cable and plug it in again.",
-        }
-        .into(),
+        }),
         Msg::NewProfileName(n) => format!("Profile {n}"),
         Msg::ControlName { kind, n } => match (kind, n) {
             (Kind::Button, n) => format!("Button {n}"),
@@ -729,6 +746,7 @@ impl Msg {
             Msg::PlayOn {
                 toggle: "Backquote".into(),
                 panic: "F8".into(),
+                helpers: Some(("BracketLeft".into(), "BracketRight".into())),
             },
             Msg::PlayOff,
             Msg::PanicDone,

@@ -209,6 +209,8 @@ pub enum WidgetKind {
     Check {
         label: Msg,
         on: bool,
+        /// Drawn as a round (•)/( ) choice instead of a box.
+        radio: bool,
     },
     Segmented {
         options: Vec<Msg>,
@@ -634,7 +636,7 @@ fn paint(w: &Widget, lang: Lang, scale: f64, out: &mut Vec<Prim>) {
                 scale,
             );
         }
-        WidgetKind::Check { label, on } => {
+        WidgetKind::Check { label, on, radio } => {
             let b = 18.0 * scale;
             let boxr = PxRect {
                 x: r.x,
@@ -642,45 +644,70 @@ fn paint(w: &Widget, lang: Lang, scale: f64, out: &mut Vec<Prim>) {
                 w: b,
                 h: b,
             };
-            out.push(Prim::Rect {
-                r: boxr,
-                radius: 3.0 * scale,
-                tone: if *on { Tone::Accent } else { Tone::Field },
-            });
-            out.push(Prim::Frame {
-                r: boxr,
-                radius: 3.0 * scale,
-                width: 1.0 * scale,
-                dashed: false,
-                tone: if w.enabled {
-                    Tone::Accent
-                } else {
-                    Tone::Disabled
-                },
-            });
-            if *on {
-                let (a, m, z) = (
-                    Pt {
-                        x: boxr.x + 4.0 * scale,
-                        y: boxr.y + 9.0 * scale,
+            if *radio {
+                let c = Pt {
+                    x: boxr.x + b / 2.0,
+                    y: boxr.y + b / 2.0,
+                };
+                out.push(Prim::Ring {
+                    c,
+                    r: b / 2.0 - scale,
+                    width: 1.5 * scale,
+                    tone: if w.enabled {
+                        Tone::Accent
+                    } else {
+                        Tone::Disabled
                     },
-                    Pt {
-                        x: boxr.x + 8.0 * scale,
-                        y: boxr.y + 13.0 * scale,
-                    },
-                    Pt {
-                        x: boxr.x + 14.0 * scale,
-                        y: boxr.y + 5.0 * scale,
-                    },
-                );
-                for (p, q) in [(a, m), (m, z)] {
-                    out.push(Prim::Line {
-                        a: p,
-                        b: q,
-                        width: 2.0 * scale,
-                        dashed: false,
-                        tone: Tone::OnAccent,
+                });
+                if *on {
+                    out.push(Prim::Disc {
+                        c,
+                        r: 4.5 * scale,
+                        tone: Tone::Accent,
                     });
+                }
+            }
+            if !*radio {
+                out.push(Prim::Rect {
+                    r: boxr,
+                    radius: 3.0 * scale,
+                    tone: if *on { Tone::Accent } else { Tone::Field },
+                });
+                out.push(Prim::Frame {
+                    r: boxr,
+                    radius: 3.0 * scale,
+                    width: 1.0 * scale,
+                    dashed: false,
+                    tone: if w.enabled {
+                        Tone::Accent
+                    } else {
+                        Tone::Disabled
+                    },
+                });
+                if *on {
+                    let (a, m, z) = (
+                        Pt {
+                            x: boxr.x + 4.0 * scale,
+                            y: boxr.y + 9.0 * scale,
+                        },
+                        Pt {
+                            x: boxr.x + 8.0 * scale,
+                            y: boxr.y + 13.0 * scale,
+                        },
+                        Pt {
+                            x: boxr.x + 14.0 * scale,
+                            y: boxr.y + 5.0 * scale,
+                        },
+                    );
+                    for (p, q) in [(a, m), (m, z)] {
+                        out.push(Prim::Line {
+                            a: p,
+                            b: q,
+                            width: 2.0 * scale,
+                            dashed: false,
+                            tone: Tone::OnAccent,
+                        });
+                    }
                 }
             }
             let tr = PxRect {

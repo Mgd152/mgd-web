@@ -170,6 +170,8 @@ pub struct Editor {
     guide: Option<GuideState>,
     placement: Option<DockPlacement>,
     scroll: f64,
+    /// The selection the scroll offset belongs to (a new one starts at the top).
+    scroll_for: Option<CtrlId>,
     info_open: bool,
     advice_open: bool,
     advanced_open: bool,
@@ -195,7 +197,15 @@ pub fn cap_text(name: &str, lang: Lang) -> String {
         _ => None,
     };
     if let Some(n) = mouse {
-        return format!("M{n}");
+        return match (lang, n) {
+            (Lang::Vi, "1") => "Ch.T".into(),
+            (Lang::Vi, "2") => "Ch.P".into(),
+            (Lang::Vi, "3") => "Ch.G".into(),
+            (Lang::En, "1") => "M.L".into(),
+            (Lang::En, "2") => "M.R".into(),
+            (Lang::En, "3") => "M.M".into(),
+            _ => format!("M.{n}"),
+        };
     }
     let l = key_label(name, lang);
     let l = [" trái", " phải", " left", " right"]
@@ -243,6 +253,7 @@ impl Editor {
             guide,
             placement: None,
             scroll: 0.0,
+            scroll_for: None,
             info_open: false,
             advice_open: false,
             advanced_open: false,
@@ -265,7 +276,9 @@ impl Editor {
         self.doc.profile()
     }
     pub fn dirty(&self) -> bool {
-        self.hist.dirty()
+        // A revert (or an undo/redo round trip) that lands on the saved
+        // document is clean even though the history moved.
+        self.hist.dirty() && self.doc.profile() != &self.saved
     }
     pub fn in_test(&self) -> bool {
         self.test.is_some()
@@ -384,6 +397,10 @@ impl Editor {
     }
 
     fn after_event(&mut self, env: &Env, out: &mut Vec<EditorOut>) {
+        if self.sel != self.scroll_for {
+            self.scroll_for = self.sel;
+            self.scroll = 0.0;
+        }
         let focus = self.focus_point(env);
         let pl = dock_placement_with(&env.view, focus, self.grown(env), self.placement);
         self.placement = Some(pl);
@@ -915,8 +932,8 @@ impl Editor {
                 out.push(EditorOut::GuideDone);
             }
             Act::GuideSaveAndPlay => {
-                self.guide = None;
-                out.push(EditorOut::GuideDone);
+                // The guide stays until the save worked; the shell then marks
+                // it done (a failed save keeps the guide and the editor).
                 self.commit_field(now, out);
                 out.push(EditorOut::SaveAndPlay);
             }
@@ -1007,7 +1024,7 @@ impl Editor {
         let built = self.build(env);
         if built.covers(p) {
             let step = 30.0 * env.view.scale;
-            self.scroll = (self.scroll - dy.signum() * step).max(0.0);
+            self.scroll = (self.scroll - dy.signum() * step).clamp(0.0, built.max_scroll);
             return;
         }
         if self.drag.is_some() || self.capture.is_some() {
@@ -1050,7 +1067,13 @@ impl Editor {
             Hit::Body(id) | Hit::Handle(id) | Hit::Cap(Slot::Button(id) | Slot::Dir(id, _)) => {
                 self.sel = Some(id);
                 let mut items = vec![
-                    item(l, 1, ui(UiText::ChangeKey), false, true),
+                    item(
+                        l,
+                        1,
+                        ui(UiText::ChangeKey),
+                        false,
+                        self.doc.kind(id) != Some(Kind::Look),
+                    ),
                     item(
                         l,
                         2,
@@ -1171,6 +1194,7 @@ impl Editor {
     }
 
     fn undo(&mut self) {
+        self.slider_end();
         self.cancel_drag();
         if let Some(s) = self.hist.undo(&mut self.doc) {
             self.sel = s.filter(|i| self.doc.index_of(*i).is_some());
@@ -1178,6 +1202,7 @@ impl Editor {
     }
 
     fn redo(&mut self) {
+        self.slider_end();
         self.cancel_drag();
         if let Some(s) = self.hist.redo(&mut self.doc) {
             self.sel = s.filter(|i| self.doc.index_of(*i).is_some());
@@ -1187,6 +1212,8 @@ impl Editor {
     // ---- keyboard ----
 
     fn key_down(&mut self, name: &str, mods: Mods, env: &Env, now: u64, out: &mut Vec<EditorOut>) {
+        // A key edit never runs inside a slider drag: finish the gesture first.
+        self.slider_end();
         // 1. capture owns every key (F-keys included)
         if self.capture.is_some() {
             if name == "F8" {
@@ -1625,6 +1652,17 @@ impl Editor {
             });
         }
         s.statics.extend(widgets_to_prims(dock_ws, lang, scale));
+        for (r, glyph) in [(built.cue_up, "▴"), (built.cue_down, "▾")] {
+            if let Some(r) = r {
+                s.statics.push(Prim::text(
+                    r,
+                    glyph.to_string(),
+                    Font::Small,
+                    Align::Right,
+                    Tone::TextSoft,
+                ));
+            }
+        }
         s
     }
 
@@ -1668,6 +1706,23 @@ impl Editor {
                 });
             }
         }
+    }
+
+    /// A translucent plate behind a canvas label, sized to the text.
+    fn plate(out: &mut Vec<Prim>, v: &EditView, name: &str, r: PxRect, align: Align) {
+        let max = super::scene::max_chars(r.w, Font::Small, v.scale);
+        let n = name.chars().count().min(max) as f64;
+        let w = (n * Font::Small.char_lp() * v.scale + v.lp(8.0)).min(r.w);
+        let x = match align {
+            Align::Left => r.x,
+            Align::Center => r.x + (r.w - w) / 2.0,
+            Align::Right => r.x + r.w - w,
+        };
+        out.push(Prim::Rect {
+            r: rc(x, r.y, w, r.h),
+            radius: v.lp(4.0),
+            tone: Tone::Plate,
+        });
     }
 
     fn draw_controls(&self, env: &Env, lang: Lang, out: &mut Vec<Prim>) {
@@ -1744,6 +1799,13 @@ impl Editor {
                         tone,
                     });
                     let lw = v.lp(110.0).min(2.0 * h - v.lp(8.0)).max(0.0);
+                    Self::plate(
+                        out,
+                        v,
+                        &name,
+                        rc(r.x + v.lp(4.0), r.y + v.lp(2.0), lw, v.lp(18.0)),
+                        Align::Left,
+                    );
                     out.push(Prim::text(
                         rc(r.x + v.lp(4.0), r.y + v.lp(2.0), lw, v.lp(18.0)),
                         ellipsize(&name, super::scene::max_chars(lw, Font::Small, v.scale)),
@@ -1775,20 +1837,31 @@ impl Editor {
                             tone: Tone::Selected,
                         });
                     }
-                    // name under the cap (or under the disc when the cap is above)
-                    let below = cap_rects(&self.doc, v, id).first().map_or(
-                        ctr.y + v.lp(BUTTON_RADIUS_LP),
-                        |(_, r)| {
-                            if r.y > ctr.y {
-                                r.y + r.h
-                            } else {
-                                ctr.y + v.lp(BUTTON_RADIUS_LP)
-                            }
-                        },
-                    );
+                    // Name under the cap (or under the disc when the cap is
+                    // above); above everything when that would leave the
+                    // picture, and never past a side edge.
+                    let cap = cap_rects(&self.doc, v, id).first().map(|(_, r)| *r);
+                    let disc_r = v.lp(BUTTON_RADIUS_LP);
+                    let below = match cap {
+                        Some(r) if r.y > ctr.y => r.y + r.h,
+                        _ => ctr.y + disc_r,
+                    };
                     let nw = v.lp(110.0);
+                    let nh = v.lp(16.0);
+                    let pic = v.picture;
+                    let mut ny = below + v.lp(1.0);
+                    if ny + nh > pic.y + pic.h {
+                        let top = match cap {
+                            Some(r) if r.y < ctr.y => r.y,
+                            _ => ctr.y - disc_r,
+                        };
+                        ny = top - v.lp(1.0) - nh;
+                    }
+                    let ny = ny.min(pic.y + pic.h - nh).max(pic.y);
+                    let nx = (ctr.x - nw / 2.0).min(pic.x + pic.w - nw).max(pic.x);
+                    Self::plate(out, v, &name, rc(nx, ny, nw, nh), Align::Center);
                     out.push(Prim::text(
-                        rc(ctr.x - nw / 2.0, below + v.lp(1.0), nw, v.lp(16.0)),
+                        rc(nx, ny, nw, nh),
                         ellipsize(&name, super::scene::max_chars(nw, Font::Small, v.scale)),
                         Font::Small,
                         Align::Center,
@@ -2291,6 +2364,24 @@ impl Editor {
         let content_h = mc.y - region.y;
         let max_scroll = (content_h - region.h).max(0.0);
         let sc_off = self.scroll.min(max_scroll);
+        b.max_scroll = max_scroll;
+        let cue_h = 14.0 * sc;
+        if sc_off > 0.5 {
+            b.cue_up = Some(rc(
+                region.x + region.w - 28.0 * sc,
+                region.y,
+                24.0 * sc,
+                cue_h,
+            ));
+        }
+        if sc_off < max_scroll - 0.5 {
+            b.cue_down = Some(rc(
+                region.x + region.w - 28.0 * sc,
+                region.y + region.h - cue_h,
+                24.0 * sc,
+                cue_h,
+            ));
+        }
         for (mut w, a) in mid {
             w.rect.y -= sc_off;
             let r = w.rect;
@@ -2655,6 +2746,7 @@ impl Editor {
                             kind: WidgetKind::Check {
                                 label: ui(label),
                                 on: mode == m,
+                                radio: true,
                             },
                             enabled: true,
                         },
@@ -2802,6 +2894,7 @@ impl Editor {
                         kind: WidgetKind::Check {
                             label: ui(UiText::InvertY),
                             on: invert,
+                            radio: false,
                         },
                         enabled: true,
                     },
@@ -3032,6 +3125,11 @@ struct Built {
     canvas_n: usize,
     dock: Option<PxRect>,
     dock_rect: Option<PxRect>,
+    /// Largest useful scroll offset of the dock's middle part.
+    max_scroll: f64,
+    /// Where the "more above" / "more below" cues go (None: nothing hidden).
+    cue_up: Option<PxRect>,
+    cue_down: Option<PxRect>,
 }
 
 impl Built {
@@ -3975,7 +4073,8 @@ mod tests {
 
     #[test]
     fn cap_text_is_short() {
-        assert_eq!(cap_text("MouseLeft", Lang::Vi), "M1");
+        assert_eq!(cap_text("MouseLeft", Lang::Vi), "Ch.T");
+        assert_eq!(cap_text("MouseLeft", Lang::En), "M.L");
         assert_eq!(cap_text("ShiftLeft", Lang::Vi), "Shift");
         assert_eq!(cap_text("KeyW", Lang::Vi), "W");
         assert_eq!(cap_text("Backspace", Lang::Vi).chars().count(), 5);

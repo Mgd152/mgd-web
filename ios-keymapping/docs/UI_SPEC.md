@@ -407,7 +407,7 @@ Cỡ vòng   ───●──────  0,11     (kéo núm tròn trên hì
 Look:
 
 ```
-XOAY CAMERA BẰNG CHUỘT
+CAMERA BẰNG CHUỘT
 Tên     <Xoay camera>
 Độ nhạy chuột   ────●─────  1,00    [ Chậm ] [ Vừa ] [ Nhanh ]
         Còn tuỳ vào chuột và cài đặt trong game. Hãy thử rồi chỉnh.
