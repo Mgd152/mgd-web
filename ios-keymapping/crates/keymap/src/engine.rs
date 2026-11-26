@@ -18,6 +18,10 @@ pub const TAP_HOLD_MS: u64 = 40;
 /// stick (Free Fire) put the stick where the finger lands; a slide in the same
 /// instant lands first and the stick sees no movement (measured 2026-11-26).
 pub const JOY_SETTLE_MS: u64 = 50;
+/// The look finger does not land within this long after any lift. A lift and
+/// a touch-down in the same game frame let Free Fire swap fingers (the camera
+/// snapped back or drove the joystick, seen 2026-11-26).
+pub const LOOK_REST_MS: u64 = 35;
 
 /// One finger in HID panel space (0..=65535, native portrait panel).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -184,6 +188,8 @@ pub struct Engine {
     held: HashSet<String>,
     toggle_held: bool,
     look_idx: Option<usize>,
+    /// Time of the last lift, for [`LOOK_REST_MS`].
+    last_lift: Option<u64>,
     stats: Stats,
 }
 
@@ -223,6 +229,7 @@ impl Engine {
             held: HashSet::new(),
             toggle_held: false,
             look_idx,
+            last_lift: None,
             stats: Stats::default(),
         })
     }
@@ -601,6 +608,14 @@ impl Engine {
         };
         let anchor = self.to_hid(ax, ay);
         let fresh = cur_id.is_none();
+        // Resting after a lift: this motion is dropped (a few ms of mouse travel).
+        if fresh
+            && self
+                .last_lift
+                .is_some_and(|t| self.now < t.saturating_add(LOOK_REST_MS))
+        {
+            return;
+        }
         let (n, offset) = match cur_id {
             Some(n) => (n, cur_off),
             None => {
@@ -624,15 +639,14 @@ impl Engine {
                 (next.0.clamp(-reach, reach), next.1.clamp(-reach, reach)),
             )
         } else {
+            // Lift only; the next motion after LOOK_REST_MS lands at the anchor.
             out.extend(self.lift(&[n]));
             self.stats.look_recenters += 1;
-            // The lift above freed a slot, so this cannot fail.
-            let m = self.alloc().unwrap_or(n);
-            out.push(self.down(m, anchor));
-            (
-                m,
-                (step.0.clamp(-reach, reach), step.1.clamp(-reach, reach)),
-            )
+            if let Ctl::Look { id, offset, .. } = &mut self.ctl[ci] {
+                *id = None;
+                *offset = (0.0, 0.0);
+            }
+            return;
         };
         let now = self.now;
         if let Ctl::Look {
@@ -726,6 +740,7 @@ impl Engine {
         if ids.is_empty() {
             return None;
         }
+        self.last_lift = Some(self.now);
         Some(self.build(&ids, true))
     }
 
@@ -1107,24 +1122,40 @@ mod tests {
         mv(&mut e, 80.0, 0.0, 0);
         assert_eq!(e.stats().look_recenters, 0);
         let o = mv(&mut e, 40.0, 0.0, 1); // 0.08 + 0.04 > 0.1
-        assert_eq!(o.frames.len(), 3);
         let anchor = pic_hid(Rotation::R0, 0.7, 0.5);
-        // Lift at last position, then down at anchor, then move by the step.
+        // Lift at the last position only; no touch-down in the same instant.
+        assert_eq!(o.frames.len(), 1);
         assert!(!o.frames[0].contacts()[0].touching);
         assert_ne!(
             (o.frames[0].contacts()[0].x, o.frames[0].contacts()[0].y),
             anchor
         );
-        assert_eq!(o.frames[1].contacts(), &[c(0, true, anchor)]);
-        assert!(o.frames[0].has_transition() && o.frames[1].has_transition());
-        assert!(o.frames[2].droppable());
+        assert_eq!(e.stats().look_recenters, 1);
+        assert_eq!(e.contacts_down(), 0);
+        // Resting: motion is dropped until LOOK_REST_MS after the lift.
+        assert!(mv(&mut e, 40.0, 0.0, LOOK_REST_MS).frames.is_empty());
+        // Then down at the anchor and move by the step.
+        let o = mv(&mut e, 40.0, 0.0, 1 + LOOK_REST_MS);
+        assert_eq!(o.frames.len(), 2);
+        assert_eq!(o.frames[0].contacts(), &[c(0, true, anchor)]);
+        assert!(o.frames[0].has_transition() && o.frames[1].droppable());
         let (ux, _) = view(Rotation::R0).short_side_units(1.0);
         assert_eq!(
-            o.frames[2].contacts()[0].x,
+            o.frames[1].contacts()[0].x,
             pic_hid(Rotation::R0, 0.7 + 0.04 * ux, 0.5).0
         );
-        assert_eq!(e.stats().look_recenters, 1);
         assert_eq!(e.contacts_down(), 1);
+    }
+
+    #[test]
+    fn look_rests_after_another_controls_lift() {
+        let all = format!("{LOOK},{BTN_TAP}");
+        let mut e = active(&profile_json("portrait", &all), Rotation::R0);
+        press(&mut e, "KeyJ", 0);
+        release(&mut e, "KeyJ", 1);
+        assert_eq!(e.tick(TAP_HOLD_MS).len(), 1); // tap lifts at 40
+        assert!(mv(&mut e, 5.0, 0.0, TAP_HOLD_MS + 1).frames.is_empty());
+        assert_eq!(mv(&mut e, 5.0, 0.0, TAP_HOLD_MS + LOOK_REST_MS).frames.len(), 2);
     }
 
     #[test]

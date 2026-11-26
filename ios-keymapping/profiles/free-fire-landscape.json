@@ -7,7 +7,7 @@
   "panic_key": "Escape",
   "controls": [
     { "type": "joystick", "label": "Move", "x": 0.189, "y": 0.75, "radius": 0.12, "up": "KeyW", "down": "KeyS", "left": "KeyA", "right": "KeyD" },
-    { "type": "look", "label": "Look", "x": 0.58, "y": 0.55, "sensitivity": 1.0, "invert_y": false, "reach": 0.2, "release_after_ms": 0 },
+    { "type": "look", "label": "Look", "x": 0.58, "y": 0.55, "sensitivity": 1.0, "invert_y": false, "reach": 0.45, "release_after_ms": 0 },
     { "type": "button", "label": "Fire", "x": 0.787, "y": 0.923, "key": "MouseLeft", "mode": "hold" },
     { "type": "button", "label": "Scope", "x": 0.268, "y": 0.422, "key": "MouseRight", "mode": "tap" },
     { "type": "button", "label": "Jump", "x": 0.897, "y": 0.926, "key": "Space", "mode": "tap" },
