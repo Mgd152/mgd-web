@@ -488,6 +488,7 @@ fn test_mode_with_two_contacts() {
         pressed: true,
         mods: Mods::default(),
     });
+    d.ev(UiEvent::Tick); // past the joystick's settle pause, so it has slid
     assert!(d.sh.dots().dots.iter().flatten().count() >= 2);
     d.snap("test_two_contacts");
 }

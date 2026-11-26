@@ -804,9 +804,9 @@ mod tests {
                 e.activate().unwrap();
                 let key = d.key_of(Slot::Dir(id, dir)).unwrap().to_string();
                 let o = e.handle(Input::Press(&key), 0);
-                assert_eq!(o.frames.len(), 2);
+                assert_eq!(o.frames.len(), 1);
                 let c0 = o.frames[0].contacts()[0];
-                let c1 = o.frames[1].contacts()[0];
+                let c1 = e.tick(crate::engine::JOY_SETTLE_MS)[0].contacts()[0];
                 let n = ev.to_norm(p);
                 let want0 = hv.to_hid(n.x, n.y);
                 let n1 = ev.to_norm(pt(p.x + dx, p.y + dy));

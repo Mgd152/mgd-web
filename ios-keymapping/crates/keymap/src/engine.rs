@@ -14,6 +14,10 @@ use std::fmt;
 pub const MAX_CONTACTS: usize = 5;
 /// How long a `tap` button stays down.
 pub const TAP_HOLD_MS: u64 = 40;
+/// Pause between a joystick's touch-down and its slide. Games with a floating
+/// stick (Free Fire) put the stick where the finger lands; a slide in the same
+/// instant lands first and the stick sees no movement (measured 2026-11-26).
+pub const JOY_SETTLE_MS: u64 = 50;
 
 /// One finger in HID panel space (0..=65535, native portrait panel).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -131,6 +135,8 @@ enum Ctl {
         keys: [bool; 4],
         id: Option<u8>,
         suppressed: bool,
+        /// When the slide is due after a fresh touch-down.
+        settle: Option<u64>,
     },
     Look {
         id: Option<u8>,
@@ -150,6 +156,7 @@ impl Ctl {
                 keys: [false; 4],
                 id: None,
                 suppressed: false,
+                settle: None,
             },
             Control::Look { .. } => Ctl::Look {
                 id: None,
@@ -291,7 +298,11 @@ impl Engine {
         if !self.active {
             return None;
         }
-        self.deadlines().into_iter().map(|(d, _)| d).min()
+        let settles = self.ctl.iter().filter_map(|c| match c {
+            Ctl::Joy { settle, .. } => *settle,
+            _ => None,
+        });
+        self.deadlines().into_iter().map(|(d, _)| d).chain(settles).min()
     }
 
     /// Perform every action whose deadline is `<= now_ms`. Lifts falling due
@@ -302,13 +313,14 @@ impl Engine {
             return Vec::new();
         }
         let now = self.now;
+        let mut frames = self.settle_joysticks(now);
         let mut due: Vec<(u64, u8)> = self
             .deadlines()
             .into_iter()
             .filter(|(d, _)| *d <= now)
             .collect();
         if due.is_empty() {
-            return Vec::new();
+            return frames;
         }
         due.sort_unstable();
         let ids: Vec<u8> = due.iter().map(|(_, id)| *id).collect();
@@ -327,7 +339,8 @@ impl Engine {
                 _ => {}
             }
         }
-        self.lift(&ids).into_iter().collect()
+        frames.extend(self.lift(&ids));
+        frames
     }
 
     pub fn handle(&mut self, input: Input<'_>, now_ms: u64) -> Output {
@@ -427,14 +440,15 @@ impl Engine {
             Control::Joystick { x, y, radius, .. } => (*x, *y, *radius),
             _ => return,
         };
-        let (keys, id, suppressed) = match &mut self.ctl[ci] {
+        let (keys, id, suppressed, settle) = match &mut self.ctl[ci] {
             Ctl::Joy {
                 keys,
                 id,
                 suppressed,
+                settle,
             } => {
                 keys[role] = pressed;
-                (*keys, *id, *suppressed)
+                (*keys, *id, *suppressed, *settle)
             }
             _ => return,
         };
@@ -442,13 +456,22 @@ impl Engine {
             if let Some(n) = id {
                 out.extend(self.lift(&[n]));
             }
-            if let Ctl::Joy { id, suppressed, .. } = &mut self.ctl[ci] {
+            if let Ctl::Joy {
+                id,
+                suppressed,
+                settle,
+                ..
+            } = &mut self.ctl[ci]
+            {
                 *id = None;
                 *suppressed = false;
+                *settle = None;
             }
             return;
         }
         let n = match id {
+            // The slide waits for the settle deadline; `tick` aims it at the keys held then.
+            Some(_) if settle.is_some() => return,
             Some(n) => n,
             None => {
                 if suppressed {
@@ -463,12 +486,25 @@ impl Engine {
                 };
                 let center = self.to_hid(cx, cy);
                 out.push(self.down(n, center));
-                if let Ctl::Joy { id, .. } = &mut self.ctl[ci] {
+                let due = self.now.saturating_add(JOY_SETTLE_MS);
+                if let Ctl::Joy { id, settle, .. } = &mut self.ctl[ci] {
                     *id = Some(n);
+                    *settle = Some(due);
                 }
-                n
+                return;
             }
         };
+        out.extend(self.joy_slide(n, keys, cx, cy, radius));
+    }
+
+    fn joy_slide(
+        &mut self,
+        n: u8,
+        keys: [bool; 4],
+        cx: f64,
+        cy: f64,
+        radius: f64,
+    ) -> Option<Frame> {
         let (dx, dy) = (
             f64::from(u8::from(keys[3])) - f64::from(u8::from(keys[2])),
             f64::from(u8::from(keys[1])) - f64::from(u8::from(keys[0])),
@@ -481,7 +517,31 @@ impl Engine {
         };
         let (fx, fy) = self.view_or_default().short_side_units(radius);
         let target = self.to_hid(cx + ux * fx, cy + uy * fy);
-        out.extend(self.move_to(n, target));
+        self.move_to(n, target)
+    }
+
+    /// Slides of joysticks whose settle deadline is `<= now`.
+    fn settle_joysticks(&mut self, now: u64) -> Vec<Frame> {
+        let mut out = Vec::new();
+        for ci in 0..self.ctl.len() {
+            let (n, keys) = match &mut self.ctl[ci] {
+                Ctl::Joy {
+                    id: Some(n),
+                    keys,
+                    settle,
+                    ..
+                } if settle.is_some_and(|d| d <= now) => {
+                    *settle = None;
+                    (*n, *keys)
+                }
+                _ => continue,
+            };
+            if let Control::Joystick { x, y, radius, .. } = &self.profile.controls[ci] {
+                let (x, y, radius) = (*x, *y, *radius);
+                out.extend(self.joy_slide(n, keys, x, y, radius));
+            }
+        }
+        out
     }
 
     fn button_key(&mut self, ci: usize, pressed: bool, out: &mut Vec<Frame>) {
@@ -862,23 +922,48 @@ mod tests {
         let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
         let o = press(&mut e, "KeyW", 0);
         assert!(o.consumed);
-        assert_eq!(o.frames.len(), 2);
+        assert_eq!(o.frames.len(), 1);
         // Center: (0.2, 0.75) of 65535, rounded.
         assert_eq!(o.frames[0].contacts(), &[c(0, true, (13107, 49151))]);
         assert!(o.frames[0].has_transition());
+        // The slide waits JOY_SETTLE_MS.
+        assert_eq!(e.next_deadline(), Some(JOY_SETTLE_MS));
+        assert!(e.tick(JOY_SETTLE_MS - 1).is_empty());
+        let f = e.tick(JOY_SETTLE_MS);
+        assert_eq!(f.len(), 1);
         // Up by radius 0.12 of the short (width) side: 0.12 * 828 px up.
         let dy = 0.12 * 828.0 / 1792.0;
         let want = (13107u16, to_u16(0.75 - dy));
-        assert_eq!(o.frames[1].contacts(), &[c(0, true, want)]);
-        assert!(o.frames[1].droppable());
+        assert_eq!(f[0].contacts(), &[c(0, true, want)]);
+        assert!(f[0].droppable());
         assert_eq!(want, (13107, 45518));
+        assert_eq!(e.next_deadline(), None);
+    }
+
+    #[test]
+    fn joystick_settle_aims_at_keys_held_then_and_release_lifts_at_center() {
+        let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
+        press(&mut e, "KeyW", 0);
+        // Keys changed while settling: no slide yet, the slide aims at S.
+        assert!(press(&mut e, "KeyS", 10).frames.is_empty());
+        assert!(release(&mut e, "KeyW", 20).frames.is_empty());
+        let f = e.tick(JOY_SETTLE_MS);
+        assert!(f[0].contacts()[0].y > 49151);
+        // Released before the slide: lifted at the center, no late slide.
+        let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
+        press(&mut e, "KeyW", 0);
+        let o = release(&mut e, "KeyW", 5);
+        assert_eq!(o.frames[0].contacts(), &[c(0, false, (13107, 49151))]);
+        assert!(e.tick(JOY_SETTLE_MS).is_empty());
+        assert_eq!(e.next_deadline(), None);
     }
 
     #[test]
     fn joystick_diagonal_length_equals_radius() {
         let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
         press(&mut e, "KeyW", 0);
-        let o = press(&mut e, "KeyD", 1);
+        e.tick(JOY_SETTLE_MS);
+        let o = press(&mut e, "KeyD", JOY_SETTLE_MS + 1);
         assert_eq!(o.frames.len(), 1);
         let p = o.frames[0].contacts()[0];
         let dx = (f64::from(p.x) - 13107.0) / 65535.0 * PANEL.0;
@@ -895,15 +980,16 @@ mod tests {
     fn joystick_opposite_keys_return_to_center_without_lift() {
         let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
         press(&mut e, "KeyW", 0);
-        let o = press(&mut e, "KeyS", 1);
+        e.tick(JOY_SETTLE_MS);
+        let o = press(&mut e, "KeyS", JOY_SETTLE_MS + 1);
         assert_eq!(o.frames.len(), 1);
         assert_eq!(o.frames[0].contacts(), &[c(0, true, (13107, 49151))]);
         assert_eq!(e.contacts_down(), 1);
         // Releasing one of the cancelling pair moves the other way.
-        let o = release(&mut e, "KeyW", 2);
+        let o = release(&mut e, "KeyW", JOY_SETTLE_MS + 2);
         assert_eq!(o.frames.len(), 1);
         assert!(o.frames[0].contacts()[0].y > 49151);
-        let o = release(&mut e, "KeyS", 3);
+        let o = release(&mut e, "KeyS", JOY_SETTLE_MS + 3);
         assert_eq!(o.frames.len(), 1);
         assert!(o.frames[0].has_transition());
         assert!(!o.frames[0].contacts()[0].touching);
@@ -914,7 +1000,8 @@ mod tests {
     fn joystick_last_release_lifts_at_last_position() {
         let mut e = active(&profile_json("portrait", JOY), Rotation::R0);
         press(&mut e, "KeyA", 0);
-        let o = release(&mut e, "KeyA", 1);
+        e.tick(JOY_SETTLE_MS);
+        let o = release(&mut e, "KeyA", JOY_SETTLE_MS + 1);
         assert_eq!(o.frames.len(), 1);
         let p = o.frames[0].contacts()[0];
         assert!(!p.touching);
@@ -954,8 +1041,9 @@ mod tests {
             );
             let v = view(rot);
             let (_, fy) = v.short_side_units(0.12);
+            let s = e.tick(JOY_SETTLE_MS);
             assert_eq!(
-                (o.frames[1].contacts()[0].x, o.frames[1].contacts()[0].y),
+                (s[0].contacts()[0].x, s[0].contacts()[0].y),
                 pic_hid(rot, 0.2, 0.75 - fy),
                 "{rot:?} up"
             );
@@ -968,7 +1056,8 @@ mod tests {
         let json = profile_json("landscape", JOY);
         let mut e = active(&json, Rotation::R90);
         press(&mut e, "KeyD", 0);
-        let o = e.handle(Input::Press("KeyD"), 1); // repeat, ignored
+        e.tick(JOY_SETTLE_MS);
+        let o = e.handle(Input::Press("KeyD"), JOY_SETTLE_MS + 1); // repeat, ignored
         assert!(o.frames.is_empty());
         let center = pic_hid(Rotation::R90, 0.2, 0.75);
         let right = e.slots[0].unwrap();
@@ -1068,9 +1157,10 @@ mod tests {
         let edge_joy = r#"{"type":"joystick","x":0.0,"y":0.5,"radius":0.1,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"}"#;
         let mut e = active(&profile_json("portrait", edge_joy), Rotation::R0);
         assert_eq!(press(&mut e, "KeyA", 0).frames.len(), 1);
-        assert!(press(&mut e, "KeyD", 1).frames.is_empty());
-        assert!(release(&mut e, "KeyD", 2).frames.is_empty());
-        assert_eq!(press(&mut e, "KeyW", 3).frames.len(), 1); // up-left: y moves
+        assert!(e.tick(JOY_SETTLE_MS).is_empty());
+        assert!(press(&mut e, "KeyD", JOY_SETTLE_MS + 1).frames.is_empty());
+        assert!(release(&mut e, "KeyD", JOY_SETTLE_MS + 2).frames.is_empty());
+        assert_eq!(press(&mut e, "KeyW", JOY_SETTLE_MS + 3).frames.len(), 1); // up-left: y moves
     }
 
     #[test]
@@ -1305,7 +1395,8 @@ mod tests {
         release(&mut e, "KeyD", 14);
         // New hold episode works.
         let o = press(&mut e, "KeyW", 15);
-        assert_eq!(o.frames.len(), 2);
+        assert_eq!(o.frames.len(), 1);
+        assert_eq!(e.tick(15 + JOY_SETTLE_MS).len(), 1);
         // Look with no free slot is dropped per motion event.
         let o = mv(&mut e, 5.0, 5.0, 16);
         assert!(o.frames.is_empty());
