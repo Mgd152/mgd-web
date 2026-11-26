@@ -13,8 +13,9 @@ phiên này, kèm tóm tắt kết quả thật. Mục nào không có trong "Đ
 | Crate `keymap` (hình học, hồ sơ, engine, `keymap-sim`) | Đã build và test trên Linux; cross-build `keymap-sim.exe` (Windows GNU) thành công, **chưa chạy** exe đó |
 | Trình soạn `editor/index.html` | Đã kiểm thử bằng Chromium headless (139/139 kiểm tra) |
 | Hồ sơ mẫu `profiles/*.json` | Đã validate và mô phỏng bằng `keymap-sim` |
-| Bản vá Mirrorly | `git apply --check` và `git apply` thành công trên bản sao upstream; **chưa biên dịch** |
-| `apply-to-mirrorly.ps1`, workflow CI | **Chưa chạy** (không có PowerShell/Windows/Actions ở đây) |
+| Bản vá Mirrorly | `git apply --check` và `git apply` thành công trên bản sao upstream. Trên GitHub Actions `windows-latest` (lần chạy #1, commit 9cb9931): biên dịch release `app` và `keymap-sim` thành công, `cargo test -p keymap -p input -p device` đạt. Bản vá được sửa thêm một cảnh báo `was_active` (giữ nguyên hành vi), chưa biên dịch lại |
+| `apply-to-mirrorly.ps1`, workflow CI | Lần chạy #1: job Linux xanh; job Windows xanh tới bước build, **lỗi ở bước đóng gói** (`expected exactly one avcodec DLL in ...\target\release, found 0`), bước upload artifact bị bỏ qua. Script đã được sửa trong thay đổi này (lấy DLL từ `third_party\ffmpeg\bin` và kiểm SHA-256); **chưa chạy lại**, nên chưa biết đóng gói và tải artifact có hoạt động không |
+| Chạy trên Windows thật / iPhone | **Chưa có gì được chạy** trên máy Windows thật hay iPhone |
 | Multi-touch trên iPhone | **Chưa kiểm chứng**, cả upstream lẫn chúng tôi chưa từng thử |
 | Độ trễ | **Chưa đo** |
 
@@ -68,23 +69,35 @@ Thư mục làm việc: `ios-keymapping/`.
     `git apply`; `git diff --stat`: 7 file thay đổi, 499 dòng thêm, 8 dòng xóa
     (`Cargo.lock`, `Cargo.toml`, `crates/app/Cargo.toml`, `crates/app/src/main.rs`,
     `crates/device/src/hid.rs`, `crates/input/Cargo.toml`, `crates/input/src/lib.rs`),
-    đúng tập file mà SPEC mục 7 cho phép. `integration/NOTES.md` ghi con số
-    +490 cũ; số +499/-8 ở đây là số tôi vừa đo.
+    đúng tập file mà SPEC mục 7 cho phép. Sau khi sửa cảnh báo `was_active`,
+    `git diff --numstat` của bản vá mới cho tổng +498/-8 (số đã ghi trong
+    `integration/NOTES.md`).
     Không chạy cargo hay script nào trong cây upstream hoặc bản sao.
 
 Không do tôi chạy: các kết quả review trước đó (132/133 của editor trước khi
 `profiles/` có đủ file, việc reviewer duyệt crate/editor/integration) chỉ được
-thuật lại từ báo cáo của reviewer; patch, PS1 và workflow chưa từng được chạy.
+thuật lại từ báo cáo của reviewer. Kết quả GitHub Actions lần chạy #1 (xem mục 3)
+là dữ kiện do người dùng cung cấp, không phải do tôi chạy.
 
 ## 3. Chưa kiểm chứng (cần Windows, biên dịch bản vá, hoặc iPhone)
 
-1. **Bản Mirrorly đã vá chưa từng được biên dịch.** Mọi chỗ dùng API winit
-   0.30.13 (`set_cursor_grab`, `set_cursor_visible`, `device_event`,
-   `MouseButton::{Back,Forward}`) viết theo trí nhớ, chưa đối chiếu mã nguồn.
-   Lần biên dịch đầu tiên là CI trên `windows-latest`.
-2. `integration/apply-to-mirrorly.ps1` chưa chạy (kể cả nhánh chuẩn hóa CRLF).
-   Workflow `ios-keymapping.yml` chưa chạy lần nào. Chỉ mới đọc và (theo
-   reviewer) parse YAML thành công.
+1. Bản Mirrorly đã vá **đã biên dịch** (release, `app` và `keymap-sim`) và
+   `cargo test -p keymap -p input -p device` đạt trên `windows-latest` ở lần chạy
+   #1 của GitHub Actions (https://github.com/Mgd152/mgd-web/actions/runs/45731622579,
+   commit 9cb9931; lần build release mất 2m16s). Chỉ có một cảnh báo
+   (`main.rs:639`, giá trị gán cho `was_active` không bao giờ được đọc), đã được
+   sửa trong bản vá mới. Việc biên dịch đạt không chứng minh hành vi đúng: chưa
+   chạy `Mirrorly.exe` nào, chưa có phép thử trên máy Windows thật.
+2. `integration/apply-to-mirrorly.ps1`: các bước clone, chép crate và áp bản vá
+   đã chạy được trên CI. Bước `-StageOnly` **lỗi** ở lần chạy #1: "expected
+   exactly one avcodec DLL in ...\target\release, found 0" (build script của
+   upstream đã chạy, không có cảnh báo thiếu `FFMPEG_DIR`, nhưng DLL không nằm
+   trong `target\release`; nghi do bố cục thư mục build mới của cargo, **chưa
+   chứng minh**). Script nay lấy DLL từ `third_party\ffmpeg\bin` (bản FFmpeg đã
+   ghim và kiểm băm) và kiểm SHA-256 theo `packaging\ffmpeg.txt`. **Bản sửa này
+   chưa được chạy**: đóng gói đúng và tải artifact lên được hay không sẽ chỉ biết
+   sau lần chạy CI kế tiếp. Nhánh chuẩn hóa CRLF của script chưa được thử (runner
+   dùng `autocrlf=false`).
 3. **Multi-touch qua `send_multitouch` trên iPhone**: chưa ai thử. iOS có thể
    bỏ qua, đảo thứ tự hoặc xử lý sai báo cáo nhiều điểm chạm.
 4. Tần suất báo cáo khi look với chuột 1000-8000 Hz: chưa đo. Bản vá gộp chuyển
@@ -117,8 +130,7 @@ thuật lại từ báo cáo của reviewer; patch, PS1 và workflow chưa từn
   Rust trong 2.520 hồ sơ fuzz (tên thành viên JSON trùng lặp, số nguyên lớn hơn
   u32, `-0`, giá trị cách biên < 0,00005); một nhãn nhập chứa surrogate lẻ
   không xuất được thành file `keymap-sim` chấp nhận.
-- Số dòng patch trong `integration/NOTES.md` (+490) lỗi thời so với đo hiện tại
-  (+499/-8).
+- Số dòng patch trong `integration/NOTES.md` đã cập nhật đúng: +498/-8.
 - Cargo.lock trong patch sửa tay; nếu không chính xác cargo tự sửa, CI in diff.
 
 ## 5. Tái hiện

@@ -11,13 +11,17 @@
     2. copy ..\crates\keymap into <Dest>\crates\keymap
     3. git apply --check, then git apply, integration\mirrorly-keymap.patch
     4. with -Build: get-ffmpeg.ps1, cargo test, cargo build --release,
-       then stage dist\Mirrorly-keymap\
+       then stage dist\Mirrorly-keymap\ (FFmpeg DLLs from
+       third_party\ffmpeg\bin, verified against packaging\ffmpeg.txt)
     5. with -Package: also run Mirrorly's own packaging\build-release.ps1
        (needs cargo-about and Inno Setup 6)
     6. with -StageOnly: only stage (the build was done by the caller, e.g. CI)
 
-  This script was NOT run when it was written (the authoring environment had
-  no PowerShell and no Windows). The first run is the CI workflow.
+  Status: GitHub Actions run #1 (windows-latest) ran the clone, copy, patch
+  and build steps of this script successfully; its staging step failed
+  (no FFmpeg DLLs in target\release) and was rewritten (DLLs now come from
+  third_party\ffmpeg\bin, SHA-256 checked). The rewritten staging has not
+  been run yet. Nothing here has been run on a real Windows PC or an iPhone.
 
 .PARAMETER Dest
   Where Mirrorly is checked out. Default: <ios-keymapping>\build\mirrorly.
@@ -76,9 +80,37 @@ function Stage-Folder {
         throw "Mirrorly.exe not found in $rel (build first)"
     }
     Copy-Item (Join-Path $rel 'Mirrorly.exe') $stage
+    # FFmpeg DLLs. Do NOT rely on target\release: upstream's build.rs copies
+    # them there only on a best-effort basis (errors ignored), and CI run #1
+    # found none. The pinned, hash-checked build lives in
+    # <Mirrorly>\third_party\ffmpeg\bin (get-ffmpeg.ps1); target\release is
+    # only a fallback when that directory does not exist.
+    $ffbin = Join-Path $MirrorlyDir 'third_party\ffmpeg\bin'
+    $dllDir = $ffbin
+    if (-not (Test-Path $ffbin)) {
+        Write-Warning "$ffbin not found; falling back to $rel for the FFmpeg DLLs"
+        $dllDir = $rel
+    }
+    $pinFile = Join-Path $MirrorlyDir 'packaging\ffmpeg.txt'
+    if (-not (Test-Path $pinFile)) { throw "pin file not found: $pinFile (cannot verify the FFmpeg DLLs)" }
+    # Lines like: bin/avcodec-63.dll=<sha256>
+    $pinned = @{}
+    foreach ($line in (Get-Content $pinFile)) {
+        if ($line -match '^bin/([^=\s]+)=([0-9a-fA-F]{64})\s*$') { $pinned[$Matches[1]] = $Matches[2].ToLower() }
+    }
     foreach ($lib in 'avcodec', 'avutil', 'swresample') {
-        $dll = @(Get-ChildItem (Join-Path $rel "$lib-*.dll"))
-        if ($dll.Count -ne 1) { throw "expected exactly one $lib DLL in $rel, found $($dll.Count)" }
+        $dll = @(Get-ChildItem (Join-Path $dllDir "$lib-*.dll") -ErrorAction SilentlyContinue)
+        if ($dll.Count -ne 1) {
+            throw "expected exactly one $lib DLL in $dllDir (searched $dllDir\$lib-*.dll), found $($dll.Count). Run packaging\get-ffmpeg.ps1 in $MirrorlyDir."
+        }
+        $name = $dll[0].Name
+        $got = (Get-FileHash $dll[0].FullName -Algorithm SHA256).Hash.ToLower()
+        if (-not $pinned.ContainsKey($name)) {
+            throw "$name is not listed in $pinFile (expected a bin/$name=<sha256> line)"
+        }
+        if ($got -ne $pinned[$name]) {
+            throw "$($dll[0].FullName) is not the pinned FFmpeg build (SHA-256 $got, pinned $($pinned[$name])); run packaging\get-ffmpeg.ps1 and rebuild"
+        }
         Copy-Item $dll[0].FullName $stage
     }
     # Everything below is required: a staged folder without our licence,
@@ -258,5 +290,6 @@ if (-not $Build) {
     Write-Host '  Build:   re-run with -Build, or follow the README of Mirrorly (Rust MSVC, VS Build Tools, LLVM, FFmpeg).'
 } else {
     Write-Host "  Run:     $ios\dist\Mirrorly-keymap\Mirrorly.exe --keymap $ios\profiles\touch-test-portrait.json"
+    Write-Host '           (run the staged dist folder, not target\release\Mirrorly.exe: the FFmpeg DLLs are not there)'
 }
 Write-Host '  The keymap works over USB only, and nothing here has been tested on a real iPhone unless you did it.'

@@ -444,7 +444,9 @@ length 1 unless zero):
      `offset = step` clamped per axis to `±reach`, then `[M]` if that moves the
      HID position. `stats.look_recenters += 1`.
 3. Non-finite `dx`/`dy`: the event is consumed and ignored. A zero delta with
-   no look contact does not create one.
+   no look contact does not create one. Zero and non-finite deltas are not
+   accepted motions: they emit no frame and do not postpone the idle lift of
+   rule 4.
 4. `release_after_ms > 0`: deadline = time of the last accepted motion +
    `release_after_ms`; `tick` at/after it emits `[T: n↑]`. With 0 the finger
    stays down until deactivate/release_all/panic/view change.
@@ -521,8 +523,9 @@ patch touches **only** these existing files and nothing else:
 `crates/app/Cargo.toml`, `crates/app/src/main.rs`.
 
 It must pass `git apply --check` on a fresh checkout of `ac70daa` (verified in
-the container with git only). It is **not** compiled in the container; the CI
-workflow is the first compile. Minimal diff: do not reformat or move upstream
+the container with git only). It is **not** compiled in the container; it is
+compiled by the CI workflow (run #1 compiled it and passed the keymap, input
+and device tests on windows-latest). Minimal diff: do not reformat or move upstream
 code. LF line endings.
 
 ### 7.1 Cargo files
@@ -676,7 +679,9 @@ apply-to-mirrorly.ps1 [-Dest <dir>] [-Ref <sha>] [-Build] [-Package] [-Force]
   build --release -p app` (inside vcvars64 found like upstream's
   `build-release.ps1` does, unless `$env:VCINSTALLDIR` is set); stage
   `<ios-keymapping>\dist\Mirrorly-keymap\` with `Mirrorly.exe`, the
-  `avcodec-*`, `avutil-*`, `swresample-*` DLLs from `target\release`,
+  `avcodec-*`, `avutil-*`, `swresample-*` DLLs from `third_party\ffmpeg\bin`
+  (fallback `target\release`), each SHA-256 checked against the `bin/...`
+  pins in `packaging\ffmpeg.txt`,
   upstream `LICENSE` (as `LICENSE-Mirrorly.txt`), `packaging\licenses\*.txt`,
   our `LICENSE`, `NOTICE`, `README.md`, `profiles\`, `editor\index.html`.
 - `-Package`: additionally run upstream `packaging\build-release.ps1`.

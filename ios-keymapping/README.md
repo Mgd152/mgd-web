@@ -14,10 +14,14 @@ gửi nhiều điểm chạm cùng lúc tới iPhone.
 
 > **Trạng thái trung thực:** phần thư viện `keymap`, trình soạn và công cụ mô
 > phỏng đã được chạy thử trong container Linux (xem
-> [`docs/BAO_CAO.md`](docs/BAO_CAO.md)). **Bản Mirrorly đã vá chưa từng được
-> biên dịch, chưa chạy trên Windows và chưa chạy trên iPhone nào.** Gửi nhiều
-> điểm chạm (multi-touch) qua `send_multitouch` chưa từng được kiểm chứng trên
-> điện thoại, cả bởi Mirrorly lẫn bởi dự án này.
+> [`docs/BAO_CAO.md`](docs/BAO_CAO.md)). Bản Mirrorly đã vá đã được biên dịch
+> và chạy `cargo test -p keymap -p input -p device` thành công trên runner
+> `windows-latest` của GitHub Actions (lần chạy #1). **Chưa có gì được chạy trên
+> một máy Windows thật hay trên iPhone nào.** Bước đóng gói thư mục portable
+> bị lỗi ở lần chạy #1 và đã được sửa trong thay đổi này; việc sửa đó và việc
+> tải artifact có hoạt động hay không sẽ chỉ biết sau lần chạy kế tiếp. Gửi
+> nhiều điểm chạm (multi-touch) qua `send_multitouch` chưa từng được kiểm chứng
+> trên điện thoại, cả bởi Mirrorly lẫn bởi dự án này; độ trễ chưa đo.
 
 ## 1. Đây là gì, không phải là gì
 
@@ -112,8 +116,10 @@ Mã trong repo:
 
 ## 5. Áp dụng bản vá và build trên Windows
 
-Lệnh dưới đây **chưa được chạy** (không có Windows/PowerShell ở nơi viết); lần
-chạy thật đầu tiên là workflow CI.
+Lệnh dưới đây chưa được chạy trên một máy Windows thật. Trên runner CI
+(`windows-latest`, lần chạy #1) các bước clone, chép crate, áp bản vá, build và
+test đã chạy thành công; bước đóng gói (`-StageOnly`) lỗi và đã được sửa, chưa
+được chạy lại.
 
 ```powershell
 cd ios-keymapping\integration
@@ -121,7 +127,10 @@ cd ios-keymapping\integration
 powershell -NoProfile -ExecutionPolicy Bypass -File .\apply-to-mirrorly.ps1
 
 # hoặc kèm build: tải FFmpeg, chạy test, cargo build --release -p app,
-# rồi gom vào ios-keymapping\dist\Mirrorly-keymap\
+# rồi gom vào ios-keymapping\dist\Mirrorly-keymap\ (DLL FFmpeg lấy từ
+# third_party\ffmpeg\bin và được kiểm SHA-256 theo packaging\ffmpeg.txt).
+# Hãy chạy Mirrorly.exe từ thư mục dist đó, KHÔNG chạy target\release\Mirrorly.exe
+# (thiếu các DLL FFmpeg ở đó).
 powershell -NoProfile -ExecutionPolicy Bypass -File .\apply-to-mirrorly.ps1 -Build
 
 # thêm -Package nếu đã có cargo-about + Inno Setup 6 (chạy build-release.ps1 của upstream)
@@ -141,8 +150,10 @@ dịch lần đầu: [`integration/NOTES.md`](integration/NOTES.md).
 
 Workflow `ios-keymapping.yml` (chạy tay hoặc khi push lên nhánh
 `claude/new-session-l9i0tr`) làm đúng các bước trên trên `windows-latest` và
-đăng artifact `mirrorly-keymap-<sha>`. **Cho tới khi workflow này chạy xanh,
-bản build Windows là chưa được kiểm chứng.**
+đăng artifact `mirrorly-keymap-<sha>`. Lần chạy #1: biên dịch và test xanh,
+nhưng bước đóng gói lỗi (không tìm thấy DLL avcodec trong `target\release`) nên
+chưa có artifact; script đã được sửa để lấy DLL từ `third_party\ffmpeg\bin`.
+Việc sửa này chưa được chạy lại, nên artifact chưa được xác nhận.
 
 ## 6. Cách dùng
 
@@ -291,8 +302,8 @@ Windows, kiểu cáp/cổng USB, tần số chuột) và phương pháp, mỗi c
 
 ## 11. Hạn chế đã biết
 
-- Multi-touch qua UHS **chưa kiểm chứng** trên điện thoại; bản vá **chưa biên
-  dịch**; chưa có phép thử Windows/iPhone nào.
+- Multi-touch qua UHS **chưa kiểm chứng** trên điện thoại; bản vá đã biên dịch
+  và qua test trên CI, nhưng chưa có phép thử nào trên Windows thật hay iPhone.
 - Chỉ USB. Không có chế độ chỉ điều khiển không video (iOS yêu cầu luồng media).
 - Con trỏ chỉ được `Confined`, không `Locked` (winit trên Windows); hành vi ở mép
   cửa sổ chưa thử.

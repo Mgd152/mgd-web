@@ -1,7 +1,7 @@
 # Integration notes: what `mirrorly-keymap.patch` changes
 
 Base: Mirrorly `ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e` (app 2.0.2), MIT.
-Patch: 7 existing files, +490 / -8 lines, LF endings (`.gitattributes` keeps them LF; the script also normalizes a CRLF copy before `git apply`). The `keymap` crate is
+Patch: 7 existing files, +498 / -8 lines (`git diff --numstat` totals), LF endings (`.gitattributes` keeps them LF; the script also normalizes a CRLF copy before `git apply`). The `keymap` crate is
 NOT in the patch; `apply-to-mirrorly.ps1` copies `crates/keymap` into the
 checkout first.
 
@@ -10,10 +10,25 @@ checkout first.
 - `git apply --check` and `git apply` succeed on a fresh copy of the upstream
   checkout; the re-generated diff is byte-identical to the patch file.
 - `rustfmt --edition 2024` parses the three patched `.rs` files (syntax only).
-- Nothing else. **The patched code has never been compiled or run**: the
-  container is Linux and the permission policy forbids building upstream
-  code. The first compile is the CI workflow
-  `.github/workflows/ios-keymapping.yml` on `windows-latest`.
+- Nothing else was run in this container: it is Linux and the permission
+  policy forbids building upstream code.
+
+## Verified by CI (GitHub Actions run #1, commit 9cb9931, `windows-latest`)
+
+- The patched Mirrorly compiled (`cargo build --release -p app` and
+  `-p keymap --bin keymap-sim`, 2m16s) and `cargo test -p keymap -p input -p
+  device` passed. The only warning was `main.rs:639` "value assigned to
+  `was_active` is never read"; this change removes the dead initial assignment
+  (behavior identical). It has not been recompiled since.
+- The "Stage the portable folder" step FAILED: `expected exactly one avcodec
+  DLL in ...\target\release, found 0`. Upstream `crates/app/build.rs` ran but
+  left no DLLs in `target\release` (probably a newer cargo build-dir layout;
+  not proven). `apply-to-mirrorly.ps1` now takes the DLLs from
+  `third_party\ffmpeg\bin` and checks their SHA-256 against
+  `packaging\ffmpeg.txt`. That fix has NOT been run yet; whether staging and
+  the artifact upload work will be known from the next run.
+- Nothing has been run on a real Windows PC or an iPhone. Multi-touch on the
+  device, latency, cursor confinement at window edges are unverified.
 
 ## File by file
 
@@ -85,14 +100,14 @@ in mind when reviewing: it is small, but not literally zero.
 - Side effect to document: with `--keymap`, the toggle key (default
   Backquote) is never typed to the phone.
 
-## Unverified / things most likely to need a fix at first compile
+## Unverified (behavior at run time; the code itself compiled on CI)
 
-1. Whole patch: never compiled (see above).
+1. Whole patch: compiled and unit-tested on CI only (see above); never run.
 2. winit 0.30.13 API used: `Window::set_cursor_grab(CursorGrabMode)`,
    `set_cursor_visible`, `ApplicationHandler::device_event(&mut self,
    &ActiveEventLoop, DeviceId, DeviceEvent)`, `MouseButton::{Back, Forward,
-   Other(u16)}`. From memory, not checked against sources (not available
-   offline).
+   Other(u16)}`. These calls compile on CI (so the signatures are right), but
+   their runtime behavior on Windows (e.g. `Confined` at window edges) is untested.
 3. `idevice::core_device::TouchscreenContact` is re-exported through
    `pub use hid::*` (checked in `vendor/idevice`), and its fields are public
    and it is `Copy` (checked).

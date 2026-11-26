@@ -1,7 +1,10 @@
 # iOS keymapping for Mirrorly: test the keymap crate, apply the patch to
 # Mirrorly at a pinned commit, build it on Windows and keep the result as an
-# artifact. This is the FIRST place the patched Mirrorly is compiled: until
-# this workflow has run green, the Windows build is unverified.
+# artifact. Run #1 (windows-latest, commit 9cb9931): the Linux job was green;
+# on Windows the patch applied, tests passed and the release build succeeded,
+# but the staging step failed (no FFmpeg DLLs in target\release). Staging was
+# fixed afterwards and has not been run yet, so the artifact upload is
+# unconfirmed. Nothing here runs on a real Windows PC or an iPhone.
 #
 # Modeled on upstream's ci.yml and package.yml (https://github.com/AnasSAV/mirrorly,
 # MIT, commit ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e).
@@ -19,6 +22,10 @@ on:
       - "ios-keymapping/crates/**"
       - "ios-keymapping/integration/**"
       - "ios-keymapping/profiles/**"
+      - "ios-keymapping/editor/**"
+      - "ios-keymapping/README.md"
+      - "ios-keymapping/LICENSE"
+      - "ios-keymapping/NOTICE"
       - ".github/workflows/ios-keymapping.yml"
 
 concurrency:
@@ -60,8 +67,8 @@ jobs:
 
   mirrorly:
     name: Patched Mirrorly on Windows (test, build, package)
-    # Not gated on the keymap job: a missing sample profile must not hide the
-    # Windows compile result. Remove `needs` only if you want the old gating.
+    # Intentionally NOT gated on the keymap job (no `needs`): a failing Linux
+    # check must not hide the Windows compile result.
     runs-on: windows-latest
     timeout-minutes: 60
     steps:

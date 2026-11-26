@@ -518,6 +518,9 @@ impl Engine {
 
     fn look_motion(&mut self, dx: f64, dy: f64, out: &mut Vec<Frame>) {
         let Some(ci) = self.look_idx else { return };
+        // Zero and non-finite deltas are not accepted motions: they emit
+        // nothing, create no contact and do not postpone the look idle lift
+        // (SPEC 5.6, Look rule 3).
         if !dx.is_finite() || !dy.is_finite() || (dx == 0.0 && dy == 0.0) {
             return;
         }
@@ -1108,6 +1111,12 @@ mod tests {
         mv(&mut e, 10.0, 0.0, 1050); // refreshes
         assert_eq!(e.next_deadline(), Some(1150));
         assert!(e.tick(1149).is_empty());
+        // Zero and non-finite deltas are not accepted motions: they do not
+        // postpone the idle lift.
+        mv(&mut e, 0.0, 0.0, 1100);
+        mv(&mut e, f64::NAN, 1.0, 1120);
+        mv(&mut e, 1.0, f64::INFINITY, 1140);
+        assert_eq!(e.next_deadline(), Some(1150));
         let f = e.tick(1150);
         assert_eq!(f.len(), 1);
         assert!(!f[0].contacts()[0].touching && f[0].has_transition());
@@ -1483,8 +1492,11 @@ mod tests {
     }
 
     impl Model {
-        fn apply(&mut self, f: &Frame) {
+        /// Checks the frame against the model, applies it and returns how
+        /// many contacts went down in it.
+        fn apply(&mut self, f: &Frame) -> usize {
             let cs = f.contacts();
+            let mut new_down = 0;
             assert!(!cs.is_empty() && cs.len() <= MAX_CONTACTS, "I1 len");
             for w in cs.windows(2) {
                 assert!(w[0].id < w[1].id, "I1 sorted/unique {cs:?}");
@@ -1508,7 +1520,16 @@ mod tests {
                 let prev = self.down[usize::from(k.id)];
                 if k.touching {
                     match prev {
-                        None => transition = true,
+                        None => {
+                            transition = true;
+                            new_down += 1;
+                            // A newly-down contact takes the lowest free id.
+                            assert!(
+                                self.down[..usize::from(k.id)].iter().all(Option::is_some),
+                                "new contact {} is not the lowest free id: {cs:?}",
+                                k.id
+                            );
+                        }
                         Some(p) => moved |= p != (k.x, k.y),
                     }
                 } else {
@@ -1524,6 +1545,7 @@ mod tests {
             for k in cs {
                 self.down[usize::from(k.id)] = k.touching.then_some((k.x, k.y));
             }
+            new_down
         }
 
         fn count(&self) -> usize {
@@ -1606,9 +1628,14 @@ mod tests {
                 let was_active = e.is_active();
                 let mut frames: Vec<Frame> = Vec::new();
                 let mut explicit_inactive = false;
+                // Number of handle() calls in this step; each may put at most
+                // one new contact down (tick, release_all, deactivate and
+                // set_view never put one down).
+                let mut handle_calls = 0usize;
                 match rng.below(100) {
                     0..=44 => {
                         let k = FUZZ_KEYS[rng.below(FUZZ_KEYS.len() as u64) as usize];
+                        handle_calls = 1;
                         let press_p = if press_heavy { 9 } else { 5 };
                         let o = if rng.below(10) < press_p {
                             e.handle(Input::Press(k), now)
@@ -1626,15 +1653,18 @@ mod tests {
                             10..=14 => (rng.f(30.0).abs(), rng.f(30.0).abs()),
                             _ => (rng.f(30.0), rng.f(30.0)),
                         };
+                        handle_calls = 1;
                         frames = e.handle(Input::MouseMotion { dx, dy }, now).frames;
                     }
                     65..=74 => frames = e.tick(now),
                     75..=79 => {
+                        handle_calls = 2;
                         let o = e.handle(Input::Press("Backquote"), now);
                         frames = o.frames;
                         frames.extend(e.handle(Input::Release("Backquote"), now).frames);
                     }
                     80 => {
+                        handle_calls = 1;
                         let o = e.handle(Input::Press("F8"), now);
                         frames = o.frames;
                         explicit_inactive = true;
@@ -1654,13 +1684,16 @@ mod tests {
                         frames = e.set_view(view(r));
                     }
                     _ => {
+                        handle_calls = 1;
                         let o = e.handle(Input::Press("KeyJ"), now);
                         frames = o.frames;
                     }
                 }
-                for f in &frames {
-                    model.apply(f);
-                }
+                let new_down: usize = frames.iter().map(|f| model.apply(f)).sum();
+                assert!(
+                    new_down <= handle_calls,
+                    "more than one new contact per handle() call, seed {seed} step {step}"
+                );
                 assert_eq!(model.count(), e.contacts_down(), "seed {seed} step {step}");
                 if !was_active && !e.is_active() {
                     assert!(frames.is_empty(), "I8 seed {seed} step {step}");
@@ -1687,7 +1720,7 @@ mod tests {
 
     fn frames_after_release(e: &mut Engine, model: &mut Model) {
         if let Some(f) = e.release_all() {
-            model.apply(&f);
+            let _ = model.apply(&f);
         }
         assert_eq!(e.contacts_down(), 0);
         assert_eq!(model.count(), 0);

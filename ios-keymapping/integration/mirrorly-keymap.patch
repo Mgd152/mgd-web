@@ -58,7 +58,7 @@ index df9feae..42e9f99 100644
  winit.workspace = true
  windows.workspace = true
 diff --git a/crates/app/src/main.rs b/crates/app/src/main.rs
-index 254d71e..f638b87 100644
+index 254d71e..ea8aec8 100644
 --- a/crates/app/src/main.rs
 +++ b/crates/app/src/main.rs
 @@ -105,6 +105,9 @@ struct Args {
@@ -116,7 +116,7 @@ index 254d71e..f638b87 100644
              w.set_title(&t);
          }
      }
-@@ -419,10 +446,265 @@ impl App {
+@@ -419,10 +446,264 @@ impl App {
          *decoder_kf.lock().unwrap() = Some(handle.keyframes.clone());
          *self.shared.hid_stats.lock().unwrap() = Some(handle.hid_stats.clone());
          self.device = Some(handle);
@@ -310,13 +310,12 @@ index 254d71e..f638b87 100644
 +    /// Returns whether the engine consumed the input.
 +    fn keymap_input(&mut self, input: keymap::Input<'_>) -> bool {
 +        let now_ms = now_us() / 1000;
-+        let mut was_active = false;
-+        let (out, has_look, toggle, panic_key) = match self.keymap.as_mut().and_then(|k| k.engine.as_mut()) {
++        let (was_active, out, has_look, toggle, panic_key) = match self.keymap.as_mut().and_then(|k| k.engine.as_mut()) {
 +            Some(e) => {
-+                was_active = e.is_active();
++                let was_active = e.is_active();
 +                let out = e.handle(input, now_ms);
 +                let p = e.profile();
-+                (out, p.has_look(), p.toggle_key.clone(), p.panic_key.clone())
++                (was_active, out, p.has_look(), p.toggle_key.clone(), p.panic_key.clone())
 +            }
 +            None => return false,
 +        };
@@ -382,7 +381,7 @@ index 254d71e..f638b87 100644
      /// Size the window to the picture's aspect at the current size level.
      fn apply_size(&mut self) {
          let Some(w) = self.window.clone() else { return };
-@@ -547,6 +829,13 @@ impl App {
+@@ -547,6 +828,13 @@ impl App {
      /// Disconnect from the iPhone (Mirrorly then leaves it alone, even when
      /// it is plugged in or on Wi-Fi), or connect again.
      fn set_connected(&mut self, on: bool) {
@@ -396,7 +395,7 @@ index 254d71e..f638b87 100644
          let Some(d) = &self.device else { return };
          tracing::info!("user {}", if on { "connects" } else { "disconnects" });
          d.set_connected(on);
-@@ -1070,6 +1359,7 @@ impl App {
+@@ -1070,6 +1358,7 @@ impl App {
      }
  
      fn quit(&mut self, el: &ActiveEventLoop) {
@@ -404,7 +403,7 @@ index 254d71e..f638b87 100644
          if let Some(rec) = self.recording.take() {
              // Finish the file before the process ends.
              self.shared.recording.lock().unwrap().take();
-@@ -1097,6 +1387,7 @@ impl App {
+@@ -1097,6 +1386,7 @@ impl App {
          self.release_all();
          self.apply_size();
          self.slot.request_redraw();
@@ -412,7 +411,7 @@ index 254d71e..f638b87 100644
      }
  
      fn toggle_fullscreen(&mut self) {
-@@ -1116,7 +1407,11 @@ impl App {
+@@ -1116,7 +1406,11 @@ impl App {
      /// still screen, and time every tap until its response frame is
      /// presented (results in the overlay and the log). Point it at
      /// something that visibly reacts to a touch, e.g. a Calculator key.
@@ -425,7 +424,7 @@ index 254d71e..f638b87 100644
          let (m, _) = self.mapper();
          let Some(p) = m.to_panel(self.cursor.0, self.cursor.1, false) else {
              tracing::warn!("latency probe: put the mouse over the phone picture first");
-@@ -1126,6 +1421,9 @@ impl App {
+@@ -1126,6 +1420,9 @@ impl App {
          let (sender, shared, slot) = (dev.sender(), self.shared.clone(), self.slot.clone());
          let (x, y) = (input::geom::to_u16(p.0), input::geom::to_u16(p.1));
          tracing::info!("latency probe: {PROBE_TAPS} taps at ({x}, {y})");
@@ -435,7 +434,7 @@ index 254d71e..f638b87 100644
          shared.overlay.store(true, Relaxed);
          let _ = std::thread::Builder::new().name("probe".into()).spawn(move || {
              for _ in 0..PROBE_TAPS {
-@@ -1327,12 +1625,31 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1327,12 +1624,31 @@ impl ApplicationHandler<UserEvent> for App {
              Some(Opening::Tapped(..)) => Some(now + Duration::from_millis(10)),
              _ => (self.display.is_some() && (!self.display_hidden || self.opening.is_some())).then(|| now + DISPLAY_POLL),
          };
@@ -468,7 +467,7 @@ index 254d71e..f638b87 100644
      fn resumed(&mut self, el: &ActiveEventLoop) {
          if self.window.is_none()
              && let Err(e) = self.start(el)
-@@ -1441,6 +1758,7 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1441,6 +1757,7 @@ impl ApplicationHandler<UserEvent> for App {
                  if screen_changed {
                      self.apply_size();
                  }
@@ -476,7 +475,7 @@ index 254d71e..f638b87 100644
                  let link = match info.transport {
                      device::Transport::Usb => "USB",
                      device::Transport::Wifi => "Wi-Fi",
-@@ -1459,6 +1777,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1459,6 +1776,9 @@ impl ApplicationHandler<UserEvent> for App {
                  }
              }
              DeviceEvent::Disconnected(_) => {
@@ -486,7 +485,7 @@ index 254d71e..f638b87 100644
                  // The stream ended: finish the recording with what it has.
                  self.stop_recording();
                  *self.shared.transport.lock().unwrap() = None;
-@@ -1492,7 +1813,10 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1492,7 +1812,10 @@ impl ApplicationHandler<UserEvent> for App {
                  self.sync_bar();
                  self.slot.request_redraw();
              }
@@ -498,7 +497,7 @@ index 254d71e..f638b87 100644
              // Our own shelf being dragged out passes over the window first:
              // those files came from the iPhone and must not go back.
              WindowEvent::HoveredFile(path) if is_from_iphone(&path) => {}
-@@ -1517,7 +1841,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1517,7 +1840,9 @@ impl ApplicationHandler<UserEvent> for App {
              WindowEvent::ModifiersChanged(m) => self.modifiers = m.state(),
              WindowEvent::CursorEntered { .. } => {
                  self.cursor_inside = true;
@@ -509,7 +508,7 @@ index 254d71e..f638b87 100644
              }
              WindowEvent::CursorLeft { .. } => {
                  self.cursor_inside = false;
-@@ -1526,10 +1852,17 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1526,10 +1851,17 @@ impl ApplicationHandler<UserEvent> for App {
                  {
                      self.send(ev);
                  }
@@ -528,7 +527,7 @@ index 254d71e..f638b87 100644
                  self.cursor_inside = true;
                  if self.gesture.active() {
                      let (m, _) = self.mapper();
-@@ -1547,6 +1880,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1547,6 +1879,9 @@ impl ApplicationHandler<UserEvent> for App {
                  self.update_hover();
              }
              WindowEvent::MouseWheel { delta, .. } => {
@@ -538,7 +537,7 @@ index 254d71e..f638b87 100644
                  let notches = match delta {
                      MouseScrollDelta::LineDelta(_, y) => y as f64,
                      MouseScrollDelta::PixelDelta(p) => p.y / 120.0,
-@@ -1560,6 +1896,19 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1560,6 +1895,19 @@ impl ApplicationHandler<UserEvent> for App {
                  }
              }
              WindowEvent::MouseInput { state, button, .. } => {
@@ -558,7 +557,7 @@ index 254d71e..f638b87 100644
                  let (m, bottom) = self.mapper();
                  match (button, state) {
                      (MouseButton::Left, ElementState::Pressed) => {
-@@ -1609,7 +1958,22 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1609,7 +1957,22 @@ impl ApplicationHandler<UserEvent> for App {
              WindowEvent::KeyboardInput { event, .. } => {
                  let PhysicalKey::Code(code) = event.physical_key else { return };
                  let down = event.state == ElementState::Pressed;
@@ -582,7 +581,7 @@ index 254d71e..f638b87 100644
                  // Mac-style shortcuts (Ctrl stands in for Command), plus F-keys.
                  let shortcut: Option<&str> = match code {
                      KeyCode::Digit1 if ctrl => Some("home"),
-@@ -1622,7 +1986,7 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1622,7 +1985,7 @@ impl ApplicationHandler<UserEvent> for App {
                      KeyCode::F5 => Some("volup"),
                      KeyCode::F6 => Some("screenshot"),
                      KeyCode::F7 => Some("record"),
@@ -591,7 +590,7 @@ index 254d71e..f638b87 100644
                      KeyCode::F10 => Some("stats"),
                      KeyCode::F11 => Some("fullscreen"),
                      KeyCode::F12 if self.modifiers.shift_key() => Some("rotate-ccw"),
-@@ -1659,6 +2023,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1659,6 +2022,9 @@ impl ApplicationHandler<UserEvent> for App {
                      }
                      return;
                  }
@@ -601,7 +600,7 @@ index 254d71e..f638b87 100644
                  // iOS repeats held keys itself, like with a hardware keyboard.
                  if event.repeat {
                      return;
-@@ -1873,6 +2240,7 @@ fn main() -> Result<()> {
+@@ -1873,6 +2239,7 @@ fn main() -> Result<()> {
      tracing::info!("Mirrorly {} starting", env!("CARGO_PKG_VERSION"));
  
      let event_loop = EventLoop::<UserEvent>::with_user_event().build().context("event loop")?;
@@ -609,7 +608,7 @@ index 254d71e..f638b87 100644
      let mut app = App {
          args,
          proxy: event_loop.create_proxy(),
-@@ -1893,6 +2261,7 @@ fn main() -> Result<()> {
+@@ -1893,6 +2260,7 @@ fn main() -> Result<()> {
          bar_cursor: None,
          hide_bar_at: None,
          scroll_busy_until: Instant::now(),
@@ -617,7 +616,7 @@ index 254d71e..f638b87 100644
          scroll_pending: 0.0,
          shelf_files: Vec::new(),
          doc_apps: None,
-@@ -1912,6 +2281,7 @@ fn main() -> Result<()> {
+@@ -1912,6 +2280,7 @@ fn main() -> Result<()> {
          recording: None,
          gpu: None,
          threads: Vec::new(),

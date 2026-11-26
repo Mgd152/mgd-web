@@ -22,7 +22,9 @@ fn s(b: &[u8]) -> String {
 }
 
 fn tmp(name: &str, content: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("keymap-sim-test-{}", std::process::id()));
+    // Cargo-provided scratch dir under target/ (cleaned with `cargo clean`).
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("keymap-sim-test-{}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
     let p = dir.join(name);
     fs::write(&p, content).unwrap();
