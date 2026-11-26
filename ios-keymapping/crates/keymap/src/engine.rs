@@ -146,6 +146,8 @@ enum Ctl {
         id: Option<u8>,
         offset: (f64, f64),
         last_ms: u64,
+        /// When a re-centred look lands again at its anchor.
+        land_at: Option<u64>,
     },
     Btn {
         id: Option<u8>,
@@ -166,6 +168,7 @@ impl Ctl {
                 id: None,
                 offset: (0.0, 0.0),
                 last_ms: 0,
+                land_at: None,
             },
             Control::Button { .. } => Ctl::Btn {
                 id: None,
@@ -307,6 +310,7 @@ impl Engine {
         }
         let settles = self.ctl.iter().filter_map(|c| match c {
             Ctl::Joy { settle, .. } => *settle,
+            Ctl::Look { land_at, .. } => *land_at,
             _ => None,
         });
         self.deadlines().into_iter().map(|(d, _)| d).chain(settles).min()
@@ -315,12 +319,21 @@ impl Engine {
     /// Perform every action whose deadline is `<= now_ms`. Lifts falling due
     /// together are merged into one frame.
     pub fn tick(&mut self, now_ms: u64) -> Vec<Frame> {
+        self.tick_inner(now_ms, true)
+    }
+
+    /// `land`: may land a re-centred look. `handle` passes it only for a mouse
+    /// motion, so one call never puts two contacts down.
+    fn tick_inner(&mut self, now_ms: u64, land: bool) -> Vec<Frame> {
         self.now = self.now.max(now_ms);
         if !self.active {
             return Vec::new();
         }
         let now = self.now;
         let mut frames = self.settle_joysticks(now);
+        if land {
+            frames.extend(self.land_look(now));
+        }
         let mut due: Vec<(u64, u8)> = self
             .deadlines()
             .into_iter()
@@ -351,8 +364,9 @@ impl Engine {
     }
 
     pub fn handle(&mut self, input: Input<'_>, now_ms: u64) -> Output {
+        let land = matches!(input, Input::MouseMotion { .. });
         let mut out = Output {
-            frames: self.tick(now_ms),
+            frames: self.tick_inner(now_ms, land),
             ..Output::default()
         };
         match input {
@@ -527,6 +541,47 @@ impl Engine {
         self.move_to(n, target)
     }
 
+    /// Touch-down of a re-centred look whose rest is over, so the next motion
+    /// moves a finger that is already down (none of it is lost).
+    fn land_look(&mut self, now: u64) -> Option<Frame> {
+        let ci = self.look_idx?;
+        let (ax, ay) = match (&self.ctl[ci], &self.profile.controls[ci]) {
+            (
+                Ctl::Look {
+                    id: None,
+                    land_at: Some(d),
+                    ..
+                },
+                Control::Look { x, y, .. },
+            ) if *d <= now => (*x, *y),
+            _ => return None,
+        };
+        // Another control lifted meanwhile: rest from that lift too.
+        if let Some(t) = self.last_lift.map(|t| t.saturating_add(LOOK_REST_MS))
+            && now < t
+        {
+            if let Ctl::Look { land_at, .. } = &mut self.ctl[ci] {
+                *land_at = Some(t);
+            }
+            return None;
+        }
+        let n = self.alloc();
+        if let Ctl::Look {
+            id,
+            land_at,
+            last_ms,
+            ..
+        } = &mut self.ctl[ci]
+        {
+            *land_at = None;
+            *id = n;
+            *last_ms = now;
+        }
+        let anchor = self.to_hid(ax, ay);
+        // No free slot: the next motion lands it (or counts the drop).
+        n.map(|n| self.down(n, anchor))
+    }
+
     /// Slides of joysticks whose settle deadline is `<= now`.
     fn settle_joysticks(&mut self, now: u64) -> Vec<Frame> {
         let mut out = Vec::new();
@@ -630,8 +685,23 @@ impl Engine {
         let sign = if invert { -1.0 } else { 1.0 };
         let step = (dx * sens / 1000.0, dy * sign * sens / 1000.0);
         let next = (offset.0 + step.0, offset.1 + step.1);
+        let holding = self
+            .ctl
+            .iter()
+            .any(|c| matches!(c, Ctl::Btn { id: Some(_), deadline: None }));
         let (id, new_offset) = if next.0.abs() <= reach && next.1.abs() <= reach {
             (n, next)
+        } else if holding && !fresh {
+            // A finger landing while a button is held is ignored by Free Fire
+            // (camera froze while firing): keep sliding, up to the picture edge.
+            let (ux, uy) = self.view_or_default().short_side_units(1.0);
+            (
+                n,
+                (
+                    next.0.clamp(-ax / ux, (1.0 - ax) / ux),
+                    next.1.clamp(-ay / uy, (1.0 - ay) / uy),
+                ),
+            )
         } else if fresh {
             // Contact created by this very event: clamp, no phantom lift/re-down.
             (
@@ -639,12 +709,17 @@ impl Engine {
                 (next.0.clamp(-reach, reach), next.1.clamp(-reach, reach)),
             )
         } else {
-            // Lift only; the next motion after LOOK_REST_MS lands at the anchor.
+            // Lift only; `tick` lands it again at the anchor after LOOK_REST_MS.
             out.extend(self.lift(&[n]));
             self.stats.look_recenters += 1;
-            if let Ctl::Look { id, offset, .. } = &mut self.ctl[ci] {
+            let due = self.now.saturating_add(LOOK_REST_MS);
+            if let Ctl::Look {
+                id, offset, land_at, ..
+            } = &mut self.ctl[ci]
+            {
                 *id = None;
                 *offset = (0.0, 0.0);
+                *land_at = Some(due);
             }
             return;
         };
@@ -653,11 +728,13 @@ impl Engine {
             id: sid,
             offset,
             last_ms,
+            land_at,
         } = &mut self.ctl[ci]
         {
             *sid = Some(id);
             *offset = new_offset;
             *last_ms = now;
+            *land_at = None;
         }
         let (ux, uy) = self.view_or_default().short_side_units(1.0);
         let pos = self.to_hid(ax + new_offset.0 * ux, ay + new_offset.1 * uy);
@@ -1134,17 +1211,42 @@ mod tests {
         assert_eq!(e.contacts_down(), 0);
         // Resting: motion is dropped until LOOK_REST_MS after the lift.
         assert!(mv(&mut e, 40.0, 0.0, LOOK_REST_MS).frames.is_empty());
-        // Then down at the anchor and move by the step.
-        let o = mv(&mut e, 40.0, 0.0, 1 + LOOK_REST_MS);
-        assert_eq!(o.frames.len(), 2);
-        assert_eq!(o.frames[0].contacts(), &[c(0, true, anchor)]);
-        assert!(o.frames[0].has_transition() && o.frames[1].droppable());
+        // The tick lands it at the anchor on its own...
+        assert_eq!(e.next_deadline(), Some(1 + LOOK_REST_MS));
+        let f = e.tick(1 + LOOK_REST_MS);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].contacts(), &[c(0, true, anchor)]);
+        assert!(f[0].has_transition());
+        assert_eq!(e.next_deadline(), None);
+        // ...so the next motion only moves it.
+        let o = mv(&mut e, 40.0, 0.0, 20 + LOOK_REST_MS);
+        assert_eq!(o.frames.len(), 1);
+        assert!(o.frames[0].droppable());
         let (ux, _) = view(Rotation::R0).short_side_units(1.0);
         assert_eq!(
-            o.frames[1].contacts()[0].x,
+            o.frames[0].contacts()[0].x,
             pic_hid(Rotation::R0, 0.7 + 0.04 * ux, 0.5).0
         );
         assert_eq!(e.contacts_down(), 1);
+    }
+
+    #[test]
+    fn look_never_recenters_while_a_button_is_held() {
+        let hold = r#"{"type":"button","x":0.85,"y":0.6,"key":"KeyK","mode":"hold"}"#;
+        let all = format!("{LOOK},{hold}");
+        let mut e = active(&profile_json("portrait", &all), Rotation::R0); // look x 0.7, reach 0.1
+        mv(&mut e, 10.0, 0.0, 0);
+        press(&mut e, "KeyK", 1);
+        // Far past reach: slides on to the right picture edge, no lift.
+        let o = mv(&mut e, 5000.0, 0.0, 2);
+        assert_eq!(o.frames.len(), 1);
+        assert!(o.frames[0].contacts().iter().all(|c| c.touching));
+        assert_eq!(e.stats().look_recenters, 0);
+        assert_eq!(e.slots[0].unwrap().0, 65535);
+        // Button released: past reach re-centres again.
+        release(&mut e, "KeyK", 3);
+        mv(&mut e, 10.0, 0.0, 4);
+        assert_eq!(e.stats().look_recenters, 1);
     }
 
     #[test]
@@ -1750,9 +1852,9 @@ mod tests {
                 let was_active = e.is_active();
                 let mut frames: Vec<Frame> = Vec::new();
                 let mut explicit_inactive = false;
-                // Number of handle() calls in this step; each may put at most
-                // one new contact down (tick, release_all, deactivate and
-                // set_view never put one down).
+                // Number of handle()/tick() calls in this step; each may put at
+                // most one new contact down (tick: only a re-centred look landing;
+                // release_all, deactivate and set_view never put one down).
                 let mut handle_calls = 0usize;
                 match rng.below(100) {
                     0..=44 => {
@@ -1778,7 +1880,10 @@ mod tests {
                         handle_calls = 1;
                         frames = e.handle(Input::MouseMotion { dx, dy }, now).frames;
                     }
-                    65..=74 => frames = e.tick(now),
+                    65..=74 => {
+                        handle_calls = 1;
+                        frames = e.tick(now);
+                    }
                     75..=79 => {
                         handle_calls = 2;
                         let o = e.handle(Input::Press("Backquote"), now);

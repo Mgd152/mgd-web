@@ -78,7 +78,10 @@ wrong or incomplete and are changed here.
   No macros, sequences, recorded input, repeat/turbo, auto-fire, auto-aim,
   recoil compensation, timing assistance, or any input the user did not
   physically produce at that moment. The only timed behaviours are the fixed
-  40 ms tap lift and the optional idle lift of the look finger.
+  40 ms tap lift, the optional idle lift of the look finger, and pacing of the
+  user's own input: a joystick slides JOY_SETTLE_MS (50) after its touch-down,
+  and a re-centred look lands again LOOK_REST_MS (35) after the last lift
+  (Free Fire mixed up fingers that lifted and landed in the same frame).
 - No detection evasion, device spoofing, randomized "humanizing", hiding from
   apps, or anything meant to change how an app/game classifies the device.
 - No jailbreak, emulator, IPA modification. Only upstream's CoreDevice path.
@@ -439,10 +442,12 @@ length 1 unless zero):
    `o' = offset + step`.
    - If `|o'.x| ≤ reach` and `|o'.y| ≤ reach`: `offset = o'`; `[M]` if the HID
      position changed.
-   - Otherwise (re-center): `[T: n↑ at last sent position]`, then
-     `[T: m↓ at anchor]` (m = lowest free id, normally n again),
-     `offset = step` clamped per axis to `±reach`, then `[M]` if that moves the
-     HID position. `stats.look_recenters += 1`.
+   - Otherwise, while a `hold` button is down: no re-center; `offset = o'`
+     clamped so the finger stays inside the picture; `[M]`.
+   - Otherwise (re-center): `[T: n↑ at last sent position]` only,
+     `stats.look_recenters += 1`. `tick` (or a motion) at/after
+     `LOOK_REST_MS` past the last lift of any contact emits `[T: m↓ at anchor]`,
+     offset 0. A motion with no look contact inside that rest is dropped.
 3. Non-finite `dx`/`dy`: the event is consumed and ignored. A zero delta with
    no look contact does not create one. Zero and non-finite deltas are not
    accepted motions: they emit no frame and do not postpone the idle lift of

@@ -10,8 +10,8 @@
      210 T 0:D@45875,32768
      210 M 0:D@47841,32162
      210 T 0:D@47841,32162 1:D@55705,52428
-     210 T 0:U@47841,32162 1:D@55705,52428
-     215 T 1:U@55705,52428
+     210 M 0:D@53739,32162 1:D@55705,52428
+     215 T 0:U@53739,32162 1:U@55705,52428
      215 # deactivated
      215 # not-consumed: press KeyQ
-# frames=12 dropped_presses=0 look_recenters=1 active=false contacts_down=0
+# frames=12 dropped_presses=0 look_recenters=0 active=false contacts_down=0
