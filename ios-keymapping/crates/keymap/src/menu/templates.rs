@@ -185,11 +185,22 @@ mod tests {
             c => panic!("{c:?}"),
         }
         let fire = &p.controls[2];
-        assert!(matches!(fire, Control::Button { key, mode: ButtonMode::Hold, .. } if key == "MouseLeft"));
-        assert!(matches!(&p.controls[3], Control::Button { key, mode: ButtonMode::Tap, .. } if key == "MouseRight"));
+        assert!(
+            matches!(fire, Control::Button { key, mode: ButtonMode::Hold, .. } if key == "MouseLeft")
+        );
+        assert!(
+            matches!(&p.controls[3], Control::Button { key, mode: ButtonMode::Tap, .. } if key == "MouseRight")
+        );
         assert_eq!(template(Template::BasicLandscape).controls.len(), 5);
-        assert_eq!(template(Template::BasicPortrait).orientation, Orientation::Portrait);
-        assert!(template(Template::Empty(Orientation::Portrait)).controls.is_empty());
+        assert_eq!(
+            template(Template::BasicPortrait).orientation,
+            Orientation::Portrait
+        );
+        assert!(
+            template(Template::Empty(Orientation::Portrait))
+                .controls
+                .is_empty()
+        );
     }
 
     #[test]
@@ -227,7 +238,13 @@ mod tests {
                 }
             }
             for _ in 0..200 {
-                e.handle(Input::MouseMotion { dx: 500.0, dy: 300.0 }, now);
+                e.handle(
+                    Input::MouseMotion {
+                        dx: 500.0,
+                        dy: 300.0,
+                    },
+                    now,
+                );
                 now += 5;
                 e.tick(now);
             }

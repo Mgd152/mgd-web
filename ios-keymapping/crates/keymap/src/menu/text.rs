@@ -107,23 +107,17 @@ impl TextEdit {
     }
 
     pub fn left(&mut self, shift: bool) {
-        if !shift {
-            if let Some((a, _)) = self.selection() {
-                self.move_to(a, false);
-                return;
-            }
+        match self.selection() {
+            Some((a, _)) if !shift => self.move_to(a, false),
+            _ => self.move_to(self.caret.saturating_sub(1), shift),
         }
-        self.move_to(self.caret.saturating_sub(1), shift);
     }
 
     pub fn right(&mut self, shift: bool) {
-        if !shift {
-            if let Some((_, b)) = self.selection() {
-                self.move_to(b, false);
-                return;
-            }
+        match self.selection() {
+            Some((_, b)) if !shift => self.move_to(b, false),
+            _ => self.move_to((self.caret + 1).min(self.len()), shift),
         }
-        self.move_to((self.caret + 1).min(self.len()), shift);
     }
 
     pub fn home(&mut self, shift: bool) {

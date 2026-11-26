@@ -6,8 +6,10 @@ use super::doc::Kind;
 use super::keynames::key_label;
 use super::templates::Template;
 use crate::profile::Orientation;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Lang {
     #[default]
     Vi,
@@ -48,17 +50,24 @@ pub enum MirrorlyAction {
 /// Non-blocking advice (never prevents saving or playing).
 #[derive(Clone, PartialEq, Debug)]
 pub enum Advice {
-    ShadowsMirrorly { key: String, action: MirrorlyAction },
+    ShadowsMirrorly {
+        key: String,
+        action: MirrorlyAction,
+    },
     WindowsKey,
     AltKey,
     LockKey,
     HelperKey,
     NearEdge,
-    MoreThanFive { count: usize },
+    MoreThanFive {
+        count: usize,
+    },
     NoLook,
     OverlapsLookAnchor,
     /// `profile` is the orientation of the profile; the picture shows the other.
-    OrientationMismatch { profile: Orientation },
+    OrientationMismatch {
+        profile: Orientation,
+    },
 }
 
 /// Why Play cannot start (section 3.8). Re-exported by the shell later.
@@ -126,26 +135,39 @@ pub enum Msg {
     Cancel,
     Swap,
     /// `key` is a SPEC key name; `owner` is the display name of its owner.
-    KeyTaken { key: String, owner: String },
+    KeyTaken {
+        key: String,
+        owner: String,
+    },
     KeyUnsupported,
     EscAgain,
     MouseNotForToggle,
     // toasts and notices
     IntroToast,
-    PlayOn { toggle: String, panic: String },
+    PlayOn {
+        toggle: String,
+        panic: String,
+    },
     PlayOff,
     PanicDone,
     FiveFingers,
     TestFull,
     Sensitivity(f64),
-    SensitivityChanged { from: f64, to: f64 },
+    SensitivityChanged {
+        from: f64,
+        to: f64,
+    },
     SensitivityRevert,
     HelperKeysShadowed,
     Copied,
     SaveFailed,
-    Deleted { name: String },
+    Deleted {
+        name: String,
+    },
     Undo,
-    DraftRecovery { name: String },
+    DraftRecovery {
+        name: String,
+    },
     SavePrompt,
     // refusals, problems, advice
     Refusal(PlayRefusal),
@@ -156,7 +178,9 @@ pub enum Msg {
     FooterRules,
     TestBanner,
     NoPicture,
-    OrientationBanner { profile: Orientation },
+    OrientationBanner {
+        profile: Orientation,
+    },
     FingersInfo,
     SensHint,
     EmptyHub,
@@ -175,9 +199,49 @@ pub enum Msg {
     // names
     NewProfileName(u32),
     /// Control without a label: kind and number (`n` = 0 means "no number").
-    ControlName { kind: Kind, n: u32 },
+    ControlName {
+        kind: Kind,
+        n: u32,
+    },
     SlotToggle,
     SlotPanic,
+    /// `repair_ranges` report line: a number was clamped into its range.
+    Repaired {
+        label: String,
+        field: RepairField,
+        from: f64,
+        to: f64,
+    },
+}
+
+/// Which number `Msg::Repaired` talks about.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RepairField {
+    X,
+    Y,
+    Radius,
+    Reach,
+    Sensitivity,
+    ReleaseMs,
+}
+
+impl RepairField {
+    fn text(self, lang: Lang) -> &'static str {
+        match (self, lang) {
+            (RepairField::X, Lang::Vi) => "vị trí ngang",
+            (RepairField::X, Lang::En) => "horizontal position",
+            (RepairField::Y, Lang::Vi) => "vị trí dọc",
+            (RepairField::Y, Lang::En) => "vertical position",
+            (RepairField::Radius, Lang::Vi) => "kích thước vòng",
+            (RepairField::Radius, Lang::En) => "ring size",
+            (RepairField::Reach, Lang::Vi) => "vùng xoay",
+            (RepairField::Reach, Lang::En) => "camera area",
+            (RepairField::Sensitivity, Lang::Vi) => "độ nhạy",
+            (RepairField::Sensitivity, Lang::En) => "sensitivity",
+            (RepairField::ReleaseMs, Lang::Vi) => "thời gian tự nhấc ngón (ms)",
+            (RepairField::ReleaseMs, Lang::En) => "auto-lift time (ms)",
+        }
+    }
 }
 
 fn key(name: &str, lang: Lang) -> String {
@@ -235,7 +299,10 @@ fn other(o: Orientation) -> Orientation {
 }
 
 fn mismatch(profile: Orientation, lang: Lang) -> String {
-    let (p, s) = (orient_word(profile, lang), orient_word(other(profile), lang));
+    let (p, s) = (
+        orient_word(profile, lang),
+        orient_word(other(profile), lang),
+    );
     match lang {
         Lang::Vi => format!("Hồ sơ này dành cho màn hình {p}, hình đang {s}."),
         Lang::En => format!("This profile is for a {p} screen, the picture is {s}."),
@@ -281,19 +348,35 @@ impl PlayRefusal {
         match (self, lang) {
             (PlayRefusal::NoProfile, Lang::Vi) => "Chưa chọn hồ sơ nào.".into(),
             (PlayRefusal::NoProfile, Lang::En) => "No profile is chosen.".into(),
-            (PlayRefusal::NoticeNotAccepted, Lang::Vi) => "Bạn cần đọc lưu ý trước lần chơi đầu.".into(),
-            (PlayRefusal::NoticeNotAccepted, Lang::En) => "Please read the notice before the first play.".into(),
+            (PlayRefusal::NoticeNotAccepted, Lang::Vi) => {
+                "Bạn cần đọc lưu ý trước lần chơi đầu.".into()
+            }
+            (PlayRefusal::NoticeNotAccepted, Lang::En) => {
+                "Please read the notice before the first play.".into()
+            }
             (PlayRefusal::NotConnected, Lang::Vi) => "Điện thoại chưa kết nối.".into(),
             (PlayRefusal::NotConnected, Lang::En) => "The phone is not connected.".into(),
-            (PlayRefusal::Wifi, Lang::Vi) => "Đang nối qua Wi-Fi. Bàn phím chỉ chạy khi cắm cáp USB.".into(),
-            (PlayRefusal::Wifi, Lang::En) => "Connected over Wi-Fi. The keyboard only works with a USB cable.".into(),
-            (PlayRefusal::DisplayMode, Lang::Vi) => "Đang dùng iPad làm màn hình phụ. Hãy tắt chế độ đó trước.".into(),
-            (PlayRefusal::DisplayMode, Lang::En) => "The iPad is used as a second display. Turn that mode off first.".into(),
+            (PlayRefusal::Wifi, Lang::Vi) => {
+                "Đang nối qua Wi-Fi. Bàn phím chỉ chạy khi cắm cáp USB.".into()
+            }
+            (PlayRefusal::Wifi, Lang::En) => {
+                "Connected over Wi-Fi. The keyboard only works with a USB cable.".into()
+            }
+            (PlayRefusal::DisplayMode, Lang::Vi) => {
+                "Đang dùng iPad làm màn hình phụ. Hãy tắt chế độ đó trước.".into()
+            }
+            (PlayRefusal::DisplayMode, Lang::En) => {
+                "The iPad is used as a second display. Turn that mode off first.".into()
+            }
             (PlayRefusal::ScrollBusy, Lang::Vi) => "Đang cuộn dở. Thử lại sau một giây.".into(),
-            (PlayRefusal::ScrollBusy, Lang::En) => "A scroll is in progress. Try again in a second.".into(),
+            (PlayRefusal::ScrollBusy, Lang::En) => {
+                "A scroll is in progress. Try again in a second.".into()
+            }
             (PlayRefusal::Orientation { profile }, _) => mismatch(*profile, lang),
             (PlayRefusal::BrokenProfile, Lang::Vi) => "Hồ sơ này bị lỗi nên chưa dùng được.".into(),
-            (PlayRefusal::BrokenProfile, Lang::En) => "This profile is broken and cannot be used yet.".into(),
+            (PlayRefusal::BrokenProfile, Lang::En) => {
+                "This profile is broken and cannot be used yet.".into()
+            }
         }
     }
 }
@@ -448,6 +531,15 @@ fn vi(m: &Msg) -> String {
         },
         Msg::SlotToggle => "Phím bật/tắt".into(),
         Msg::SlotPanic => "Phím dừng khẩn cấp".into(),
+        Msg::Repaired { label, field, from, to } => {
+            let d = if *field == RepairField::ReleaseMs { 0 } else { 2 };
+            format!(
+                "Đã chỉnh {} của “{label}”: {} → {}.",
+                field.text(l),
+                fmt_num(*from, d, l),
+                fmt_num(*to, d, l)
+            )
+        }
     }
 }
 
@@ -547,6 +639,15 @@ fn en(m: &Msg) -> String {
         },
         Msg::SlotToggle => "On/off key".into(),
         Msg::SlotPanic => "Emergency stop key".into(),
+        Msg::Repaired { label, field, from, to } => {
+            let d = if *field == RepairField::ReleaseMs { 0 } else { 2 };
+            format!(
+                "Adjusted {} of “{label}”: {} → {}.",
+                field.text(l),
+                fmt_num(*from, d, l),
+                fmt_num(*to, d, l)
+            )
+        }
     }
 }
 
@@ -582,25 +683,38 @@ impl Msg {
             Msg::Listening,
             Msg::Cancel,
             Msg::Swap,
-            Msg::KeyTaken { key: "KeyR".into(), owner: "Nạp đạn".into() },
+            Msg::KeyTaken {
+                key: "KeyR".into(),
+                owner: "Nạp đạn".into(),
+            },
             Msg::KeyUnsupported,
             Msg::EscAgain,
             Msg::MouseNotForToggle,
             Msg::IntroToast,
-            Msg::PlayOn { toggle: "Backquote".into(), panic: "F8".into() },
+            Msg::PlayOn {
+                toggle: "Backquote".into(),
+                panic: "F8".into(),
+            },
             Msg::PlayOff,
             Msg::PanicDone,
             Msg::FiveFingers,
             Msg::TestFull,
             Msg::Sensitivity(1.21),
-            Msg::SensitivityChanged { from: 1.0, to: 1.21 },
+            Msg::SensitivityChanged {
+                from: 1.0,
+                to: 1.21,
+            },
             Msg::SensitivityRevert,
             Msg::HelperKeysShadowed,
             Msg::Copied,
             Msg::SaveFailed,
-            Msg::Deleted { name: "Hồ sơ 2".into() },
+            Msg::Deleted {
+                name: "Hồ sơ 2".into(),
+            },
             Msg::Undo,
-            Msg::DraftRecovery { name: "Hồ sơ 1".into() },
+            Msg::DraftRecovery {
+                name: "Hồ sơ 1".into(),
+            },
             Msg::SavePrompt,
             Msg::Fix(Fix::OpenProfileList),
             Msg::Fix(Fix::ReadNotice),
@@ -626,12 +740,36 @@ impl Msg {
             Msg::NoticeAccept,
             Msg::StuckTitle,
             Msg::NewProfileName(3),
-            Msg::ControlName { kind: Kind::Button, n: 3 },
-            Msg::ControlName { kind: Kind::Joystick, n: 0 },
-            Msg::ControlName { kind: Kind::Joystick, n: 2 },
-            Msg::ControlName { kind: Kind::Look, n: 0 },
+            Msg::ControlName {
+                kind: Kind::Button,
+                n: 3,
+            },
+            Msg::ControlName {
+                kind: Kind::Joystick,
+                n: 0,
+            },
+            Msg::ControlName {
+                kind: Kind::Joystick,
+                n: 2,
+            },
+            Msg::ControlName {
+                kind: Kind::Look,
+                n: 0,
+            },
             Msg::SlotToggle,
             Msg::SlotPanic,
+            Msg::Repaired {
+                label: "Nút 1".into(),
+                field: RepairField::Radius,
+                from: 0.0,
+                to: 0.03,
+            },
+            Msg::Repaired {
+                label: "Camera".into(),
+                field: RepairField::ReleaseMs,
+                from: 90000.0,
+                to: 60000.0,
+            },
         ];
         for r in [
             PlayRefusal::NoProfile,
@@ -651,7 +789,10 @@ impl Msg {
             ProblemMsg::NotReadable,
             ProblemMsg::NewerVersion,
             ProblemMsg::BadVersion,
-            ProblemMsg::NameTooLong { text: a.clone(), max: 100 },
+            ProblemMsg::NameTooLong {
+                text: a.clone(),
+                max: 100,
+            },
             ProblemMsg::MouseOnToggle,
             ProblemMsg::TogglePanicSame,
             ProblemMsg::TooManyControls { max: 64 },
@@ -660,8 +801,15 @@ impl Msg {
             ProblemMsg::ReachRange,
             ProblemMsg::SensitivityRange,
             ProblemMsg::ReleaseRange,
-            ProblemMsg::UnknownKey { key: "KeyÀ".into(), label: a.clone() },
-            ProblemMsg::DuplicateKey { key: "KeyW".into(), a: a.clone(), b },
+            ProblemMsg::UnknownKey {
+                key: "KeyÀ".into(),
+                label: a.clone(),
+            },
+            ProblemMsg::DuplicateKey {
+                key: "KeyW".into(),
+                a: a.clone(),
+                b,
+            },
             ProblemMsg::SecondLook,
             ProblemMsg::NotUnderstood,
         ] {
@@ -680,7 +828,10 @@ impl Msg {
             MirrorlyAction::Fullscreen,
             MirrorlyAction::Rotate,
         ] {
-            v.push(Msg::Advice(Advice::ShadowsMirrorly { key: "F4".into(), action }));
+            v.push(Msg::Advice(Advice::ShadowsMirrorly {
+                key: "F4".into(),
+                action,
+            }));
         }
         for ad in [
             Advice::WindowsKey,
@@ -771,9 +922,10 @@ mod tests {
             Msg::ControlName { .. } => 47,
             Msg::SlotToggle => 48,
             Msg::SlotPanic => 49,
+            Msg::Repaired { .. } => 50,
         }
     }
-    const VARIANTS: usize = 50;
+    const VARIANTS: usize = 51;
 
     #[test]
     fn samples_cover_every_variant() {
@@ -812,14 +964,24 @@ mod tests {
         assert_eq!(Lang::default(), Lang::Vi);
         assert_eq!(Msg::Cancel.text(Lang::Vi), "Huỷ");
         assert_eq!(
-            Msg::KeyTaken { key: "KeyR".into(), owner: "Nạp đạn".into() }.text(Lang::Vi),
+            Msg::KeyTaken {
+                key: "KeyR".into(),
+                owner: "Nạp đạn".into()
+            }
+            .text(Lang::Vi),
             "Phím R đang dùng cho “Nạp đạn”."
         );
         assert_eq!(Msg::Sensitivity(1.21).text(Lang::Vi), "Độ nhạy chuột: 1,21");
-        assert_eq!(Msg::FooterRules.text(Lang::Vi), "1 phím = 1 lần chạm. Không macro.");
         assert_eq!(
-            Msg::Advice(Advice::ShadowsMirrorly { key: "F4".into(), action: MirrorlyAction::VolumeDown })
-                .text(Lang::Vi),
+            Msg::FooterRules.text(Lang::Vi),
+            "1 phím = 1 lần chạm. Không macro."
+        );
+        assert_eq!(
+            Msg::Advice(Advice::ShadowsMirrorly {
+                key: "F4".into(),
+                action: MirrorlyAction::VolumeDown
+            })
+            .text(Lang::Vi),
             "F4 cũng là phím tắt giảm âm lượng của Mirrorly; khi đang chơi nó sẽ là phím game."
         );
     }
@@ -829,7 +991,10 @@ mod tests {
         assert_eq!(PlayRefusal::Wifi.fix(), None);
         assert_eq!(PlayRefusal::BrokenProfile.fix(), Some(Fix::ShowHowToFix));
         assert_eq!(
-            PlayRefusal::Orientation { profile: Orientation::Landscape }.text(Lang::Vi),
+            PlayRefusal::Orientation {
+                profile: Orientation::Landscape
+            }
+            .text(Lang::Vi),
             "Hồ sơ này dành cho màn hình NGANG, hình đang DỌC."
         );
     }

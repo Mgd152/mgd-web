@@ -2,11 +2,20 @@
 
 use super::doc::EditDoc;
 use super::msg::{Advice, Lang, MirrorlyAction};
-use crate::keys::{is_known_key, is_mouse_button, KEY_NAMES};
+use crate::keys::{KEY_NAMES, is_known_key, is_mouse_button};
 
 /// Suggested button labels (Vietnamese).
 pub const LABEL_PRESETS_VI: &[&str] = &[
-    "Bắn", "Ngắm", "Nhảy", "Ngồi", "Nằm", "Nạp đạn", "Đổi súng", "Hồi máu", "Lựu đạn", "Nhặt đồ",
+    "Bắn",
+    "Ngắm",
+    "Nhảy",
+    "Ngồi",
+    "Nằm",
+    "Nạp đạn",
+    "Đổi súng",
+    "Hồi máu",
+    "Lựu đạn",
+    "Nhặt đồ",
     "Lên xe",
 ];
 
@@ -15,10 +24,42 @@ pub const HELPER_KEYS: [&str; 2] = ["BracketLeft", "BracketRight"];
 
 /// Order in which `free_key` proposes keys.
 pub const FREE_KEY_ORDER: &[&str] = &[
-    "Space", "KeyR", "KeyC", "KeyF", "KeyG", "KeyQ", "KeyE", "KeyX", "KeyZ", "KeyV", "KeyB",
-    "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9",
-    "Digit0", "ShiftLeft", "ControlLeft", "Tab", "KeyT", "KeyY", "KeyH", "KeyN", "KeyM", "KeyU",
-    "KeyI", "KeyO", "KeyP", "KeyJ", "KeyK", "KeyL",
+    "Space",
+    "KeyR",
+    "KeyC",
+    "KeyF",
+    "KeyG",
+    "KeyQ",
+    "KeyE",
+    "KeyX",
+    "KeyZ",
+    "KeyV",
+    "KeyB",
+    "Digit1",
+    "Digit2",
+    "Digit3",
+    "Digit4",
+    "Digit5",
+    "Digit6",
+    "Digit7",
+    "Digit8",
+    "Digit9",
+    "Digit0",
+    "ShiftLeft",
+    "ControlLeft",
+    "Tab",
+    "KeyT",
+    "KeyY",
+    "KeyH",
+    "KeyN",
+    "KeyM",
+    "KeyU",
+    "KeyI",
+    "KeyO",
+    "KeyP",
+    "KeyJ",
+    "KeyK",
+    "KeyL",
 ];
 
 /// Keys `free_key` never proposes: F-keys, Escape, Super, lock keys, helper keys.
@@ -159,7 +200,7 @@ pub fn key_advice(name: &str) -> Option<Advice> {
 mod tests {
     use super::*;
     use crate::keys::MOUSE_NAMES;
-    use crate::menu::templates::{template, Template};
+    use crate::menu::templates::{Template, template};
     use std::collections::HashSet;
 
     // test 47
@@ -170,7 +211,10 @@ mod tests {
             for n in KEY_NAMES.iter().chain(MOUSE_NAMES) {
                 let l = key_label(n, lang);
                 assert!(!l.is_empty(), "{n}");
-                assert!(seen.insert(l.clone()), "duplicate label {l} for {n} ({lang:?})");
+                assert!(
+                    seen.insert(l.clone()),
+                    "duplicate label {l} for {n} ({lang:?})"
+                );
             }
         }
     }
@@ -222,16 +266,15 @@ mod tests {
         .unwrap();
         assert_eq!(free_key(&doc), Some("Space"));
         let mut got = Vec::new();
-        while let Some(k) = free_key(&doc) {
+        while got.len() < 60 {
+            let k = free_key(&doc).unwrap();
             got.push(k);
-            doc.add(crate::menu::Kind::Button, crate::menu::Pt { x: 0.5, y: 0.5 })
-                .unwrap_or_else(|_| panic!("add failed after {} keys", got.len()));
-            if got.len() > 200 {
-                break;
-            }
+            doc.add(
+                crate::menu::Kind::Button,
+                crate::menu::Pt { x: 0.5, y: 0.5 },
+            )
+            .unwrap();
         }
-        // 64 controls max: free_key keeps returning keys until the cap, which is
-        // before the pool runs out; check what it gave is clean.
         for k in &got {
             assert!(!excluded_from_auto(k));
             assert!(!is_mouse_button(k));
@@ -250,10 +293,18 @@ mod tests {
     fn advice_cases() {
         assert!(matches!(
             key_advice("F4"),
-            Some(Advice::ShadowsMirrorly { action: MirrorlyAction::VolumeDown, .. })
+            Some(Advice::ShadowsMirrorly {
+                action: MirrorlyAction::VolumeDown,
+                ..
+            })
         ));
-        for f in ["F1", "F2", "F3", "F5", "F6", "F7", "F9", "F10", "F11", "F12"] {
-            assert!(matches!(key_advice(f), Some(Advice::ShadowsMirrorly { .. })), "{f}");
+        for f in [
+            "F1", "F2", "F3", "F5", "F6", "F7", "F9", "F10", "F11", "F12",
+        ] {
+            assert!(
+                matches!(key_advice(f), Some(Advice::ShadowsMirrorly { .. })),
+                "{f}"
+            );
         }
         assert_eq!(key_advice("F8"), None);
         assert_eq!(key_advice("SuperLeft"), Some(Advice::WindowsKey));

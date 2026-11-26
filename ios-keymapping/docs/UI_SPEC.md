@@ -37,6 +37,15 @@ golden scenes, the "ngón N/5" counter and the v1.1 engine ideas.
 | A5 | 5.1 `Engine` API | One additive method `set_look_tuning` (section 5.1). Later, optional: schema v2 (5.3). | Sensitivity tuning while playing. |
 | A6 | 7.4 toast texts (`Keymap on: ...`) and `set_title()` suffixes | Texts come from `Msg` in Vietnamese when the menu is in charge (not under `--keymap FILE`). | Same as A1. |
 
+**Approved by the lead 2026-11-26:**
+
+- A1-A6 are approved as written. The `lib.rs` line `pub mod menu;` is allowed
+  (the SPEC.md team is done with `lib.rs`).
+- `recenter: "handoff"` (5.3) is deferred to WP10 and not decided now.
+  Templates stay generic by genre (no game-specific profile).
+- The keymap stays refused on a Wi-Fi link (SPEC.md: iOS ignores
+  universalhidservice touch reports over Wi-Fi); `PlayRefusal::Wifi` stays.
+
 Not needed: any change to profile v1 for the v1 menu; any game-specific
 profile (SPEC 1 and 12 stay intact: templates are generic layouts by genre,
 see 2.2).
@@ -1730,6 +1739,77 @@ is: `Profile`, `Control`, `Engine`, `View`, `keys::*`. None rewrites it.
 | **WP9 Window growth** | `View.reserved_right`, `mapper()`, `apply_size()`, side layout; optional freeze frame by texture copy | WP6 | test 52 (`Side`); CI compiles; marked unverified until a hardware session confirms touch mapping still matches (test 86 covers the model side only) |
 | **WP10 Schema v2** | 5.3: `y_ratio`, `freelook`, optionally `recenter: handoff` (only with the lead's decision); version rule; SPEC.md update; vectors; `keymap-sim`; browser editor; dock UI | SPEC.md team finished; WP4 | new engine/profile tests for each rule of 5.3; v1 vectors unchanged; writers emit v1 when no v2 feature is used; editor Playwright test extended |
 | **WP11 User docs + hardware checklist** | Vietnamese `README` section and `BAO_CAO.md` update: what was run, what is unverified; a step-by-step checklist for the user (touch-test app first: 1-5 fingers, joystick, camera re-center, tap vs hold, F8, focus loss, unplug, rotation; overlay cost measurement) | WP5+ | docs reviewed; no claim without a cited run |
+
+### Implementation notes (WP1, 2026-11-26)
+
+Where the spec was ambiguous or silent, and what the code does. All of it is
+additive; nothing in SPEC.md or the existing public API changed.
+
+1. **Where shared types live.** `CtrlId`, `Pt`, `PxRect`, `Dir`, `Mods` and
+   the constants of 6.1 are in `menu/mod.rs`. `EditView` (and its methods)
+   belongs to `hit.rs` and arrives with WP2.
+2. **Types that 6.9 puts in `lint.rs` / 6.2 puts in `shell.rs`** but that
+   `Msg` and `capture.rs` need now are defined in `msg.rs`: `Advice`,
+   `MirrorlyAction`, `ProblemMsg`, `PlayRefusal` (plus a small `Fix` enum for
+   the fix button of 3.8). `key_advice` is in `keynames.rs`. WP2/WP4 re-export
+   or use them; they must not define second copies.
+3. **`Advice::OrientationMismatch` and `PlayRefusal::Orientation`** carry the
+   profile's orientation (`OrientationMismatch { profile }`), because the text
+   names both orientations; the picture's is the other one by definition.
+4. **`Msg` coverage.** One variant per sentence of sections 2-4 and 6.9, plus
+   `Msg::PlayOff` (`Đã tắt bàn phím.`, an invented text for the toast SPEC 7.4
+   shows when Play ends) and `Msg::Slot*` / `Msg::ControlName` for names.
+   Button captions of later screens (Hub buttons, dock labels) are not in
+   `Msg` yet; WP4 adds variants as it draws them. `Msg::all_samples()` is a
+   public, non-test function so later modules can reuse it; a test keeps it
+   complete (an exhaustive `match` over variants).
+5. **Character budgets (test 46)** are `Msg::budget()`: 110 chars for toasts
+   and short lines, 150 for advice/problems/long toasts, 200 for guide steps,
+   260 for notice bullets; checked in both languages.
+6. **Control display names.** An unlabeled control is `Nút N` (N = position
+   among buttons), `Cần di chuyển` (with ` N` only if there is more than one
+   joystick), `Xoay camera`. `EditDoc::display_name` / `slot_name` build them;
+   `Msg::KeyTaken.owner` is that string, so `Capture::message(doc, lang)`
+   builds the conflict sentence.
+7. **`KeyPreset`** has only `Wasd` and `Arrows`, as specified. The IJKL and
+   TFGH sets are used internally by `add`/`duplicate` only.
+8. **`EditDoc` details.** Ids are `1..` at load and never reused in a session
+   (`next` is part of the cloned state, so undo restores it). `move_to` ignores a
+   non-finite coordinate per axis. `duplicate` copies the label unchanged.
+   A bind on a slot whose control has the wrong kind is `WrongKind`; on a
+   missing control `NoSuchControl`. `from_profile` does not round existing
+   numbers (so load -> undo-all is exact); only mutators round.
+9. **History.** `begin` pushes the snapshot immediately and `end` drops it if
+   the document is unchanged (restoring the redo stack). Coalescing windows
+   slide: each event is compared with the previous one (`<= 400 / 500 / 1000`
+   ms). `Drag` and `Slider(n)` coalesce only between `begin` and `end`.
+   `mark_saved` ends coalescing so edits after a save are a new step. `undo`
+   returns the selection from before the step; `redo` returns that same
+   selection (the selection after the step is not known to `History`); an id
+   that no longer exists is returned as `None`. `History::new` ignores its doc
+   argument.
+10. **Capture.** `key()` with a mouse name delegates to `mouse()`. A second Esc
+    binds when `now <= first + 1500` (1499 binds, 1501 re-arms). In a conflict
+    prompt Enter and NumpadEnter swap, Esc cancels, other keys are ignored,
+    and a click on the `Huỷ` chip cancels in any state. `Unchanged` is reported
+    as `Bound` (the editor's `History::end` then drops the empty step).
+    Advice for `F9` is the latency-probe text although F9 is blocked in Play
+    anyway; F8 has none.
+11. **`free_key`.** Besides the documented order it excludes F-keys, Escape,
+    `Super*`, `CapsLock`/`NumLock`/`ScrollLock` and the helper keys. `AltLeft`
+    and the other remaining names are eligible in the fallback pass, as the
+    spec says. `free_key_excluding` is the same with an extra skip list.
+12. **Templates.** `template()` sets `name` to the template label; the store
+    (WP3) renames it to `Hồ sơ N`. `Template::Empty(o)` keeps the default
+    toggle/panic keys. Basic landscape/portrait button labels are empty (shown
+    as `Nút N`); portrait positions are our own choice (spec gives none).
+    The 0.06 edge rule is tested on control centres; ring and camera-box
+    extents are tested to stay inside the picture for a 19.5:9 phone.
+13. **`TextEdit`** works on `char`s, not grapheme clusters: backspace on a
+    decomposed `ệ` removes one combining mark at a time; precomposed letters
+    are one char. `new` also drops control characters and truncates.
+14. **Edition.** The workspace is on edition 2024; the new code avoids
+    let-chains so it also builds under older editions.
 
 Cut line if time runs out: WP1-WP6 are the usable product (Hub, guided
 editing on the live picture, Test, Play with toast only and overlay `Tắt`).

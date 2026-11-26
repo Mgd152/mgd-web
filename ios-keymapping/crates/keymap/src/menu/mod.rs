@@ -7,23 +7,36 @@
 
 pub mod capture;
 pub mod doc;
+pub mod drag;
+pub mod hit;
 pub mod history;
 pub mod keynames;
+pub mod lint;
 pub mod msg;
+pub mod prefs;
+pub mod store;
 pub mod templates;
 pub mod text;
 
 pub use capture::{Capture, CaptureResult, CaptureState};
-pub use doc::{BindOutcome, EditDoc, EditError, Kind, KeyPreset, Slot};
+pub use doc::{BindOutcome, EditDoc, EditError, KeyPreset, Kind, Slot};
+pub use drag::{Axis, Drag, DragEnd, DragUpdate, resize_value};
+pub use hit::{EditView, Hit, cap_rects, handle_pos, hit_test};
 pub use history::{Gesture, History};
-pub use keynames::{
-    free_key, key_advice, key_label, LABEL_PRESETS_VI,
-};
+pub use keynames::{LABEL_PRESETS_VI, free_key, key_advice, key_label};
+pub use lint::{Env, Lint, Link, explain, explain_in, explain_json_error, lints};
 pub use msg::{
-    fmt_num, Advice, Fix, Lang, MirrorlyAction, Msg, PlayRefusal, ProblemMsg,
+    Advice, Fix, Lang, MirrorlyAction, Msg, PlayRefusal, ProblemMsg, RepairField, fmt_num,
 };
-pub use templates::{template, Template};
+pub use prefs::{Overlay, UiPrefs};
+pub use store::{
+    Entry, Fs, FsError, FsOp, Health, MemFs, ProfileStore, StoreError, TrashToken, repair_ranges,
+    slugify,
+};
+pub use snap::{Guide, in_edge_band, snap_move};
+pub use templates::{Template, template};
 pub use text::TextEdit;
+pub use tracker::{HeldTracker, TouchDots, dots_from_frame};
 
 /// Stable id of a control during one editing session; never serialized.
 pub type CtrlId = u32;
