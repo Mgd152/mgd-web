@@ -259,6 +259,8 @@ if ($Build) {
         }
         $env:PATH = "$Dest\third_party\ffmpeg\bin;$env:PATH"
 
+        # cargo prints progress on stderr; with 2>&1 that would throw under 'Stop'. $LASTEXITCODE is checked below.
+        $ErrorActionPreference = 'Continue'
         $steps = 'cargo test -p keymap -p input -p device && cargo build --release -p app && cargo build --release -p keymap --bin keymap-sim'
         if ($env:VCINSTALLDIR) {
             # Already inside a Developer prompt (or CI's msvc-dev-cmd step).
