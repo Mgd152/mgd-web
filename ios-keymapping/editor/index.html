@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trình soạn keymap iPhone</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --ink:#1b1f24; --muted:#4a5560; --line:#c9cfd6;
+  --accent:#0b5cad; --accent-ink:#ffffff; --err:#b3261e; --ok:#1a6b34; --warn-bg:#fff4d6; --warn-line:#8a6100;
+  --joy:#0b5cad; --look:#8a3ea8; --btn:#b45309;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+header{padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0 0 6px}
+h2{font-size:15px;margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}
+.scope{background:var(--warn-bg);border:1px solid var(--warn-line);padding:6px 10px;border-radius:6px;font-size:13px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;padding:12px 16px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--err)}
+:focus-visible{outline:3px solid #ffb000;outline-offset:1px}
+input[type=text],input[type=number],select,textarea{width:100%;background:#fff;border:1px solid var(--line);border-radius:5px;padding:4px 6px}
+input[type=number]{max-width:130px}
+input[aria-invalid=true],select[aria-invalid=true]{border-color:var(--err);background:#fff6f5}
+.wrap{display:flex;justify-content:center;align-items:center;height:calc(100vh - 170px);min-height:380px;background:#dfe3e8;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stage{position:relative;background:#222 repeating-linear-gradient(45deg,#2a2f36 0 12px,#252a30 12px 24px);border:1px solid #000;touch-action:none;user-select:none}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.stage.drop{outline:4px dashed var(--accent)}
+.ph{position:absolute;left:0;right:0;top:50%;text-align:center;color:#b8c0c8;font-size:13px;pointer-events:none;transform:translateY(-50%);padding:0 20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+@media (max-width:900px){.panel{max-height:none}}
+.row{margin:6px 0}
+.row>label,.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
+.inline{display:flex;gap:6px;align-items:center}
+.err{color:var(--err);font-size:12.5px;min-height:0}
+.err:empty{display:none}
+.list{display:flex;flex-direction:column;gap:3px}
+.list button{text-align:left;display:flex;justify-content:space-between;gap:6px}
+.list button[aria-pressed=true]{border-color:var(--accent);background:#e8f1fb}
+.badge{color:var(--err);font-weight:600}
+.keybtn{min-width:110px;font-family:ui-monospace,Consolas,monospace}
+.keybtn.cap{border-color:#b45309;background:#fff1de}
+.summary{margin:4px 0;padding-left:18px;font-size:13px}
+.summary li{color:var(--err);cursor:pointer}
+.status-ok{color:var(--ok);font-weight:600}
+.status-bad{color:var(--err);font-weight:600}
+#notice{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:6px;padding:4px 8px;margin:6px 0;font-size:13px}
+#notice:empty{display:none}
+#capbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#1b1f24;color:#fff;padding:10px 14px;border-radius:8px;display:none;gap:10px;align-items:center;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#capbar.on{display:flex}
+#capbar button{color:#1b1f24}
+textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:120px;resize:vertical}
+.small{font-size:12.5px;color:var(--muted)}
+.sr{position:absolute;left:-9999px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Trình soạn keymap iPhone</h1>
+  <div class="scope" role="note">
+    <strong>Phạm vi:</strong> một phím bấm = một thao tác chạm của người chơi. Công cụ này không có macro, tự bấm, tự ngắm hay lặp phím.
+    Hãy tự kiểm tra luật của game/ứng dụng trước khi dùng keymap, và thử bằng ứng dụng kiểm tra đa chạm (không thử trên game thi đấu).
+  </div>
+</header>
+<main>
+  <section aria-label="Khu vực thiết kế">
+    <div class="toolbar">
+      <button id="addJoystick" type="button">+ Joystick</button>
+      <button id="addLook" type="button">+ Camera (look)</button>
+      <button id="addButton" type="button">+ Nút</button>
+      <span style="flex:1"></span>
+      <label class="small" for="imgFile">Ảnh nền:</label>
+      <input id="imgFile" type="file" accept="image/*" style="max-width:210px">
+      <button id="clearImg" type="button">Bỏ ảnh</button>
+    </div>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <div class="wrap" id="wrap">
+      <div class="stage" id="stage" aria-label="Khung ảnh màn hình iPhone">
+        <img id="bg" alt="" hidden>
+        <div class="ph" id="ph">Kéo thả ảnh chụp màn hình (Mirrorly F6 lưu vào Pictures\Mirrorly) vào đây, hoặc chọn ảnh nền ở trên.</div>
+        <svg id="svg" role="group" aria-label="Các điều khiển"></svg>
+      </div>
+    </div>
+    <p class="small">Kéo điều khiển để di chuyển; kéo chấm tròn nhỏ để đổi bán kính joystick / tầm với của camera. Chọn một điều khiển rồi dùng phím mũi tên (Shift = bước lớn) hoặc Delete.</p>
+  </section>
+
+  <aside class="panel" aria-label="Thuộc tính">
+    <h2 style="margin-top:0">Hồ sơ</h2>
+    <div class="row"><label for="pf_name">Tên</label><input type="text" id="pf_name" data-pf="name"><div class="err" data-err="name"></div></div>
+    <div class="row"><label for="pf_app">Ứng dụng / game (ghi chú)</label><input type="text" id="pf_app" data-pf="app"><div class="err" data-err="app"></div></div>
+    <div class="row"><label for="pf_orientation">Hướng màn hình</label>
+      <select id="pf_orientation" data-pf="orientation"><option value="portrait">Dọc (portrait)</option><option value="landscape">Ngang (landscape)</option></select>
+      <div class="err" data-err="orientation"></div></div>
+    <div class="grid2">
+      <div class="row"><span class="lbl">Phím bật/tắt keymap</span><button type="button" class="keybtn" data-kt="p:toggle_key" id="kb_toggle"></button><div class="err" data-err="toggle_key"></div></div>
+      <div class="row"><span class="lbl">Phím dừng khẩn cấp</span><button type="button" class="keybtn" data-kt="p:panic_key" id="kb_panic"></button><div class="err" data-err="panic_key"></div></div>
+    </div>
+
+    <h2>Điều khiển</h2>
+    <div class="list" id="ctlList"></div>
+    <div class="err" data-err="controls"></div>
+    <div id="ctlPanel"></div>
+
+    <h2>Kiểm tra hợp lệ</h2>
+    <div id="vstatus" role="status" aria-live="polite"></div>
+    <ul class="summary" id="vlist"></ul>
+
+    <h2>Nhập / xuất JSON</h2>
+    <div class="toolbar">
+      <button type="button" id="btnDownload" class="primary">Tải xuống .json</button>
+      <button type="button" id="btnCopy">Sao chép</button>
+      <button type="button" id="btnNew">Hồ sơ mới</button>
+    </div>
+    <div class="row"><label for="jsonFile">Nhập từ tệp .json</label><input type="file" id="jsonFile" accept=".json,application/json"></div>
+    <div class="row"><label for="jsonOut">JSON (xem trước / dán để nhập)</label>
+      <textarea id="jsonOut" spellcheck="false"></textarea></div>
+    <div class="toolbar"><button type="button" id="btnPaste">Nhập từ văn bản trong ô trên</button></div>
+    <div id="importMsg" class="small" role="status" aria-live="polite"></div>
+  </aside>
+</main>
+<div id="capbar" role="alert"><span id="capmsg"></span><button type="button" id="capcancel" data-cancel>Hủy</button></div>
+
+<script>
+'use strict';
+/* ---------- key tables (mirror of crates/keymap/src/keys.rs) ---------- */
+const KEY_NAMES = (function () {
+  const k = [];
+  for (let c = 65; c <= 90; c++) k.push('Key' + String.fromCharCode(c));
+  for (let i = 0; i <= 9; i++) k.push('Digit' + i);
+  for (let i = 1; i <= 24; i++) k.push('F' + i);
+  k.push('Space','Tab','Enter','Escape','Backspace','CapsLock','ContextMenu');
+  k.push('ShiftLeft','ShiftRight','ControlLeft','ControlRight','AltLeft','AltRight','SuperLeft','SuperRight');
+  k.push('Backquote','Minus','Equal','BracketLeft','BracketRight','Backslash','Semicolon','Quote','Comma','Period','Slash','IntlBackslash');
+  k.push('ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Insert','Delete','Home','End','PageUp','PageDown');
+  k.push('NumLock');
+  for (let i = 0; i <= 9; i++) k.push('Numpad' + i);
+  k.push('NumpadAdd','NumpadSubtract','NumpadMultiply','NumpadDivide','NumpadDecimal','NumpadEnter');
+  k.push('ScrollLock','Pause');
+  return k;
+})();
+const MOUSE_NAMES = ['MouseLeft','MouseRight','MouseMiddle','MouseBack','MouseForward'];
+const KEY_SET = new Set(KEY_NAMES), MOUSE_SET = new Set(MOUSE_NAMES);
+const isKnownKey = n => KEY_SET.has(n) || MOUSE_SET.has(n);
+const isMouse = n => MOUSE_SET.has(n);
+const CODE_ALIAS = { MetaLeft:'SuperLeft', MetaRight:'SuperRight', OSLeft:'SuperLeft', OSRight:'SuperRight' };
+const MOUSE_BY_BUTTON = ['MouseLeft','MouseMiddle','MouseRight','MouseBack','MouseForward'];
+const DEFAULT_TOGGLE = 'Backquote', DEFAULT_PANIC = 'F8';
+const MAX_CONTROLS = 64, MAX_NAME = 100, MAX_LABEL = 40, MAX_RELEASE = 60000;
+
+/* ---------- helpers ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r4 = v => Math.round(v * 10000) / 10000;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const clen = s => Array.from(String(s)).length;
+function keyLabel(n) {
+  if (!n) return '—';
+  if (/^Key[A-Z]$/.test(n)) return n.slice(3);
+  if (/^Digit\d$/.test(n)) return n.slice(5);
+  const m = { ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→', MouseLeft:'M-L', MouseRight:'M-R', MouseMiddle:'M-M', MouseBack:'M-B', MouseForward:'M-F' };
+  return m[n] || n;
+}
+
+/* ---------- model ---------- */
+let nextId = 1;
+const state = {
+  profile: newProfile('portrait'),
+  sel: null,
+  img: null,           // {url, w, h}
+};
+function newProfile(orientation) {
+  return { version: 1, name: '', app: '', orientation, toggle_key: DEFAULT_TOGGLE, panic_key: DEFAULT_PANIC, controls: [] };
+}
+function mkControl(type, fields) {
+  const base = { _id: nextId++, type, label: '', x: 0.5, y: 0.5 };
+  if (type === 'joystick') Object.assign(base, { radius: 0.12, up: '', down: '', left: '', right: '' });
+  if (type === 'look') Object.assign(base, { sensitivity: 1, invert_y: false, reach: 0.3, release_after_ms: 0 });
+  if (type === 'button') Object.assign(base, { key: '', mode: 'hold' });
+  return Object.assign(base, fields || {});
+}
+const ctlById = id => state.profile.controls.find(c => c._id === id);
+const ctlIndex = id => state.profile.controls.findIndex(c => c._id === id);
+const hasLook = () => state.profile.controls.some(c => c.type === 'look');
+
+/* ---------- validation (mirror of profile.rs problems()) ---------- */
+function boundKeys(p) {
+  const v = [['toggle_key', p.toggle_key], ['panic_key', p.panic_key]];
+  p.controls.forEach((c, i) => {
+    if (c.type === 'joystick') ['up','down','left','right'].forEach(f => v.push([`controls[${i}].${f}`, c[f]]));
+    else if (c.type === 'button') v.push([`controls[${i}].key`, c.key]);
+  });
+  return v;
+}
+function problems(p) {
+  const out = [];
+  const add = (path, message) => out.push({ path, message });
+  const num = v => typeof v === 'number' && Number.isFinite(v);
+  const unit = (path, v) => { if (!(num(v) && v >= 0 && v <= 1)) add(path, `phải nằm trong [0, 1], hiện là ${fmt(v)}`); };
+  const range = (path, v, max) => { if (!(num(v) && v > 0 && v <= max)) add(path, `phải nằm trong (0, ${max}], hiện là ${fmt(v)}`); };
+  const len = (path, s, max) => { const n = clen(s); if (n > max) add(path, `tối đa ${max} ký tự, hiện là ${n}`); };
+  const key = (path, k) => { if (!isKnownKey(k)) add(path, k ? `phím không hợp lệ "${k}"` : 'chưa gán phím (unknown key "")'); };
+  const kbd = (path, k) => {
+    if (!isKnownKey(k)) add(path, k ? `phím không hợp lệ "${k}"` : 'chưa gán phím (unknown key "")');
+    else if (isMouse(k)) add(path, `phải là phím bàn phím, hiện là "${k}"`);
+  };
+  if (p.version !== 1) add('version', `phải bằng 1, hiện là ${p.version}`);
+  len('name', p.name, MAX_NAME);
+  len('app', p.app, MAX_NAME);
+  kbd('toggle_key', p.toggle_key);
+  kbd('panic_key', p.panic_key);
+  if (p.controls.length > MAX_CONTROLS) add('controls', `tối đa ${MAX_CONTROLS} điều khiển, hiện là ${p.controls.length}`);
+  let firstLook = -1;
+  p.controls.forEach((c, i) => {
+    const f = n => `controls[${i}].${n}`;
+    len(f('label'), c.label, MAX_LABEL);
+    unit(f('x'), c.x); unit(f('y'), c.y);
+    if (c.type === 'joystick') {
+      range(f('radius'), c.radius, 0.5);
+      ['up','down','left','right'].forEach(n => key(f(n), c[n]));
+    } else if (c.type === 'look') {
+      range(f('sensitivity'), c.sensitivity, 100);
+      range(f('reach'), c.reach, 1);
+      if (!(Number.isInteger(c.release_after_ms) && c.release_after_ms >= 0 && c.release_after_ms <= MAX_RELEASE))
+        add(f('release_after_ms'), `phải là số nguyên trong 0..${MAX_RELEASE}, hiện là ${fmt(c.release_after_ms)}`);
+      if (firstLook >= 0) add(`controls[${i}]`, 'chỉ được có một điều khiển look (only one look control is allowed)');
+      else firstLook = i;
+    } else if (c.type === 'button') {
+      key(f('key'), c.key);
+    }
+  });
+  const seen = [];
+  for (const [path, k] of boundKeys(p)) {
+    if (!isKnownKey(k)) continue;
+    const first = seen.find(s => s[1] === k);
+    if (first) add(path, `phím "${k}" đã được dùng ở ${first[0]}`);
+    else seen.push([path, k]);
+  }
+  return out;
+}
+function fmt(v) { return typeof v === 'number' ? (Number.isNaN(v) ? 'NaN/trống' : String(v)) : JSON.stringify(v); }
+
+/* ---------- export / import ---------- */
+function exportObject(p) {
+  const o = { version: p.version, name: p.name, app: p.app, orientation: p.orientation, toggle_key: p.toggle_key, panic_key: p.panic_key, controls: [] };
+  for (const c of p.controls) {
+    if (c.type === 'joystick') o.controls.push({ type:'joystick', label:c.label, x:r4(c.x), y:r4(c.y), radius:r4(c.radius), up:c.up, down:c.down, left:c.left, right:c.right });
+    else if (c.type === 'look') o.controls.push({ type:'look', label:c.label, x:r4(c.x), y:r4(c.y), sensitivity:r4(c.sensitivity), invert_y:!!c.invert_y, reach:r4(c.reach), release_after_ms:c.release_after_ms });
+    else o.controls.push({ type:'button', label:c.label, x:r4(c.x), y:r4(c.y), key:c.key, mode:c.mode });
+  }
+  return o;
+}
+function exportText(p) { return JSON.stringify(exportObject(p), null, 2) + '\n'; }
+
+const FIELDS = {
+  joystick: { req: ['x','y','radius','up','down','left','right'], opt: ['label'] },
+  look: { req: ['x','y'], opt: ['label','sensitivity','invert_y','reach','release_after_ms'] },
+  button: { req: ['x','y','key'], opt: ['label','mode'] },
+};
+const FIELD_TYPE = { label:'string', x:'number', y:'number', radius:'number', up:'string', down:'string', left:'string', right:'string',
+  sensitivity:'number', invert_y:'boolean', reach:'number', release_after_ms:'uint', key:'string', mode:'mode' };
+/* Structural parse. Returns {profile} or {fatal} ("<json>" class errors). */
+function parseProfile(text) {
+  text = String(text).replace(/^﻿/, '');
+  let o;
+  try { o = JSON.parse(text); } catch (e) { return { fatal: 'JSON không hợp lệ: ' + e.message }; }
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const bad = m => ({ fatal: m });
+  if (!isObj(o)) return bad('Gốc phải là một đối tượng JSON');
+  const top = ['version','name','app','orientation','toggle_key','panic_key','controls'];
+  for (const k of Object.keys(o)) if (!top.includes(k)) return bad(`Trường không xác định "${k}"`);
+  if (!('version' in o)) return bad('Thiếu trường "version"');
+  if (!Number.isInteger(o.version) || o.version < 0) return bad('"version" phải là số nguyên không âm');
+  if (!('orientation' in o)) return bad('Thiếu trường "orientation"');
+  if (o.orientation !== 'portrait' && o.orientation !== 'landscape') return bad('"orientation" phải là "portrait" hoặc "landscape"');
+  for (const k of ['name','app','toggle_key','panic_key']) if (k in o && typeof o[k] !== 'string') return bad(`"${k}" phải là chuỗi`);
+  if ('controls' in o && !Array.isArray(o.controls)) return bad('"controls" phải là mảng');
+  const p = newProfile(o.orientation);
+  p.version = o.version; p.name = o.name ?? ''; p.app = o.app ?? '';
+  p.toggle_key = o.toggle_key ?? DEFAULT_TOGGLE; p.panic_key = o.panic_key ?? DEFAULT_PANIC;
+  const list = o.controls || [];
+  for (let i = 0; i < list.length; i++) {
+    const c = list[i];
+    if (!isObj(c)) return bad(`controls[${i}] phải là đối tượng`);
+    const spec = FIELDS[c.type];
+    if (!spec) return bad(`controls[${i}]: "type" không xác định`);
+    for (const k of Object.keys(c)) if (k !== 'type' && !spec.req.includes(k) && !spec.opt.includes(k)) return bad(`controls[${i}]: trường không xác định "${k}"`);
+    for (const k of spec.req) if (!(k in c)) return bad(`controls[${i}]: thiếu trường "${k}"`);
+    for (const k of Object.keys(c)) {
+      if (k === 'type') continue;
+      const t = FIELD_TYPE[k], v = c[k];
+      const ok = t === 'string' ? typeof v === 'string' : t === 'number' ? typeof v === 'number' : t === 'boolean' ? typeof v === 'boolean'
+        : t === 'uint' ? (Number.isInteger(v) && v >= 0) : (v === 'hold' || v === 'tap');
+      if (!ok) return bad(`controls[${i}].${k}: sai kiểu dữ liệu`);
+    }
+    const ctl = mkControl(c.type);
+    for (const k of Object.keys(c)) if (k !== 'type') ctl[k] = c[k];
+    p.controls.push(ctl);
+  }
+  return { profile: p };
+}
+
+/* ---------- stage ---------- */
+const stage = $('#stage'), svg = $('#svg'), bg = $('#bg'), wrap = $('#wrap');
+function aspect() {
+  const o = state.profile.orientation;
+  if (state.img && imgMatches()) return state.img.w / state.img.h;
+  return o === 'landscape' ? 19.5 / 9 : 9 / 19.5;
+}
+function imgMatches() {
+  if (!state.img) return false;
+  return (state.img.w > state.img.h) === (state.profile.orientation === 'landscape');
+}
+let SW = 100, SH = 100;
+function layout() {
+  const a = aspect();
+  const aw = Math.max(120, wrap.clientWidth - 16), ah = Math.max(120, wrap.clientHeight - 16);
+  let w = Math.min(aw, ah * a), h = w / a;
+  stage.style.width = Math.round(w) + 'px';
+  stage.style.height = Math.round(h) + 'px';
+  SW = Math.round(w); SH = Math.round(h);
+}
+function renderStage() {
+  layout();
+  const showImg = state.img && imgMatches();
+  bg.hidden = !showImg;
+  if (showImg) bg.src = state.img.url;
+  $('#ph').hidden = !!showImg;
+  svg.setAttribute('viewBox', `0 0 ${SW} ${SH}`);
+  const short = Math.min(SW, SH);
+  let h = '';
+  const order = state.profile.controls.slice().sort((a, b) => (a._id === state.sel) - (b._id === state.sel));
+  for (const c of order) {
+    const i = ctlIndex(c._id), sel = c._id === state.sel;
+    const cx = c.x * SW, cy = c.y * SH;
+    const col = c.type === 'joystick' ? 'var(--joy)' : c.type === 'look' ? 'var(--look)' : 'var(--btn)';
+    const stroke = sel ? '#ffb000' : '#fff';
+    let g = `<g data-ctl="${c._id}" tabindex="0" role="button" aria-label="${esc(c.type)} ${i + 1} ${esc(c.label)}" style="cursor:move">`;
+    if (c.type === 'joystick') {
+      const R = c.radius * short;
+      g += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${col}" fill-opacity=".35" stroke="${stroke}" stroke-width="${sel ? 3 : 2}" stroke-dasharray="6 4"/>`;
+      g += `<circle cx="${cx}" cy="${cy}" r="5" fill="#fff"/>`;
+      const t = (dx, dy, k) => `<text x="${cx + dx}" y="${cy + dy}" fill="#fff" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(keyLabel(k))}</text>`;
+      g += t(0, -R * 0.62, c.up) + t(0, R * 0.62, c.down) + t(-R * 0.62, 0, c.left) + t(R * 0.62, 0, c.right);
+      g += `</g>`;
+      if (sel) g += `<circle data-handle="${c._id}" cx="${cx + R}" cy="${cy}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:ew-resize"/>`;
+    } else if (c.type === 'look') {
+      const R = c.reach * short;
+      g += `<rect x="${cx - R}" y="${cy - R}" width="${2 * R}" height="${2 * R}" fill="${col}" fill-opacity=".25" stroke="${stroke}" stroke-width="${sel ? 3 : 2}" stroke-dasharray="6 4"/>`;
+      g += `<path d="M${cx - 12} ${cy}H${cx + 12}M${cx} ${cy - 12}V${cy + 12}" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="5" fill="#fff"/>`;
+      g += `<text x="${cx}" y="${cy - 18}" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(c.label || 'Camera')}</text>`;
+      g += `</g>`;
+      if (sel) g += `<circle data-handle="${c._id}" cx="${cx + R}" cy="${cy + R}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:nwse-resize"/>`;
+    } else {
+      g += `<circle cx="${cx}" cy="${cy}" r="22" fill="${col}" fill-opacity=".55" stroke="${stroke}" stroke-width="${sel ? 3 : 2}"/>`;
+      g += `<text x="${cx}" y="${cy}" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(keyLabel(c.key))}</text>`;
+      if (c.mode === 'tap') g += `<text x="${cx}" y="${cy + 34}" fill="#fff" font-size="10" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="3">tap</text>`;
+      g += `</g>`;
+    }
+    h += g;
+  }
+  svg.innerHTML = h;
+}
+new ResizeObserver(() => renderStage()).observe(wrap);
+
+/* drag */
+let drag = null;
+function stagePos(e) {
+  const r = svg.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+}
+svg.addEventListener('pointerdown', e => {
+  const handle = e.target.closest('[data-handle]');
+  const g = e.target.closest('[data-ctl]');
+  if (handle) {
+    drag = { kind: 'resize', id: +handle.dataset.handle };
+  } else if (g) {
+    const id = +g.dataset.ctl, c = ctlById(id), p = stagePos(e);
+    drag = { kind: 'move', id, dx: c.x - p.x, dy: c.y - p.y };
+    select(id, true);
+  } else {
+    drag = null; select(null);
+    return;
+  }
+  svg.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+svg.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const c = ctlById(drag.id); if (!c) return;
+  const p = stagePos(e), short = Math.min(SW, SH);
+  if (drag.kind === 'move') {
+    c.x = r4(clamp(p.x + drag.dx, 0, 1)); c.y = r4(clamp(p.y + drag.dy, 0, 1));
+  } else if (c.type === 'joystick') {
+    const d = Math.hypot((p.x - c.x) * SW, (p.y - c.y) * SH) / short;
+    c.radius = r4(clamp(d, 0.01, 0.5));
+  } else if (c.type === 'look') {
+    const d = Math.max(Math.abs(p.x - c.x) * SW, Math.abs(p.y - c.y) * SH) / short;
+    c.reach = r4(clamp(d, 0.01, 1));
+  }
+  refresh({ keepPanel: true });
+});
+const endDrag = () => { drag = null; };
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('keydown', e => {
+  const g = e.target.closest('[data-ctl]'); if (!g) return;
+  const c = ctlById(+g.dataset.ctl); if (!c) return;
+  const step = e.shiftKey ? 0.02 : 0.005;
+  let handled = true;
+  if (e.key === 'ArrowLeft') c.x = r4(clamp(c.x - step, 0, 1));
+  else if (e.key === 'ArrowRight') c.x = r4(clamp(c.x + step, 0, 1));
+  else if (e.key === 'ArrowUp') c.y = r4(clamp(c.y - step, 0, 1));
+  else if (e.key === 'ArrowDown') c.y = r4(clamp(c.y + step, 0, 1));
+  else if (e.key === 'Delete') { deleteControl(c._id); return e.preventDefault(); }
+  else handled = false;
+  if (handled) { e.preventDefault(); state.sel = c._id; refresh({ keepPanel: true }); const n = svg.querySelector(`[data-ctl="${c._id}"]`); if (n) n.focus(); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(c._id); }
+});
+
+/* ---------- selection / panel ---------- */
+function select(id, keepFocus) {
+  state.sel = id;
+  renderPanel();
+  renderStage();
+  renderList();
+  updateErrors();
+}
+function renderList() {
+  const list = $('#ctlList');
+  const names = { joystick: 'Joystick', look: 'Camera', button: 'Nút' };
+  const bad = new Set(problems(state.profile).map(p => (/^controls\[(\d+)\]/.exec(p.path) || [])[1]).filter(Boolean));
+  list.innerHTML = state.profile.controls.map((c, i) =>
+    `<button type="button" data-pick="${c._id}" aria-pressed="${c._id === state.sel}"><span>${i + 1}. ${names[c.type]}${c.label ? ' — ' + esc(c.label) : ''}</span>${bad.has(String(i)) ? '<span class="badge" title="Có lỗi">!</span>' : ''}</button>`).join('')
+    || '<div class="small">Chưa có điều khiển nào. Dùng các nút “+” phía trên.</div>';
+  $('#addLook').disabled = hasLook();
+  $('#addLook').title = hasLook() ? 'Chỉ được có một điều khiển look' : '';
+}
+$('#ctlList').addEventListener('click', e => {
+  const b = e.target.closest('[data-pick]'); if (b) select(+b.dataset.pick);
+});
+
+function fieldNum(c, f, label, step, min, max) {
+  const i = ctlIndex(c._id), v = Number.isNaN(c[f]) ? '' : c[f];
+  return `<div class="row"><label for="f_${f}">${label}</label><input type="number" id="f_${f}" data-f="${f}" value="${v}" step="${step}"${min !== undefined ? ` min="${min}"` : ''}${max !== undefined ? ` max="${max}"` : ''}><div class="err" data-err="controls[${i}].${f}"></div></div>`;
+}
+function fieldKey(c, f, label) {
+  const i = ctlIndex(c._id);
+  return `<div class="row"><span class="lbl">${label}</span><div class="inline"><button type="button" class="keybtn" data-kt="c:${c._id}:${f}" data-label="${esc(label)}">${esc(c[f] || 'Gán phím')}</button><button type="button" data-clear="${c._id}:${f}" aria-label="Xóa phím ${esc(label)}" title="Xóa phím">×</button></div><div class="err" data-err="controls[${i}].${f}"></div></div>`;
+}
+function renderPanel() {
+  const box = $('#ctlPanel');
+  const c = ctlById(state.sel);
+  if (!c) { box.innerHTML = ''; return; }
+  const i = ctlIndex(c._id);
+  const names = { joystick: 'Joystick', look: 'Camera (look)', button: 'Nút' };
+  let h = `<h2>Điều khiển ${i + 1}: ${names[c.type]}</h2><div class="err" data-err="controls[${i}]"></div>`;
+  h += `<div class="row"><label for="f_label">Nhãn</label><input type="text" id="f_label" data-f="label" value="${esc(c.label)}"><div class="err" data-err="controls[${i}].label"></div></div>`;
+  h += `<div class="grid2">${fieldNum(c, 'x', 'x (0..1)', 0.01, 0, 1)}${fieldNum(c, 'y', 'y (0..1)', 0.01, 0, 1)}</div>`;
+  if (c.type === 'joystick') {
+    h += fieldNum(c, 'radius', 'Bán kính (0..0.5, theo cạnh ngắn)', 0.005, 0.01, 0.5);
+    h += `<div class="grid2">${fieldKey(c, 'up', 'Lên')}${fieldKey(c, 'down', 'Xuống')}${fieldKey(c, 'left', 'Trái')}${fieldKey(c, 'right', 'Phải')}</div>`;
+  } else if (c.type === 'look') {
+    h += fieldNum(c, 'sensitivity', 'Độ nhạy (0..100]', 0.1, 0.01, 100);
+    h += fieldNum(c, 'reach', 'Tầm với (0..1], theo cạnh ngắn', 0.01, 0.01, 1);
+    h += fieldNum(c, 'release_after_ms', 'Nhả sau (ms, 0 = không bao giờ)', 50, 0, MAX_RELEASE);
+    h += `<div class="row"><label><input type="checkbox" data-f="invert_y" ${c.invert_y ? 'checked' : ''}> Đảo trục Y</label></div>`;
+  } else {
+    h += fieldKey(c, 'key', 'Phím / nút chuột');
+    h += `<div class="row"><label for="f_mode">Chế độ</label><select id="f_mode" data-f="mode"><option value="hold"${c.mode === 'hold' ? ' selected' : ''}>hold — giữ chạm khi giữ phím</option><option value="tap"${c.mode === 'tap' ? ' selected' : ''}>tap — một lần chạm ngắn mỗi lần nhấn</option></select></div>`;
+  }
+  h += `<div class="toolbar"><button type="button" id="btnDup">Nhân đôi (bỏ phím)</button><button type="button" id="btnDel" class="danger">Xóa</button></div>`;
+  if (c.type === 'look') h += `<div class="small">Nhân đôi bị tắt cho camera vì chỉ cho phép một điều khiển look.</div>`;
+  box.innerHTML = h;
+  if (c.type === 'look') $('#btnDup').disabled = true;
+  $('#btnDup').onclick = () => duplicateControl(c._id);
+  $('#btnDel').onclick = () => deleteControl(c._id);
+  updateKeyButtons();
+}
+function syncPanelValues() {
+  const c = ctlById(state.sel); if (!c) return;
+  $$('#ctlPanel [data-f]').forEach(el => {
+    if (el === document.activeElement) return;
+    const f = el.dataset.f;
+    if (el.type === 'checkbox') el.checked = !!c[f];
+    else el.value = Number.isNaN(c[f]) ? '' : c[f];
+  });
+}
+function updateKeyButtons() {
+  const p = state.profile;
+  const set = (el, k, label) => { if (el) el.textContent = k || 'Gán phím'; };
+  set($('#kb_toggle'), p.toggle_key); set($('#kb_panic'), p.panic_key);
+  $$('#ctlPanel [data-kt]').forEach(b => {
+    const [, id, f] = b.dataset.kt.split(':');
+    const c = ctlById(+id); if (c) b.textContent = c[f] || 'Gán phím';
+  });
+  if (capturing) $$('[data-kt]').forEach(b => b.classList.toggle('cap', b.dataset.kt === capturing.target));
+}
+$('#ctlPanel').addEventListener('input', e => {
+  const el = e.target.closest('[data-f]'); if (!el) return;
+  const c = ctlById(state.sel); if (!c) return;
+  const f = el.dataset.f;
+  if (el.type === 'checkbox') c[f] = el.checked;
+  else if (el.type === 'number') {
+    if (el.value.trim() === '') c[f] = NaN;
+    else c[f] = f === 'release_after_ms' ? Number(el.value) : r4(Number(el.value));
+  } else c[f] = el.value;
+  refresh({ keepPanel: true });
+});
+$('#ctlPanel').addEventListener('change', e => {
+  const el = e.target.closest('[data-f]'); if (el && el.tagName === 'SELECT') { const c = ctlById(state.sel); if (c) { c[el.dataset.f] = el.value; refresh({ keepPanel: true }); } }
+});
+$('#ctlPanel').addEventListener('click', e => {
+  const b = e.target.closest('[data-clear]'); if (!b) return;
+  const [id, f] = b.dataset.clear.split(':'); const c = ctlById(+id);
+  if (c) { c[f] = ''; renderPanel(); refresh({ keepPanel: true }); }
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-kt]'); if (b && !capturing) startCapture(b.dataset.kt);
+});
+$$('[data-pf]').forEach(el => {
+  el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+    const f = el.dataset.pf;
+    if (f === 'orientation') setOrientation(el.value, true);
+    else { state.profile[f] = el.value; refresh({ keepPanel: true }); }
+  });
+});
+
+/* ---------- control ops ---------- */
+function addControl(type) {
+  if (type === 'look' && hasLook()) return;
+  const land = state.profile.orientation === 'landscape';
+  const n = state.profile.controls.filter(c => c.type === type).length;
+  const off = (n % 5) * 0.07;
+  let f;
+  if (type === 'joystick') f = { x: land ? 0.15 : 0.22, y: land ? 0.7 : 0.78, radius: 0.12 };
+  else if (type === 'look') f = { x: land ? 0.7 : 0.7, y: 0.45 };
+  else f = { x: land ? 0.88 : 0.82, y: clamp((land ? 0.8 : 0.62) - off, 0.05, 0.95) };
+  if (type === 'joystick' && n === 0) {
+    const used = new Set(boundKeys(state.profile).map(b => b[1]));
+    const wasd = ['KeyW','KeyS','KeyA','KeyD'];
+    if (!wasd.some(k => used.has(k))) Object.assign(f, { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD' });
+  }
+  const c = mkControl(type, f);
+  state.profile.controls.push(c);
+  select(c._id);
+  refresh();
+}
+function duplicateControl(id) {
+  const c = ctlById(id); if (!c || c.type === 'look') return;
+  const copy = Object.assign({}, c, { _id: nextId++, x: r4(clamp(c.x + 0.05, 0, 1)), y: r4(clamp(c.y + 0.05, 0, 1)) });
+  if (c.type === 'joystick') Object.assign(copy, { up:'', down:'', left:'', right:'' });
+  else copy.key = '';
+  state.profile.controls.splice(ctlIndex(id) + 1, 0, copy);
+  select(copy._id);
+  refresh();
+}
+function deleteControl(id) {
+  const i = ctlIndex(id); if (i < 0) return;
+  state.profile.controls.splice(i, 1);
+  select(null);
+  refresh();
+}
+$('#addJoystick').onclick = () => addControl('joystick');
+$('#addLook').onclick = () => addControl('look');
+$('#addButton').onclick = () => addControl('button');
+
+function setOrientation(o, fromUser) {
+  const was = state.profile.orientation;
+  state.profile.orientation = o;
+  $('#pf_orientation').value = o;
+  const msgs = [];
+  if (fromUser && was !== o && state.profile.controls.length) msgs.push('Đã đổi hướng màn hình: tọa độ (tỉ lệ 0..1) được giữ nguyên, hãy kiểm tra lại vị trí các điều khiển.');
+  if (state.img && !imgMatches()) msgs.push('Ảnh nền có hướng khác với hồ sơ nên đang được ẩn.');
+  setNotice(msgs.join(' '));
+  renderStage();
+  refresh({ keepPanel: true });
+}
+function setNotice(t) { $('#notice').textContent = t; }
+
+/* ---------- key capture ---------- */
+let capturing = null, escTimer = null;
+function startCapture(target) {
+  endCapture();
+  capturing = { target, since: performance.now(), escPending: false };
+  $('#capbar').classList.add('on');
+  $('#capmsg').textContent = 'Nhấn một phím hoặc bấm một nút chuột để gán (Escape: nhấn hai lần để hủy).';
+  updateKeyButtons();
+  $$('[data-kt]').forEach(b => b.classList.toggle('cap', b.dataset.kt === target));
+}
+function endCapture() {
+  clearTimeout(escTimer); escTimer = null;
+  capturing = null;
+  $('#capbar').classList.remove('on');
+  $$('[data-kt]').forEach(b => b.classList.remove('cap'));
+}
+function applyKey(name) {
+  const t = capturing.target;
+  const [kind, a, b] = t.split(':');
+  const isProfile = kind === 'p';
+  if (isProfile && isMouse(name)) { $('#capmsg').textContent = `Phím bật/tắt và phím dừng phải là phím bàn phím, không dùng "${name}". Thử lại.`; return false; }
+  if (isProfile) state.profile[a] = name;
+  else { const c = ctlById(+a); if (c) c[b] = name; }
+  const keep = t;
+  endCapture();
+  if (!isProfile) renderPanel();
+  updateKeyButtons();
+  refresh({ keepPanel: true });
+  const btn = $(`[data-kt="${keep}"]`); if (btn) btn.focus();
+  return true;
+}
+window.addEventListener('keydown', e => {
+  if (!capturing) return;
+  if (e.target.closest && e.target.closest('#capbar') && (e.key === 'Enter' || e.key === ' ') ) return; // let Hủy be activated by keyboard
+  e.preventDefault(); e.stopPropagation();
+  if (e.repeat) return;
+  const code = CODE_ALIAS[e.code] || e.code;
+  if (!KEY_SET.has(code)) { $('#capmsg').textContent = `Phím "${e.code || e.key}" không được hỗ trợ. Chọn phím khác.`; return; }
+  if (code === 'Escape') {
+    if (capturing.escPending) { endCapture(); setNotice('Đã hủy gán phím.'); return; }
+    capturing.escPending = true;
+    $('#capmsg').textContent = 'Escape: nhấn lại lần nữa để hủy, hoặc chờ để gán Escape…';
+    clearTimeout(escTimer);
+    escTimer = setTimeout(() => { if (capturing && capturing.escPending) applyKey('Escape'); }, 900);
+    return;
+  }
+  if (capturing.escPending) { clearTimeout(escTimer); capturing.escPending = false; }
+  applyKey(code);
+}, true);
+window.addEventListener('keyup', e => { if (capturing) { e.preventDefault(); e.stopPropagation(); } }, true);
+function swallowMouse(e) {
+  if (!capturing) return;
+  if (e.target.closest && e.target.closest('#capbar')) return;
+  e.preventDefault(); e.stopPropagation();
+}
+window.addEventListener('mousedown', e => {
+  if (!capturing) return;
+  if (e.target.closest && e.target.closest('#capbar')) return;
+  e.preventDefault(); e.stopPropagation();
+  const name = MOUSE_BY_BUTTON[e.button];
+  if (!name) { $('#capmsg').textContent = 'Nút chuột này không được hỗ trợ.'; return; }
+  if (capturing.escPending) { clearTimeout(escTimer); capturing.escPending = false; }
+  applyKey(name);
+}, true);
+['mouseup', 'click', 'auxclick', 'contextmenu', 'pointerdown', 'pointerup'].forEach(t => window.addEventListener(t, swallowMouse, true));
+$('#capcancel').addEventListener('click', () => { endCapture(); setNotice('Đã hủy gán phím.'); });
+
+/* ---------- validation display / preview ---------- */
+let lastProblems = [];
+function updateErrors() {
+  lastProblems = problems(state.profile);
+  const by = {};
+  for (const p of lastProblems) (by[p.path] = by[p.path] || []).push(p.message);
+  $$('[data-err]').forEach(el => { el.textContent = (by[el.dataset.err] || []).join('; '); });
+  $$('input[data-f], select[data-f]').forEach(el => {
+    const c = ctlById(state.sel); if (!c) return;
+    el.setAttribute('aria-invalid', by[`controls[${ctlIndex(c._id)}].${el.dataset.f}`] ? 'true' : 'false');
+  });
+  $$('[data-pf]').forEach(el => el.setAttribute('aria-invalid', by[el.dataset.pf] ? 'true' : 'false'));
+  const st = $('#vstatus');
+  if (lastProblems.length) { st.className = 'status-bad'; st.textContent = `${lastProblems.length} lỗi — chưa thể xuất file.`; }
+  else { st.className = 'status-ok'; st.textContent = 'Hồ sơ hợp lệ.'; }
+  $('#vlist').innerHTML = lastProblems.map(p => `<li data-vpath="${esc(p.path)}"><code>${esc(p.path)}</code>: ${esc(p.message)}</li>`).join('');
+  $('#btnDownload').disabled = $('#btnCopy').disabled = lastProblems.length > 0;
+}
+$('#vlist').addEventListener('click', e => {
+  const li = e.target.closest('[data-vpath]'); if (!li) return;
+  const m = /^controls\[(\d+)\]/.exec(li.dataset.vpath);
+  if (m && state.profile.controls[+m[1]]) select(state.profile.controls[+m[1]]._id);
+});
+let saveTimer = null;
+function refresh(opts) {
+  opts = opts || {};
+  renderStage();
+  if (opts.keepPanel) syncPanelValues(); else renderPanel();
+  renderList();
+  updateKeyButtons();
+  updateErrors();
+  const ta = $('#jsonOut');
+  if (document.activeElement !== ta) ta.value = exportText(state.profile);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { try { localStorage.setItem('keymap-editor-draft-v1', exportText(state.profile)); } catch (_) {} }, 400);
+}
+
+/* ---------- import / export ---------- */
+function showProblemsOnImport(res, source) {
+  const msg = $('#importMsg');
+  if (res.fatal) { msg.className = 'small status-bad'; msg.textContent = `Không nhập được (${source}): ${res.fatal}`; msg.dataset.firstPath = '<json>'; return false; }
+  return true;
+}
+function importText(text, source) {
+  const res = parseProfile(text);
+  const msg = $('#importMsg');
+  if (!showProblemsOnImport(res, source)) return false;
+  state.profile = res.profile; state.sel = null;
+  $('#pf_name').value = state.profile.name; $('#pf_app').value = state.profile.app; $('#pf_orientation').value = state.profile.orientation;
+  const ps = problems(state.profile);
+  msg.className = 'small ' + (ps.length ? 'status-bad' : 'status-ok');
+  msg.dataset.firstPath = ps.length ? ps[0].path : '';
+  msg.textContent = ps.length ? `Đã nhập ${source} nhưng có ${ps.length} lỗi; lỗi đầu tiên: ${ps[0].path}: ${ps[0].message}` : `Đã nhập ${source}: hợp lệ.`;
+  const ta = $('#jsonOut'); ta.blur();
+  setNotice(state.img && !imgMatches() ? 'Ảnh nền có hướng khác với hồ sơ nên đang được ẩn.' : '');
+  renderStage(); refresh();
+  return true;
+}
+$('#btnPaste').onclick = () => importText($('#jsonOut').value, 'văn bản dán');
+$('#jsonFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  importText(await f.text(), f.name); e.target.value = '';
+});
+$('#btnNew').onclick = () => {
+  state.profile = newProfile(state.profile.orientation); state.sel = null;
+  $('#pf_name').value = ''; $('#pf_app').value = '';
+  $('#importMsg').textContent = ''; setNotice('');
+  refresh();
+};
+function fileName() {
+  const n = (state.profile.name || 'keymap').trim().replace(/[^\p{L}\p{N}._-]+/gu, '_').replace(/^_+|_+$/g, '') || 'keymap';
+  return n + '.json';
+}
+$('#btnDownload').onclick = () => {
+  if (lastProblems.length) return;
+  const blob = new Blob([exportText(state.profile)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fileName();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('#btnCopy').onclick = async () => {
+  if (lastProblems.length) return;
+  const text = exportText(state.profile);
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (_) {}
+  if (!ok) {
+    const ta = $('#jsonOut'); ta.value = text; ta.focus(); ta.select();
+    try { ok = document.execCommand('copy'); } catch (_) {}
+  }
+  $('#importMsg').className = 'small ' + (ok ? 'status-ok' : 'status-bad');
+  $('#importMsg').textContent = ok ? 'Đã sao chép JSON vào clipboard.' : 'Không sao chép được tự động; hãy chọn nội dung ô JSON và nhấn Ctrl+C.';
+};
+
+/* ---------- background image & drag-drop ---------- */
+function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    if (state.img) URL.revokeObjectURL(state.img.url);
+    state.img = { url, w: im.naturalWidth, h: im.naturalHeight };
+    const o = im.naturalWidth > im.naturalHeight ? 'landscape' : 'portrait';
+    if (o !== state.profile.orientation) {
+      const had = state.profile.controls.length > 0;
+      setOrientation(o, false);
+      setNotice('Hướng màn hình lấy theo ảnh: ' + (o === 'landscape' ? 'ngang' : 'dọc') + '.' + (had ? ' Tọa độ được giữ nguyên, hãy kiểm tra lại vị trí.' : ''));
+    } else setNotice('');
+    renderStage(); refresh({ keepPanel: true });
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); setNotice('Không đọc được tệp ảnh này.'); };
+  im.src = url;
+}
+$('#imgFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ''; });
+$('#clearImg').onclick = () => { if (state.img) URL.revokeObjectURL(state.img.url); state.img = null; setNotice(''); renderStage(); };
+['dragenter', 'dragover'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); stage.classList.add('drop'); }));
+['dragleave', 'drop'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) stage.classList.remove('drop'); }));
+window.addEventListener('drop', async e => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
+  if (f.type.startsWith('image/')) loadImage(f);
+  else if (/\.json$/i.test(f.name) || f.type === 'application/json') importText(await f.text(), f.name);
+  else setNotice('Chỉ nhận tệp ảnh hoặc .json.');
+});
+
+/* ---------- init ---------- */
+function init() {
+  try {
+    const d = localStorage.getItem('keymap-editor-draft-v1');
+    if (d) { const r = parseProfile(d); if (r.profile) { state.profile = r.profile; $('#pf_name').value = r.profile.name; $('#pf_app').value = r.profile.app; $('#pf_orientation').value = r.profile.orientation; } }
+  } catch (_) {}
+  renderStage(); refresh();
+}
+window.KeymapEditor = { state, KEY_NAMES, MOUSE_NAMES, problems, parseProfile, exportText, exportObject };
+init();
+</script>
+</body>
+</html>
