@@ -22,6 +22,8 @@ pub const JOY_SETTLE_MS: u64 = 50;
 /// a touch-down in the same game frame let Free Fire swap fingers (the camera
 /// snapped back or drove the joystick, seen 2026-11-26).
 pub const LOOK_REST_MS: u64 = 35;
+/// Joystick key role of `sprint_key` (0..4 are up, down, left, right).
+const SPRINT_ROLE: usize = 4;
 
 /// One finger in HID panel space (0..=65535, native portrait panel).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -136,7 +138,8 @@ pub struct Stats {
 #[derive(Debug, Clone)]
 enum Ctl {
     Joy {
-        keys: [bool; 4],
+        /// up, down, left, right, sprint
+        keys: [bool; 5],
         id: Option<u8>,
         suppressed: bool,
         /// When the slide is due after a fresh touch-down.
@@ -159,7 +162,7 @@ impl Ctl {
     fn fresh(c: &Control) -> Ctl {
         match c {
             Control::Joystick { .. } => Ctl::Joy {
-                keys: [false; 4],
+                keys: [false; 5],
                 id: None,
                 suppressed: false,
                 settle: None,
@@ -208,10 +211,14 @@ impl Engine {
                     down,
                     left,
                     right,
+                    sprint_key,
                     ..
                 } => {
                     for (role, k) in [up, down, left, right].into_iter().enumerate() {
                         bindings.insert(k.clone(), (i, role));
+                    }
+                    if let Some(k) = sprint_key {
+                        bindings.insert(k.clone(), (i, SPRINT_ROLE));
                     }
                 }
                 Control::Look { .. } => look_idx = Some(i),
@@ -457,8 +464,8 @@ impl Engine {
     // ---- controls -----------------------------------------------------
 
     fn joystick_key(&mut self, ci: usize, role: usize, pressed: bool, out: &mut Vec<Frame>) {
-        let (cx, cy, radius) = match &self.profile.controls[ci] {
-            Control::Joystick { x, y, radius, .. } => (*x, *y, *radius),
+        let (cx, cy) = match &self.profile.controls[ci] {
+            Control::Joystick { x, y, .. } => (*x, *y),
             _ => return,
         };
         let (keys, id, suppressed, settle) = match &mut self.ctl[ci] {
@@ -473,7 +480,8 @@ impl Engine {
             }
             _ => return,
         };
-        if !keys.iter().any(|k| *k) {
+        // Sprint alone neither starts nor keeps the stick.
+        if !keys[..SPRINT_ROLE].iter().any(|k| *k) {
             if let Some(n) = id {
                 out.extend(self.lift(&[n]));
             }
@@ -515,17 +523,27 @@ impl Engine {
                 return;
             }
         };
-        out.extend(self.joy_slide(n, keys, cx, cy, radius));
+        out.extend(self.joy_slide(ci, n, keys));
     }
 
-    fn joy_slide(
-        &mut self,
-        n: u8,
-        keys: [bool; 4],
-        cx: f64,
-        cy: f64,
-        radius: f64,
-    ) -> Option<Frame> {
+    fn joy_slide(&mut self, ci: usize, n: u8, keys: [bool; 5]) -> Option<Frame> {
+        let (cx, cy, radius) = match &self.profile.controls[ci] {
+            Control::Joystick {
+                x,
+                y,
+                radius,
+                sprint_radius,
+                ..
+            } => (
+                *x,
+                *y,
+                match sprint_radius {
+                    Some(r) if keys[SPRINT_ROLE] => *r,
+                    _ => *radius,
+                },
+            ),
+            _ => return None,
+        };
         let (dx, dy) = (
             f64::from(u8::from(keys[3])) - f64::from(u8::from(keys[2])),
             f64::from(u8::from(keys[1])) - f64::from(u8::from(keys[0])),
@@ -598,10 +616,7 @@ impl Engine {
                 }
                 _ => continue,
             };
-            if let Control::Joystick { x, y, radius, .. } = &self.profile.controls[ci] {
-                let (x, y, radius) = (*x, *y, *radius);
-                out.extend(self.joy_slide(n, keys, x, y, radius));
-            }
+            out.extend(self.joy_slide(ci, n, keys));
         }
         out
     }
@@ -1030,6 +1045,31 @@ mod tests {
         assert!(f[0].droppable());
         assert_eq!(want, (13107, 45518));
         assert_eq!(e.next_deadline(), None);
+    }
+
+    #[test]
+    fn joystick_sprint_key_widens_the_slide_only_with_a_direction() {
+        let joy = r#"{"type":"joystick","x":0.2,"y":0.75,"radius":0.12,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD","sprint_key":"ShiftLeft","sprint_radius":0.2}"#;
+        let mut e = active(&profile_json("portrait", joy), Rotation::R0);
+        // Sprint alone: no contact.
+        assert!(press(&mut e, "ShiftLeft", 0).frames.is_empty());
+        assert_eq!(e.contacts_down(), 0);
+        press(&mut e, "KeyW", 1);
+        let f = e.tick(1 + JOY_SETTLE_MS);
+        let up = |r: f64| to_u16(0.75 - r * 828.0 / 1792.0);
+        assert_eq!(f[0].contacts()[0].y, up(0.2));
+        // Letting go of sprint pulls back to the normal ring, finger stays down.
+        let o = release(&mut e, "ShiftLeft", 60);
+        assert_eq!(o.frames[0].contacts()[0], c(0, true, (13107, up(0.12))));
+        // Releasing the direction lifts even with sprint pressed again.
+        press(&mut e, "ShiftLeft", 61);
+        let o = release(&mut e, "KeyW", 62);
+        assert!(!o.frames[0].contacts()[0].touching);
+        // Bad pairs are rejected.
+        let half = r#"{"type":"joystick","x":0.2,"y":0.75,"radius":0.12,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD","sprint_key":"ShiftLeft"}"#;
+        assert!(Profile::from_json(&profile_json("portrait", half)).is_err());
+        let dup = r#"{"type":"joystick","x":0.2,"y":0.75,"radius":0.12,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD","sprint_key":"KeyW","sprint_radius":0.2}"#;
+        assert!(Profile::from_json(&profile_json("portrait", dup)).is_err());
     }
 
     #[test]

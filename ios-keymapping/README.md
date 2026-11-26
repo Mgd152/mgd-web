@@ -216,6 +216,9 @@ khi đang chạy script cuộn/đo độ trễ F9.
 - `joystick`: `radius` trong (0, 0.5]; 4 phím hướng. Nhấn phím -> ngón chạm vào
   tâm rồi trượt tới `radius` theo hướng (chéo được chuẩn hóa, không dài hơn).
   Hai phím ngược nhau triệt tiêu (ngón ở lại tâm); nhả hết phím -> nhả ngón.
+  Tùy chọn `sprint_key` + `sprint_radius` (0, 1] (phải đi cùng nhau): giữ phím
+  đó cùng một phím hướng thì ngón trượt xa tới `sprint_radius` (Free Fire: kéo
+  qua vòng để khóa chạy); một mình phím chạy không tạo điểm chạm.
 - `look`: tối đa một cái; `sensitivity` trong (0, 100], `invert_y`, `reach` trong
   (0, 1] (mặc định 0.3), `release_after_ms` 0..60000 (0 = không bao giờ tự nhả).
   Chuột di chuyển -> ngón trượt; vượt `reach` thì nhả và đặt lại ở tâm.

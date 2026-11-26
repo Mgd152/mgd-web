@@ -65,6 +65,13 @@ pub enum Control {
         down: String,
         left: String,
         right: String,
+        /// Held with a direction: slide to `sprint_radius` instead of `radius`
+        /// (Free Fire locks sprint when the stick is dragged past its ring).
+        /// shortcut: the in-app menu does not edit or conflict-check it yet; add when WP5 lands.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sprint_key: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sprint_radius: Option<f64>,
     },
     Look {
         #[serde(default)]
@@ -232,12 +239,16 @@ impl Profile {
                     down,
                     left,
                     right,
+                    sprint_key,
                     ..
                 } => {
                     v.push((format!("controls[{i}].up"), up.as_str()));
                     v.push((format!("controls[{i}].down"), down.as_str()));
                     v.push((format!("controls[{i}].left"), left.as_str()));
                     v.push((format!("controls[{i}].right"), right.as_str()));
+                    if let Some(k) = sprint_key {
+                        v.push((format!("controls[{i}].sprint_key"), k.as_str()));
+                    }
                 }
                 Control::Look { .. } => {}
                 Control::Button { key, .. } => v.push((format!("controls[{i}].key"), key.as_str())),
@@ -282,6 +293,8 @@ impl Profile {
                     down,
                     left,
                     right,
+                    sprint_key,
+                    sprint_radius,
                 } => {
                     check_len(&mut out, &p("label"), label, MAX_LABEL_CHARS);
                     check_unit(&mut out, p("x"), *x);
@@ -291,6 +304,17 @@ impl Profile {
                     check_key(&mut out, p("down"), down);
                     check_key(&mut out, p("left"), left);
                     check_key(&mut out, p("right"), right);
+                    match (sprint_key, sprint_radius) {
+                        (Some(k), Some(r)) => {
+                            check_key(&mut out, p("sprint_key"), k);
+                            check_range(&mut out, p("sprint_radius"), *r, 1.0);
+                        }
+                        (None, None) => {}
+                        _ => out.push(problem(
+                            p("sprint_key"),
+                            "sprint_key and sprint_radius go together",
+                        )),
+                    }
                 }
                 Control::Look {
                     label,

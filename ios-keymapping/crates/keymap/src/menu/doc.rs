@@ -285,6 +285,8 @@ impl EditDoc {
                     down,
                     left,
                     right,
+                    sprint_key: None,
+                    sprint_radius: None,
                 }
             }
             Kind::Look => Control::Look {
@@ -1054,6 +1056,8 @@ mod tests {
                 down: four[1].into(),
                 left: four[2].into(),
                 right: four[3].into(),
+                sprint_key: None,
+                sprint_radius: None,
             });
         }
         let mut doc = EditDoc::from_profile(p).unwrap();

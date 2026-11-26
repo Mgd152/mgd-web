@@ -22,6 +22,8 @@ fn joystick(x: f64, y: f64) -> Control {
         down: "KeyS".into(),
         left: "KeyA".into(),
         right: "KeyD".into(),
+        sprint_key: None,
+        sprint_radius: None,
     }
 }
 
