@@ -36,10 +36,37 @@ Written 2026-11-26 by the cloud session that built this. Read this first, then
 - NOT yet verified on hardware: Mirrorly with the patch running, multi-touch
   (`send_multitouch`, never tested by anyone), joystick/look/buttons, F8,
   focus loss, unplug, latency.
-- In-app menu (UI_SPEC WP1-WP4, pure model): WP1 reviewed and approved; WP2-WP4
-  were in progress in a cloud workflow. They may be unfinished or unreviewed.
-  Check `git log` (WIP commits are tagged `[skip ci]`) and run
-  `cargo test` in `ios-keymapping/`. App-side menu (WP5+) is not started.
+- In-app menu (UI_SPEC WP1-WP4, pure model in `crates/keymap/src/menu/`, commit
+  c60a1f2): WP1-WP3 approved in review; WP4 NOT approved yet. `cargo test`:
+  307 + 17 + 8 + 2 + 1 pass on Linux. App-side menu (WP5+) is not started.
+- WP4 open findings to fix first:
+  1. (major) `editor.rs`: prompts (save/revert prompt, capture banner, chips)
+     live in the scrolling middle of the dock; when the dock is scrolled they
+     are dropped. Pin them outside the scroll region or reset scroll on open.
+  2. (major) `editor.rs`: canvas banners are painted under the dock and stay
+     hit-testable through it. Lay them out in the free canvas area only and
+     stop hit-testing through the dock.
+  3. Visual (from rendering the golden SVGs): the "Chưa có hình điện thoại…"
+     banner cuts across controls in guide_1..6; guide step 3 highlights the look
+     zone with a huge circle (should be a rectangle); guide step 4's ring hides
+     the key cap it asks the user to click; in Test the finger dot hides the
+     "W" cap; sensitivity slider track is only ~45 px; the toggle key shows as a
+     bare "`" (show "` (dưới Esc)"); label "Phím dừng khẩn" should read
+     "Phím dừng khẩn cấp"; the dock hides overflow with only a tiny ▾; guide
+     step 3 says "chỗ không có nút" but the shooter template puts a button in
+     the look zone.
+  Golden SVGs: `crates/keymap/tests/data/menu/golden/`. Render to PNG with any
+  browser to look at them; show the user the main screens after fixing.
+- User decision 2026-11-26: the user has a 60% keyboard (no F row). Sample
+  profiles now use `Escape` as panic key (commit 8c8291a). Apply the same to
+  the menu: templates/new profiles default to panic `Escape`, and nothing in
+  the menu may require an F key (rotate via the bar button, menu via Ctrl+K).
+  Remember Mirrorly's own F-key shortcuts need Fn on this keyboard.
+- Working locally is now the plan: build with
+  `integration\apply-to-mirrorly.ps1 -Build` (needs Rust MSVC, VS Build Tools
+  C++ workload, LLVM, Git; FFmpeg is fetched by the script) and test with the
+  phone, instead of waiting for CI. The cloud session has stopped launching
+  work on this branch, so there is no other writer.
 
 ## Facts that matter
 - Keymap works over USB only: over Wi-Fi iOS ignores the touch reports
