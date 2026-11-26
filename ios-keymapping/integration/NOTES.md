@@ -56,8 +56,12 @@ in mind when reviewing: it is small, but not literally zero.
   ONE `Input::MouseMotion` per event-loop iteration from `about_to_wait`, so
   a 1000-8000 Hz mouse does not turn into that many HID reports per second.
 - Focus loss, `DeviceEvent::Disconnected`, `quit()` and the user's
-  Disconnect (`set_connected(false)`, called BEFORE the executor is told to
-  stop so the lift frame still goes out) -> `keymap_stop()`.
+  Disconnect (`set_connected(false)`) -> `keymap_stop()`. For the user's
+  Disconnect and for quit the lift frame is BEST EFFORT only: it is queued
+  before `set_connected(false)`, but upstream session.rs calls
+  `hid_task.abort()` as soon as the link is no longer wanted, so the frame can
+  lose that race. What iOS does with contacts left down when the HID
+  connection closes is unknown (unverified).
   `DeviceEvent::Connected` and `rotate()` -> `keymap_sync_view()` (maps
   `input::geom::Rotation` to `keymap::Rotation` variant by variant, screen
   size from `shared.view.screen`).
@@ -113,7 +117,16 @@ in mind when reviewing: it is small, but not literally zero.
    itself has not been executed (no PowerShell). `-Build` / `-StageOnly` now
    fail when LICENSE, NOTICE, README.md, profiles/*.json, editor/index.html or
    keymap-sim.exe is missing.
+10. Disconnect/quit lift is a race with `hid_task.abort()` (see above); never
+    exercised on a phone.
 9. The workflow's sample-profile step needs `profiles/touch-test-*.json` to
    exist and validate; do not push before they do.
 8. `cargo test -p keymap` inside Mirrorly: `tests/samples.rs` looks for
    `../../profiles` and skips when it is absent (it is, inside Mirrorly).
+
+Workflow note: the Windows job no longer has `needs: keymap`, so a missing
+sample profile only turns the `keymap` job red; the Windows compile still runs.
+Staging (`-Build`/`-StageOnly`) still fails without LICENSE, NOTICE, README.md,
+profiles and editor, so do not expect a packaged artifact before those exist.
+Other fixes: probe margin is now +500 ms; panic key while inactive no longer
+shows a toast or runs the stop path.

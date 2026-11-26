@@ -92,6 +92,36 @@ function Stage-Folder {
         New-Item -ItemType Directory -Force (Join-Path $stage 'licenses') | Out-Null
         Copy-Item (Join-Path $lic '*.txt') (Join-Path $stage 'licenses')
     }
+    # FFmpeg (LGPL v3) DLLs ship in this folder: add the notice upstream adds
+    # (modeled on packaging\build-release.ps1).
+    $pin = Join-Path $MirrorlyDir 'packaging\ffmpeg.txt'
+    $ffurl = ''
+    if (Test-Path $pin) {
+        $m = @(Get-Content $pin | Where-Object { $_ -match '^url=' })
+        if ($m.Count -gt 0) { $ffurl = $m[0] -replace '^url=', '' }
+    }
+    $dllNames = (Get-ChildItem (Join-Path $stage '*.dll') | ForEach-Object Name) -join ', '
+    @"
+FFmpeg in this folder
+=====================
+
+Mirrorly uses these FFmpeg libraries, unmodified, as separate DLLs:
+  $dllNames
+
+Download: $ffurl
+License:  GNU Lesser General Public License, version 3 (licenses\LGPL-3.0.txt
+          if present, which supplements the GNU GPL v3).
+Binaries: BtbN FFmpeg-Builds, "lgpl-shared" variant
+          https://github.com/BtbN/FFmpeg-Builds
+Source:   https://github.com/FFmpeg/FFmpeg and the BtbN repository above.
+
+You may replace these DLLs with your own build of the same FFmpeg version;
+Mirrorly loads them by name from its own folder.
+
+This portable folder does NOT contain THIRD-PARTY-NOTICES.txt (upstream's
+cargo-about output); see the Mirrorly repository for the notices of the Rust
+dependencies that are statically linked into Mirrorly.exe.
+"@ | Set-Content -Encoding utf8 (Join-Path $stage 'FFMPEG-NOTICE.txt')
     foreach ($f in 'LICENSE', 'NOTICE', 'README.md') {
         $src = Join-Path $ios $f
         if (-not (Test-Path $src)) { throw "required file missing: $src" }
