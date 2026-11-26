@@ -379,6 +379,7 @@ function stagePos(e) {
   return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
 }
 svg.addEventListener('pointerdown', e => {
+  if (capturing) return;
   const handle = e.target.closest('[data-handle]');
   const g = e.target.closest('[data-ctl]');
   if (handle) {
@@ -651,7 +652,7 @@ window.addEventListener('mousedown', e => {
   if (capturing.escPending) { clearTimeout(escTimer); capturing.escPending = false; }
   applyKey(name);
 }, true);
-['mouseup', 'click', 'auxclick', 'contextmenu', 'pointerdown', 'pointerup'].forEach(t => window.addEventListener(t, swallowMouse, true));
+['mouseup', 'click', 'auxclick', 'contextmenu'].forEach(t => window.addEventListener(t, swallowMouse, true));
 $('#capcancel').addEventListener('click', () => { endCapture(); setNotice('Đã hủy gán phím.'); });
 
 /* ---------- validation display / preview ---------- */
