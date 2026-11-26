@@ -81,8 +81,11 @@ function Stage-Folder {
         if ($dll.Count -ne 1) { throw "expected exactly one $lib DLL in $rel, found $($dll.Count)" }
         Copy-Item $dll[0].FullName $stage
     }
+    # Everything below is required: a staged folder without our licence,
+    # attribution, sample profiles or editor must never be produced.
     $sim = Join-Path $rel 'keymap-sim.exe'
-    if (Test-Path $sim) { Copy-Item $sim $stage }
+    if (-not (Test-Path $sim)) { throw "keymap-sim.exe not found in $rel (build it first)" }
+    Copy-Item $sim $stage
     Copy-Item (Join-Path $MirrorlyDir 'LICENSE') (Join-Path $stage 'LICENSE-Mirrorly.txt')
     $lic = Join-Path $MirrorlyDir 'packaging\licenses'
     if (Test-Path $lic) {
@@ -91,15 +94,18 @@ function Stage-Folder {
     }
     foreach ($f in 'LICENSE', 'NOTICE', 'README.md') {
         $src = Join-Path $ios $f
-        if (Test-Path $src) { Copy-Item $src $stage }
+        if (-not (Test-Path $src)) { throw "required file missing: $src" }
+        Copy-Item $src $stage
     }
     $profiles = Join-Path $ios 'profiles'
-    if (Test-Path $profiles) { Copy-Item $profiles (Join-Path $stage 'profiles') -Recurse }
-    $editor = Join-Path $ios 'editor\index.html'
-    if (Test-Path $editor) {
-        New-Item -ItemType Directory -Force (Join-Path $stage 'editor') | Out-Null
-        Copy-Item $editor (Join-Path $stage 'editor')
+    if (@(Get-ChildItem $profiles -Filter '*.json' -ErrorAction SilentlyContinue).Count -lt 1) {
+        throw "no sample profiles (*.json) in $profiles"
     }
+    Copy-Item $profiles (Join-Path $stage 'profiles') -Recurse
+    $editor = Join-Path $ios 'editor\index.html'
+    if (-not (Test-Path $editor)) { throw "required file missing: $editor" }
+    New-Item -ItemType Directory -Force (Join-Path $stage 'editor') | Out-Null
+    Copy-Item $editor (Join-Path $stage 'editor')
     Write-Host "Staged: $stage"
 }
 
@@ -125,8 +131,8 @@ $Dest = (Resolve-Path $Dest).Path
 Push-Location $Dest
 try {
     Invoke-Native git @('init', '-q')
-    # The patch has LF line endings: never let Git for Windows convert the
-    # checkout to CRLF (its default autocrlf=true would break git apply).
+    # Never let Git for Windows convert this clone to CRLF (autocrlf=true is
+    # its default); the patch is applied as LF, see below.
     Invoke-Native git @('config', 'core.autocrlf', 'false')
     Invoke-Native git @('remote', 'add', 'origin', $upstreamUrl)
     Invoke-Native git @('fetch', '--depth', '1', 'origin', $Ref)
@@ -143,8 +149,25 @@ try {
     if (Test-Path $stray) { Remove-Item $stray -Recurse -Force }
 
     # --- 3. patch ---------------------------------------------------------------
-    Invoke-Native git @('apply', '--check', $patch)
-    Invoke-Native git @('apply', $patch)
+    # A Windows checkout of this repo may have turned the patch into CRLF
+    # (core.autocrlf=true); the upstream tree here is LF, so apply an
+    # LF-normalized copy.
+    $patchToApply = $patch
+    $bytes = [IO.File]::ReadAllBytes($patch)
+    if ($bytes -contains 13) {
+        $text = [Text.Encoding]::UTF8.GetString($bytes).Replace("`r`n", "`n")
+        $patchToApply = Join-Path ([IO.Path]::GetTempPath()) ('mirrorly-keymap-' + [guid]::NewGuid().ToString('N') + '.patch')
+        [IO.File]::WriteAllText($patchToApply, $text, (New-Object Text.UTF8Encoding($false)))
+        Write-Host 'patch had CRLF line endings; applying an LF copy'
+    }
+    try {
+        Invoke-Native git @('apply', '--check', $patchToApply)
+        Invoke-Native git @('apply', $patchToApply)
+    } finally {
+        if ($patchToApply -ne $patch) { Remove-Item $patchToApply -Force -ErrorAction SilentlyContinue }
+    }
+    # Snapshot for CI: lets a later step show what cargo changed in Cargo.lock.
+    Copy-Item 'Cargo.lock' 'Cargo.lock.patched' -Force
     Write-Host "Applied $patch to Mirrorly $($Ref.Substring(0, 7)) in $Dest"
 } finally {
     Pop-Location

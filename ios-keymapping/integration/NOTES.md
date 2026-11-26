@@ -1,7 +1,7 @@
 # Integration notes: what `mirrorly-keymap.patch` changes
 
 Base: Mirrorly `ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e` (app 2.0.2), MIT.
-Patch: 7 existing files, +457 / -7 lines, LF endings. The `keymap` crate is
+Patch: 7 existing files, +490 / -8 lines, LF endings (`.gitattributes` keeps them LF; the script also normalizes a CRLF copy before `git apply`). The `keymap` crate is
 NOT in the patch; `apply-to-mirrorly.ps1` copies `crates/keymap` into the
 checkout first.
 
@@ -30,8 +30,10 @@ checkout first.
 ## `crates/app/src/main.rs`
 
 Everything is behind `self.keymap.is_some()` (set only by `--keymap FILE`);
-without the flag the only differences are two more `if` checks that are
-false.
+without the flag the only differences are about ten checks that are
+trivially false (`self.keymap.is_none()`, `keymap_active()`), one new
+`probe_busy_until` field and a few calls that return immediately. Keep that
+in mind when reviewing: it is small, but not literally zero.
 
 - `Args.keymap: Option<PathBuf>` (`--keymap <FILE>`), `App.keymap:
   Option<KeymapHost { path, engine, grabbed }>`.
@@ -49,8 +51,13 @@ false.
   !active`, F9 suppressed), nothing is typed on the phone.
 - Mouse: while active, buttons go to the engine as `MouseLeft/...`, wheel
   and cursor moves are swallowed, hover update skipped. Raw motion comes from
-  the new `ApplicationHandler::device_event` (`DeviceEvent::MouseMotion`).
-- Focus loss, `DeviceEvent::Disconnected`, `quit()` -> `keymap_stop()`.
+  the new `ApplicationHandler::device_event` (`DeviceEvent::MouseMotion`); it
+  is only summed there (`KeymapHost.motion`) and delivered to the engine as
+  ONE `Input::MouseMotion` per event-loop iteration from `about_to_wait`, so
+  a 1000-8000 Hz mouse does not turn into that many HID reports per second.
+- Focus loss, `DeviceEvent::Disconnected`, `quit()` and the user's
+  Disconnect (`set_connected(false)`, called BEFORE the executor is told to
+  stop so the lift frame still goes out) -> `keymap_stop()`.
   `DeviceEvent::Connected` and `rotate()` -> `keymap_sync_view()` (maps
   `input::geom::Rotation` to `keymap::Rotation` variant by variant, screen
   size from `shared.view.screen`).
@@ -58,8 +65,19 @@ false.
   `next_deadline()` (ms on the app epoch) joins the `ControlFlow::WaitUntil`
   minimum as an `Instant`. The existing control-flow expression only gets one
   more array element.
-- `start_probe` returns early while active. Window title shows
+- `start_probe` returns early while active, and sets `probe_busy_until`
+  (`PROBE_TAPS * (PROBE_GAP + PROBE_HOLD)`); `keymap_gate` refuses to activate
+  until the probe thread is done, so its single touch (identity 2) never
+  interleaves with keymap frames. The wheel-scroll script is guarded the same
+  way (`scroll_busy_until`). Window title shows
   `Keymap ON` / `Keymap (<toggle>)` / `Keymap (no profile)`.
+- Mirrorly is single-instance (named mutex `Local\Mirrorly.SingleInstance`):
+  starting it with `--keymap` while a Mirrorly window already runs just brings
+  the old window forward and the flag is silently ignored. Close the running
+  Mirrorly first (also from the tray).
+- When a new `Connected` event changes the screen size/rotation while the
+  keymap is active, the engine leaves active mode; the toast says neutrally
+  "Keymap off: the picture changed".
 - Side effect to document: with `--keymap`, the toggle key (default
   Backquote) is never typed to the phone.
 
@@ -78,11 +96,24 @@ false.
    uses them too (edition 2024).
 5. Multi-touch over UHS has never been tried on a phone by Mirrorly or by us:
    iOS may ignore, reorder or mis-handle multi-contact reports.
+5b. Rate of multi-touch reports under mouse-look is unmeasured. Raw mouse
+   motion is coalesced to one engine input per loop iteration, but that can
+   still be one report per frame/iteration; how the USB tunnel and iOS cope is
+   unknown. If the phone lags or drops frames, lower the mouse polling rate
+   (e.g. 500-1000 Hz) and report it.
 6. Cursor `Confined` on Windows with a borderless window: behaviour at the
    window edge while mouse-look runs is untested (raw motion should keep
    flowing, the look control re-centres itself at `reach`).
 7. `apply-to-mirrorly.ps1` and the workflow were never run (no PowerShell /
-   Windows here). The script sets `core.autocrlf=false` in the fresh clone so
-   `git apply` of the LF patch works under Git for Windows defaults.
+   Windows here). Line endings: `ios-keymapping/.gitattributes` forces LF for
+   the patch, the workflow sets `core.autocrlf=false` before checkout, and the
+   script itself, if it finds CR bytes in the patch, applies an LF-normalized
+   temp copy (a CRLF patch fails `git apply --check` against the LF clone; this
+   was reproduced here with a CRLF copy). The CRLF-normalizing code path
+   itself has not been executed (no PowerShell). `-Build` / `-StageOnly` now
+   fail when LICENSE, NOTICE, README.md, profiles/*.json, editor/index.html or
+   keymap-sim.exe is missing.
+9. The workflow's sample-profile step needs `profiles/touch-test-*.json` to
+   exist and validate; do not push before they do.
 8. `cargo test -p keymap` inside Mirrorly: `tests/samples.rs` looks for
    `../../profiles` and skips when it is absent (it is, inside Mirrorly).

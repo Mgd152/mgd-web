@@ -58,7 +58,7 @@ index df9feae..42e9f99 100644
  winit.workspace = true
  windows.workspace = true
 diff --git a/crates/app/src/main.rs b/crates/app/src/main.rs
-index 254d71e..44dde27 100644
+index 254d71e..9612f6c 100644
 --- a/crates/app/src/main.rs
 +++ b/crates/app/src/main.rs
 @@ -105,6 +105,9 @@ struct Args {
@@ -71,7 +71,16 @@ index 254d71e..44dde27 100644
  }
  
  #[derive(Debug, Clone, Copy, ValueEnum)]
-@@ -270,6 +273,18 @@ struct App {
+@@ -233,6 +236,8 @@ struct App {
+     bar_cursor: Option<(f64, f64)>,
+     hide_bar_at: Option<Instant>,
+     scroll_busy_until: Instant,
++    /// The F9 latency probe thread is still tapping until this time.
++    probe_busy_until: Instant,
+     scroll_pending: f64,
+     /// Fetched from the iPhone's clipboard, offered on the bar's chip.
+     shelf_files: Vec<std::path::PathBuf>,
+@@ -270,6 +275,21 @@ struct App {
      /// (screenshots read the picture back).
      gpu: Option<(windows::Win32::Graphics::Direct3D11::ID3D11Device, windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext, Arc<D3dLock>)>,
      threads: Vec<std::thread::JoinHandle<()>>,
@@ -87,10 +96,13 @@ index 254d71e..44dde27 100644
 +    engine: Option<keymap::Engine>,
 +    /// The cursor was confined and hidden for mouse-look.
 +    grabbed: bool,
++    /// Raw mouse motion gathered since the last loop iteration; fed to the
++    /// engine as ONE input per iteration (a fast mouse reports far faster).
++    motion: (f64, f64),
  }
  
  impl App {
-@@ -289,6 +304,13 @@ impl App {
+@@ -289,6 +309,13 @@ impl App {
              if self.recording.is_some() {
                  t.push_str(" · Recording");
              }
@@ -104,7 +116,7 @@ index 254d71e..44dde27 100644
              w.set_title(&t);
          }
      }
-@@ -419,10 +441,244 @@ impl App {
+@@ -419,10 +446,260 @@ impl App {
          *decoder_kf.lock().unwrap() = Some(handle.keyframes.clone());
          *self.shared.hid_stats.lock().unwrap() = Some(handle.hid_stats.clone());
          self.device = Some(handle);
@@ -181,7 +193,7 @@ index 254d71e..44dde27 100644
 +        self.keymap_send(&frames);
 +        if was_active && !now_active {
 +            self.keymap_after_stop();
-+            self.toast("Keymap off: the picture was rotated", 4.0);
++            self.toast("Keymap off: the picture changed", 4.0);
 +        }
 +    }
 +
@@ -204,6 +216,9 @@ index 254d71e..44dde27 100644
 +
 +    /// Give the cursor back after active mode.
 +    fn keymap_after_stop(&mut self) {
++        if let Some(k) = self.keymap.as_mut() {
++            k.motion = (0.0, 0.0);
++        }
 +        let was_grabbed = self.keymap.as_mut().is_some_and(|k| std::mem::take(&mut k.grabbed));
 +        if was_grabbed && let Some(w) = &self.window {
 +            let _ = w.set_cursor_grab(winit::window::CursorGrabMode::None);
@@ -232,6 +247,10 @@ index 254d71e..44dde27 100644
 +        }
 +        if Instant::now() < self.scroll_busy_until {
 +            self.toast("Keymap: wait a moment, a scroll is still running", 2.0);
++            return false;
++        }
++        if Instant::now() < self.probe_busy_until {
++            self.toast("Keymap: wait a moment, the latency probe is still running", 3.0);
 +            return false;
 +        }
 +        let Some(path) = self.keymap.as_ref().map(|k| k.path.clone()) else { return false };
@@ -333,6 +352,15 @@ index 254d71e..44dde27 100644
 +        out.consumed
 +    }
 +
++    /// Deliver the gathered raw mouse motion as one engine input.
++    fn keymap_flush_motion(&mut self) {
++        let Some(k) = self.keymap.as_mut() else { return };
++        let (dx, dy) = std::mem::take(&mut k.motion);
++        if (dx != 0.0 || dy != 0.0) && self.keymap_active() {
++            self.keymap_input(keymap::Input::MouseMotion { dx, dy });
++        }
++    }
++
 +    /// Run the engine's timers (tap lifts, look idle lift). Returns when it
 +    /// next wants to be woken.
 +    fn keymap_tick(&mut self) -> Option<Instant> {
@@ -349,7 +377,19 @@ index 254d71e..44dde27 100644
      /// Size the window to the picture's aspect at the current size level.
      fn apply_size(&mut self) {
          let Some(w) = self.window.clone() else { return };
-@@ -1070,6 +1326,7 @@ impl App {
+@@ -547,6 +824,11 @@ impl App {
+     /// Disconnect from the iPhone (Mirrorly then leaves it alone, even when
+     /// it is plugged in or on Wi-Fi), or connect again.
+     fn set_connected(&mut self, on: bool) {
++        if !on {
++            // Lift the keymap fingers while the link is still wanted: after
++            // `set_connected(false)` the executor drops further input.
++            self.keymap_stop();
++        }
+         let Some(d) = &self.device else { return };
+         tracing::info!("user {}", if on { "connects" } else { "disconnects" });
+         d.set_connected(on);
+@@ -1070,6 +1352,7 @@ impl App {
      }
  
      fn quit(&mut self, el: &ActiveEventLoop) {
@@ -357,7 +397,7 @@ index 254d71e..44dde27 100644
          if let Some(rec) = self.recording.take() {
              // Finish the file before the process ends.
              self.shared.recording.lock().unwrap().take();
-@@ -1097,6 +1354,7 @@ impl App {
+@@ -1097,6 +1380,7 @@ impl App {
          self.release_all();
          self.apply_size();
          self.slot.request_redraw();
@@ -365,10 +405,12 @@ index 254d71e..44dde27 100644
      }
  
      fn toggle_fullscreen(&mut self) {
-@@ -1117,6 +1375,10 @@ impl App {
+@@ -1116,7 +1400,11 @@ impl App {
+     /// still screen, and time every tap until its response frame is
      /// presented (results in the overlay and the log). Point it at
      /// something that visibly reacts to a touch, e.g. a Calculator key.
-     fn start_probe(&self) {
+-    fn start_probe(&self) {
++    fn start_probe(&mut self) {
 +        if self.keymap_active() {
 +            tracing::info!("latency probe: not while the keymap is active");
 +            return;
@@ -376,11 +418,20 @@ index 254d71e..44dde27 100644
          let (m, _) = self.mapper();
          let Some(p) = m.to_panel(self.cursor.0, self.cursor.1, false) else {
              tracing::warn!("latency probe: put the mouse over the phone picture first");
-@@ -1327,12 +1589,27 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1126,6 +1414,7 @@ impl App {
+         let (sender, shared, slot) = (dev.sender(), self.shared.clone(), self.slot.clone());
+         let (x, y) = (input::geom::to_u16(p.0), input::geom::to_u16(p.1));
+         tracing::info!("latency probe: {PROBE_TAPS} taps at ({x}, {y})");
++        self.probe_busy_until = Instant::now() + (PROBE_GAP + PROBE_HOLD) * PROBE_TAPS;
+         shared.overlay.store(true, Relaxed);
+         let _ = std::thread::Builder::new().name("probe".into()).spawn(move || {
+             for _ in 0..PROBE_TAPS {
+@@ -1327,12 +1616,31 @@ impl ApplicationHandler<UserEvent> for App {
              Some(Opening::Tapped(..)) => Some(now + Duration::from_millis(10)),
              _ => (self.display.is_some() && (!self.display_hidden || self.opening.is_some())).then(|| now + DISPLAY_POLL),
          };
 -        el.set_control_flow(match [self.hide_bar_at, self.toast_until, frame, display_poll].into_iter().flatten().min() {
++        self.keymap_flush_motion();
 +        let keymap_wake = self.keymap_tick();
 +        el.set_control_flow(match [self.hide_bar_at, self.toast_until, frame, display_poll, keymap_wake].into_iter().flatten().min() {
              Some(t) => ControlFlow::WaitUntil(t),
@@ -397,15 +448,18 @@ index 254d71e..44dde27 100644
 +    ) {
 +        if let winit::event::DeviceEvent::MouseMotion { delta } = event
 +            && self.keymap_active()
++            && let Some(k) = self.keymap.as_mut()
 +        {
-+            self.keymap_input(keymap::Input::MouseMotion { dx: delta.0, dy: delta.1 });
++            // Summed here, delivered once per loop iteration (about_to_wait).
++            k.motion.0 += delta.0;
++            k.motion.1 += delta.1;
 +        }
 +    }
 +
      fn resumed(&mut self, el: &ActiveEventLoop) {
          if self.window.is_none()
              && let Err(e) = self.start(el)
-@@ -1441,6 +1718,7 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1441,6 +1749,7 @@ impl ApplicationHandler<UserEvent> for App {
                  if screen_changed {
                      self.apply_size();
                  }
@@ -413,7 +467,7 @@ index 254d71e..44dde27 100644
                  let link = match info.transport {
                      device::Transport::Usb => "USB",
                      device::Transport::Wifi => "Wi-Fi",
-@@ -1459,6 +1737,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1459,6 +1768,9 @@ impl ApplicationHandler<UserEvent> for App {
                  }
              }
              DeviceEvent::Disconnected(_) => {
@@ -423,7 +477,7 @@ index 254d71e..44dde27 100644
                  // The stream ended: finish the recording with what it has.
                  self.stop_recording();
                  *self.shared.transport.lock().unwrap() = None;
-@@ -1492,7 +1773,10 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1492,7 +1804,10 @@ impl ApplicationHandler<UserEvent> for App {
                  self.sync_bar();
                  self.slot.request_redraw();
              }
@@ -435,7 +489,7 @@ index 254d71e..44dde27 100644
              // Our own shelf being dragged out passes over the window first:
              // those files came from the iPhone and must not go back.
              WindowEvent::HoveredFile(path) if is_from_iphone(&path) => {}
-@@ -1517,7 +1801,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1517,7 +1832,9 @@ impl ApplicationHandler<UserEvent> for App {
              WindowEvent::ModifiersChanged(m) => self.modifiers = m.state(),
              WindowEvent::CursorEntered { .. } => {
                  self.cursor_inside = true;
@@ -446,7 +500,7 @@ index 254d71e..44dde27 100644
              }
              WindowEvent::CursorLeft { .. } => {
                  self.cursor_inside = false;
-@@ -1526,10 +1812,17 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1526,10 +1843,17 @@ impl ApplicationHandler<UserEvent> for App {
                  {
                      self.send(ev);
                  }
@@ -465,7 +519,7 @@ index 254d71e..44dde27 100644
                  self.cursor_inside = true;
                  if self.gesture.active() {
                      let (m, _) = self.mapper();
-@@ -1547,6 +1840,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1547,6 +1871,9 @@ impl ApplicationHandler<UserEvent> for App {
                  self.update_hover();
              }
              WindowEvent::MouseWheel { delta, .. } => {
@@ -475,7 +529,7 @@ index 254d71e..44dde27 100644
                  let notches = match delta {
                      MouseScrollDelta::LineDelta(_, y) => y as f64,
                      MouseScrollDelta::PixelDelta(p) => p.y / 120.0,
-@@ -1560,6 +1856,19 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1560,6 +1887,19 @@ impl ApplicationHandler<UserEvent> for App {
                  }
              }
              WindowEvent::MouseInput { state, button, .. } => {
@@ -495,7 +549,7 @@ index 254d71e..44dde27 100644
                  let (m, bottom) = self.mapper();
                  match (button, state) {
                      (MouseButton::Left, ElementState::Pressed) => {
-@@ -1609,7 +1918,22 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1609,7 +1949,22 @@ impl ApplicationHandler<UserEvent> for App {
              WindowEvent::KeyboardInput { event, .. } => {
                  let PhysicalKey::Code(code) = event.physical_key else { return };
                  let down = event.state == ElementState::Pressed;
@@ -519,7 +573,7 @@ index 254d71e..44dde27 100644
                  // Mac-style shortcuts (Ctrl stands in for Command), plus F-keys.
                  let shortcut: Option<&str> = match code {
                      KeyCode::Digit1 if ctrl => Some("home"),
-@@ -1622,7 +1946,7 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1622,7 +1977,7 @@ impl ApplicationHandler<UserEvent> for App {
                      KeyCode::F5 => Some("volup"),
                      KeyCode::F6 => Some("screenshot"),
                      KeyCode::F7 => Some("record"),
@@ -528,7 +582,7 @@ index 254d71e..44dde27 100644
                      KeyCode::F10 => Some("stats"),
                      KeyCode::F11 => Some("fullscreen"),
                      KeyCode::F12 if self.modifiers.shift_key() => Some("rotate-ccw"),
-@@ -1659,6 +1983,9 @@ impl ApplicationHandler<UserEvent> for App {
+@@ -1659,6 +2014,9 @@ impl ApplicationHandler<UserEvent> for App {
                      }
                      return;
                  }
@@ -538,15 +592,23 @@ index 254d71e..44dde27 100644
                  // iOS repeats held keys itself, like with a hardware keyboard.
                  if event.repeat {
                      return;
-@@ -1873,6 +2200,7 @@ fn main() -> Result<()> {
+@@ -1873,6 +2231,7 @@ fn main() -> Result<()> {
      tracing::info!("Mirrorly {} starting", env!("CARGO_PKG_VERSION"));
  
      let event_loop = EventLoop::<UserEvent>::with_user_event().build().context("event loop")?;
-+    let keymap = args.keymap.clone().map(|path| KeymapHost { path, engine: None, grabbed: false });
++    let keymap = args.keymap.clone().map(|path| KeymapHost { path, engine: None, grabbed: false, motion: (0.0, 0.0) });
      let mut app = App {
          args,
          proxy: event_loop.create_proxy(),
-@@ -1912,6 +2240,7 @@ fn main() -> Result<()> {
+@@ -1893,6 +2252,7 @@ fn main() -> Result<()> {
+         bar_cursor: None,
+         hide_bar_at: None,
+         scroll_busy_until: Instant::now(),
++        probe_busy_until: Instant::now(),
+         scroll_pending: 0.0,
+         shelf_files: Vec::new(),
+         doc_apps: None,
+@@ -1912,6 +2272,7 @@ fn main() -> Result<()> {
          recording: None,
          gpu: None,
          threads: Vec::new(),
