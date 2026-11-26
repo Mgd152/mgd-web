@@ -6,6 +6,7 @@
 pub mod engine;
 pub mod geom;
 pub mod keys;
+pub mod menu;
 pub mod profile;
 
 pub use engine::{
