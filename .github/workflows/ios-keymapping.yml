@@ -1,0 +1,158 @@
+# iOS keymapping for Mirrorly: test the keymap crate, apply the patch to
+# Mirrorly at a pinned commit, build it on Windows and keep the result as an
+# artifact. This is the FIRST place the patched Mirrorly is compiled: until
+# this workflow has run green, the Windows build is unverified.
+#
+# Modeled on upstream's ci.yml and package.yml (https://github.com/AnasSAV/mirrorly,
+# MIT, commit ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e).
+
+name: ios-keymapping
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/new-session-l9i0tr]
+    # Only what affects the build: doc-only commits do not spend Windows minutes.
+    paths:
+      - "ios-keymapping/Cargo.toml"
+      - "ios-keymapping/Cargo.lock"
+      - "ios-keymapping/crates/**"
+      - "ios-keymapping/integration/**"
+      - "ios-keymapping/profiles/**"
+      - ".github/workflows/ios-keymapping.yml"
+
+concurrency:
+  group: ios-keymapping-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  keymap:
+    name: keymap crate (tests, clippy, sample profiles)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ios-keymapping
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust (stable, with Clippy)
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+          rustc --version
+
+      - name: Tests
+        run: cargo test
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Validate the sample profiles
+        run: |
+          cargo run --bin keymap-sim -- validate profiles/touch-test-portrait.json
+          cargo run --bin keymap-sim -- validate profiles/touch-test-landscape.json
+
+  mirrorly:
+    name: Patched Mirrorly on Windows (test, build, package)
+    # Not gated on the keymap job: a missing sample profile must not hide the
+    # Windows compile result. Remove `needs` only if you want the old gating.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      # Keep LF in the checkout (the patch and sources are LF).
+      - name: Git line endings
+        shell: pwsh
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v7
+
+      - name: Rust (stable, with Clippy)
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+          rustc --version
+
+      - name: keymap crate tests on Windows
+        shell: pwsh
+        working-directory: ios-keymapping
+        run: cargo test
+
+      # Clones Mirrorly at the pinned commit into _mirrorly (inside the
+      # workspace so hashFiles works), copies the crate, applies the patch.
+      - name: Apply the patch to Mirrorly
+        shell: pwsh
+        run: ./ios-keymapping/integration/apply-to-mirrorly.ps1 -Dest "$env:GITHUB_WORKSPACE\_mirrorly"
+
+      - name: MSVC environment (headers for bindgen)
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: FFmpeg from cache
+        id: ffmpeg
+        uses: actions/cache@v6
+        with:
+          path: _mirrorly/third_party/ffmpeg
+          key: ffmpeg-${{ hashFiles('_mirrorly/packaging/ffmpeg.txt') }}
+
+      - name: Download FFmpeg 9.0 (LGPL, shared)
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: _mirrorly
+        run: ./packaging/get-ffmpeg.ps1
+
+      - name: Rust build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: _mirrorly
+
+      - name: Tests (keymap, input, device)
+        shell: pwsh
+        working-directory: _mirrorly
+        run: |
+          $env:PATH = "$PWD\third_party\ffmpeg\bin;$env:PATH"
+          cargo test -p keymap -p input -p device
+
+      - name: Build Mirrorly.exe and keymap-sim.exe (release)
+        shell: pwsh
+        working-directory: _mirrorly
+        run: |
+          $env:PATH = "$PWD\third_party\ffmpeg\bin;$env:PATH"
+          cargo build --release -p app
+          if ($LASTEXITCODE -ne 0) { throw "cargo build -p app failed" }
+          cargo build --release -p keymap --bin keymap-sim
+          if ($LASTEXITCODE -ne 0) { throw "cargo build keymap-sim failed" }
+
+      # Informational: the patch carries a hand-edited Cargo.lock; cargo may
+      # have repaired it. Show what changed.
+      - name: Cargo.lock changes made by cargo
+        shell: pwsh
+        working-directory: _mirrorly
+        run: |
+          # Cargo.lock.patched is the snapshot taken right after the patch.
+          git diff --no-index --stat Cargo.lock.patched Cargo.lock
+          git diff --no-index Cargo.lock.patched Cargo.lock
+          $global:LASTEXITCODE = 0   # --no-index exits 1 when files differ
+
+      - name: Clippy (informational)
+        continue-on-error: true
+        shell: pwsh
+        working-directory: _mirrorly
+        run: |
+          $env:PATH = "$PWD\third_party\ffmpeg\bin;$env:PATH"
+          cargo clippy -p input -p device -p app -- -D warnings
+
+      - name: Stage the portable folder
+        shell: pwsh
+        run: ./ios-keymapping/integration/apply-to-mirrorly.ps1 -Dest "$env:GITHUB_WORKSPACE\_mirrorly" -StageOnly
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mirrorly-keymap-${{ github.sha }}
+          path: ios-keymapping/dist/Mirrorly-keymap
+          if-no-files-found: error
