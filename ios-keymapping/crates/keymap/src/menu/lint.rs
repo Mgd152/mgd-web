@@ -2,7 +2,7 @@
 //! explanations of validation problems (UI_SPEC 6.9).
 
 use super::doc::{EditDoc, Kind};
-use super::hit::{ANCHOR_RADIUS_LP, BUTTON_RADIUS_LP, EditView, button_hit_radius};
+use super::hit::{ANCHOR_RADIUS_LP, EditView, button_hit_radius};
 use super::keynames::key_advice;
 use super::msg::{Advice, Lang, Msg, ProblemMsg};
 use super::snap::in_edge_band;
@@ -117,21 +117,21 @@ pub fn lints(doc: &EditDoc, env: &Env) -> Vec<Lint> {
                 });
             }
         }
-        if let Some((look_id, a)) = anchor {
-            if look_id != *id {
-                let o = env.view.to_px(centre(c));
-                let d = ((o.x - a.x).powi(2) + (o.y - a.y).powi(2)).sqrt();
-                let reach = match c {
-                    Control::Button { .. } => button_hit_radius(&env.view),
-                    Control::Joystick { radius, .. } => radius * env.view.short_px(),
-                    Control::Look { .. } => 0.0,
-                };
-                if d <= env.view.lp(ANCHOR_RADIUS_LP) + reach {
-                    out.push(Lint {
-                        target: Some(*id),
-                        advice: Advice::OverlapsLookAnchor,
-                    });
-                }
+        if let Some((look_id, a)) = anchor
+            && look_id != *id
+        {
+            let o = env.view.to_px(centre(c));
+            let d = ((o.x - a.x).powi(2) + (o.y - a.y).powi(2)).sqrt();
+            let reach = match c {
+                Control::Button { .. } => button_hit_radius(&env.view),
+                Control::Joystick { radius, .. } => radius * env.view.short_px(),
+                Control::Look { .. } => 0.0,
+            };
+            if d <= env.view.lp(ANCHOR_RADIUS_LP) + reach {
+                out.push(Lint {
+                    target: Some(*id),
+                    advice: Advice::OverlapsLookAnchor,
+                });
             }
         }
     }
@@ -330,18 +330,239 @@ pub fn explain_json_error(e: &ProfileError) -> ProblemMsg {
             ProblemMsg::NotUnderstood
         }
         ProfileError::Json(_) => ProblemMsg::NotReadable,
-        ProfileError::Invalid(p) => ProblemMsg::TooManyControls { max: 0 }.or_path(p),
+        // A validation finding needs its profile: use `explain`.
+        ProfileError::Invalid(_) => ProblemMsg::NotUnderstood,
     }
 }
 
-impl ProblemMsg {
-    /// Placeholder used only by `explain_json_error` for the (unexpected)
-    /// case of a validation problem without its profile.
-    fn or_path(self, _p: &Problem) -> ProblemMsg {
-        ProblemMsg::NotUnderstood
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::menu::hit::testing::{doc, pt, view};
+    use crate::menu::msg::MirrorlyAction;
+    use crate::profile::Orientation;
+    use std::path::PathBuf;
+
+    fn env() -> Env {
+        Env {
+            link: Link::Usb,
+            display_mode: false,
+            scroll_busy: false,
+            rotation: Rotation::R90,
+            panel: (828.0, 1792.0),
+            has_picture: true,
+            view: view(),
+            can_grow_window: false,
+        }
+    }
+
+    fn data(sub: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/data")
+            .join(sub)
+    }
+
+    // test 49
+    #[test]
+    fn explain_every_invalid_file() {
+        let mut n = 0;
+        for entry in std::fs::read_dir(data("invalid")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.file_name().is_some_and(|f| f == "expected.json")
+                || path.extension().is_none_or(|x| x != "json")
+            {
+                continue;
+            }
+            n += 1;
+            let text = std::fs::read_to_string(&path).unwrap();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            let msg = match Profile::from_json(&text) {
+                Ok(_) => panic!("{name} should be invalid"),
+                Err(e @ ProfileError::Json(_)) => explain_json_error(&e),
+                Err(ProfileError::Invalid(p)) => {
+                    let profile: Profile = serde_json::from_str(&text).unwrap();
+                    for lang in [Lang::Vi, Lang::En] {
+                        assert!(!explain_in(&p, &profile, lang).text(lang).is_empty());
+                    }
+                    explain(&p, &profile)
+                }
+            };
+            for lang in [Lang::Vi, Lang::En] {
+                let t = msg.text(lang);
+                assert!(!t.is_empty(), "{name}");
+                assert!(!t.contains("{"), "{name}: {t}");
+            }
+            // "Not understood" is only right for files serde rejected.
+            let expected: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(data("invalid/expected.json")).unwrap(),
+            )
+            .unwrap();
+            if expected[&name] != "<json>" {
+                assert_ne!(msg, ProblemMsg::NotUnderstood, "{name}: {msg:?}");
+            }
+        }
+        assert!(n >= 20, "found only {n} invalid files");
+    }
+
+    fn explain_file(name: &str) -> ProblemMsg {
+        let text = std::fs::read_to_string(data("invalid").join(name)).unwrap();
+        match Profile::from_json(&text) {
+            Err(e @ ProfileError::Json(_)) => explain_json_error(&e),
+            Err(ProfileError::Invalid(p)) => explain(&p, &serde_json::from_str(&text).unwrap()),
+            Ok(_) => panic!("valid"),
+        }
+    }
+
+    #[test]
+    fn explain_picks_the_matching_sentence() {
+        assert_eq!(explain_file("bad-version.json"), ProblemMsg::NewerVersion);
+        assert_eq!(explain_file("mouse-toggle.json"), ProblemMsg::MouseOnToggle);
+        assert_eq!(
+            explain_file("toggle-equals-panic.json"),
+            ProblemMsg::TogglePanicSame
+        );
+        assert_eq!(explain_file("second-look.json"), ProblemMsg::SecondLook);
+        assert_eq!(
+            explain_file("too-many-controls.json"),
+            ProblemMsg::TooManyControls { max: 64 }
+        );
+        assert_eq!(explain_file("reach-zero.json"), ProblemMsg::ReachRange);
+        assert_eq!(
+            explain_file("sensitivity-zero.json"),
+            ProblemMsg::SensitivityRange
+        );
+        assert_eq!(
+            explain_file("release-too-long.json"),
+            ProblemMsg::ReleaseRange
+        );
+        assert_eq!(explain_file("not-json.json"), ProblemMsg::NotReadable);
+        assert_eq!(explain_file("array-root.json"), ProblemMsg::NotReadable);
+        assert_eq!(
+            explain_file("unknown-field.json"),
+            ProblemMsg::NotUnderstood
+        );
+        assert_eq!(explain_file("unknown-type.json"), ProblemMsg::NotUnderstood);
+        assert_eq!(
+            explain_file("bad-orientation.json"),
+            ProblemMsg::NotUnderstood
+        );
+        assert!(matches!(
+            explain_file("name-too-long.json"),
+            ProblemMsg::NameTooLong { max: 100, .. }
+        ));
+        assert!(matches!(
+            explain_file("unknown-key.json"),
+            ProblemMsg::UnknownKey { .. }
+        ));
+        assert!(matches!(
+            explain_file("radius-zero.json"),
+            ProblemMsg::RadiusRange { .. }
+        ));
+        assert!(matches!(
+            explain_file("x-out-of-range.json"),
+            ProblemMsg::OutOfScreen { .. }
+        ));
+        match explain_file("duplicate-keys.json") {
+            ProblemMsg::DuplicateKey { key, a, b } => {
+                assert!(!key.is_empty() && !a.is_empty() && !b.is_empty());
+                assert_ne!(a, b);
+            }
+            other => panic!("{other:?}"),
+        }
+        // Unlabeled controls are named by kind and number.
+        match explain_file("x-out-of-range.json") {
+            ProblemMsg::OutOfScreen { label } => assert!(!label.is_empty()),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn has(ls: &[Lint], a: &Advice) -> bool {
+        ls.iter().any(|l| &l.advice == a)
+    }
+
+    // test 50
+    #[test]
+    fn lints_cover_the_listed_cases() {
+        use crate::menu::doc::Kind;
+        let mut d = doc();
+        let e = env();
+        // Empty landscape profile on a landscape picture: only "no look".
+        let ls = lints(&d, &e);
+        assert_eq!(ls.len(), 1);
+        assert_eq!(
+            ls[0],
+            Lint {
+                target: None,
+                advice: Advice::NoLook
+            }
+        );
+
+        let look = d.add(Kind::Look, pt(0.5, 0.5)).unwrap();
+        assert!(lints(&d, &e).is_empty());
+
+        // Edge band: centre inside 6 %; exactly 0.06 is outside.
+        let b = d.add(Kind::Button, pt(0.8, 0.5)).unwrap();
+        d.move_to(b, pt(0.05, 0.5)).unwrap();
+        let ls = lints(&d, &e);
+        assert_eq!(
+            ls,
+            vec![Lint {
+                target: Some(b),
+                advice: Advice::NearEdge
+            }]
+        );
+        d.move_to(b, pt(0.06, 0.5)).unwrap();
+        assert!(lints(&d, &e).is_empty());
+
+        // F-key shadow.
+        d.bind(crate::menu::doc::Slot::Button(b), "F4").unwrap();
+        let ls = lints(&d, &e);
+        assert_eq!(
+            ls,
+            vec![Lint {
+                target: Some(b),
+                advice: Advice::ShadowsMirrorly {
+                    key: "F4".into(),
+                    action: MirrorlyAction::VolumeDown
+                }
+            }]
+        );
+        d.bind(crate::menu::doc::Slot::Button(b), "KeyR").unwrap();
+
+        // Overlap with the look anchor: button on it, then far away.
+        d.move_to(b, pt(0.5, 0.5)).unwrap();
+        let ls = lints(&d, &e);
+        assert_eq!(
+            ls,
+            vec![Lint {
+                target: Some(b),
+                advice: Advice::OverlapsLookAnchor
+            }]
+        );
+        d.move_to(b, pt(0.5, 0.7)).unwrap();
+        assert!(lints(&d, &e).is_empty());
+        let _ = look;
+
+        // Orientation mismatch, only when a picture exists.
+        let mut portrait = e;
+        portrait.rotation = Rotation::R0;
+        let ls = lints(&d, &portrait);
+        assert!(has(
+            &ls,
+            &Advice::OrientationMismatch {
+                profile: Orientation::Landscape
+            }
+        ));
+        portrait.has_picture = false;
+        assert!(lints(&d, &portrait).is_empty());
+
+        // More than five controls (all in the middle, away from the anchor).
+        for i in 0..5 {
+            d.add(Kind::Button, pt(0.1 + 0.1 * i as f64, 0.8)).unwrap();
+        }
+        let ls = lints(&d, &e);
+        assert!(has(&ls, &Advice::MoreThanFive { count: 7 }));
+        let n = d.profile().controls.len();
+        assert_eq!(n, 7);
     }
 }
-
-/// `BUTTON_RADIUS_LP` is part of the overlap rule documented in UI_SPEC
-/// 6.9; keep the import used when the rule changes.
-const _: f64 = BUTTON_RADIUS_LP;

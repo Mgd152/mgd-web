@@ -97,10 +97,11 @@ impl UiPrefs {
             p.sens_down_key = d_down();
             p.sens_up_key = d_up();
         }
-        if let Some((_, a, b)) = &p.last_sensitivity_change {
-            if !(a.is_finite() && b.is_finite()) {
-                p.last_sensitivity_change = None;
-            }
+        if p.last_sensitivity_change
+            .as_ref()
+            .is_some_and(|(_, a, b)| !(a.is_finite() && b.is_finite()))
+        {
+            p.last_sensitivity_change = None;
         }
         p
     }
@@ -182,21 +183,27 @@ mod tests {
             ("MouseLeft", "BracketRight"),
             ("KeyQ", "KeyQ"),
         ] {
-            let p = UiPrefs::from_text(&format!(r#"{{"sens_down_key":"{d}","sens_up_key":"{u}"}}"#));
+            let p =
+                UiPrefs::from_text(&format!(r#"{{"sens_down_key":"{d}","sens_up_key":"{u}"}}"#));
             assert_eq!(p.sens_down_key, "BracketLeft");
             assert_eq!(p.sens_up_key, "BracketRight");
         }
         let p = UiPrefs::from_text(r#"{"sens_down_key":"KeyN","sens_up_key":"KeyM"}"#);
-        assert_eq!((p.sens_down_key.as_str(), p.sens_up_key.as_str()), ("KeyN", "KeyM"));
+        assert_eq!(
+            (p.sens_down_key.as_str(), p.sens_up_key.as_str()),
+            ("KeyN", "KeyM")
+        );
     }
 
     #[test]
     fn round_trip_and_fs() {
-        let mut p = UiPrefs::default();
-        p.active = Some("a.json".into());
-        p.overlay = Overlay::Off;
-        p.lang = Lang::En;
-        p.last_sensitivity_change = Some(("a.json".into(), 1.0, 1.21));
+        let p = UiPrefs {
+            active: Some("a.json".into()),
+            overlay: Overlay::Off,
+            lang: Lang::En,
+            last_sensitivity_change: Some(("a.json".into(), 1.0, 1.21)),
+            ..UiPrefs::default()
+        };
         assert_eq!(UiPrefs::from_text(&p.to_text()), p);
         assert!(p.to_text().contains("\"lang\": \"en\""));
         let mut fs = MemFs::new();

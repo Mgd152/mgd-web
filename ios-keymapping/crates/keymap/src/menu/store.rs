@@ -56,7 +56,7 @@ pub trait Fs {
 pub struct MemFs {
     files: BTreeMap<String, String>,
     /// (operation, how many calls of it to let through first)
-    fail_next: Option<(FsOp, usize)>,
+    fail_next: std::cell::Cell<Option<(FsOp, usize)>>,
 }
 
 impl MemFs {
@@ -66,12 +66,12 @@ impl MemFs {
 
     /// Make the next call of `op` fail with `FsError::Io` (once).
     pub fn fail_next(&mut self, op: FsOp) {
-        self.fail_next = Some((op, 0));
+        self.fail_next.set(Some((op, 0)));
     }
 
     /// Let `skip` calls of `op` succeed, then fail the one after (once).
     pub fn fail_nth(&mut self, op: FsOp, skip: usize) {
-        self.fail_next = Some((op, skip));
+        self.fail_next.set(Some((op, skip)));
     }
 
     /// Put a file in directly (tests).
@@ -88,22 +88,24 @@ impl MemFs {
         self.files.keys().cloned().collect()
     }
 
-    fn check(&mut self, op: FsOp) -> Result<(), FsError> {
-        if let Some((o, skip)) = self.fail_next {
-            if o == op {
-                if skip == 0 {
-                    self.fail_next = None;
-                    return Err(FsError::Io(format!("injected {op:?} failure")));
-                }
-                self.fail_next = Some((o, skip - 1));
+    fn check(&self, op: FsOp) -> Result<(), FsError> {
+        match self.fail_next.get() {
+            Some((o, 0)) if o == op => {
+                self.fail_next.set(None);
+                Err(FsError::Io(format!("injected {op:?} failure")))
             }
+            Some((o, skip)) if o == op => {
+                self.fail_next.set(Some((o, skip - 1)));
+                Ok(())
+            }
+            _ => Ok(()),
         }
-        Ok(())
     }
 }
 
 impl Fs for MemFs {
     fn list(&self, dir: &str) -> Result<Vec<String>, FsError> {
+        self.check(FsOp::List)?;
         let prefix = format!("{}/", dir.trim_end_matches('/'));
         Ok(self
             .files
@@ -114,6 +116,7 @@ impl Fs for MemFs {
             .collect())
     }
     fn read(&self, path: &str) -> Result<String, FsError> {
+        self.check(FsOp::Read)?;
         self.files.get(path).cloned().ok_or(FsError::NotFound)
     }
     fn write_atomic(&mut self, path: &str, data: &str) -> Result<(), FsError> {
@@ -241,7 +244,9 @@ fn safe_file(file: &str) -> bool {
         && file.len() <= 120
         && file.to_ascii_lowercase().ends_with(".json")
         && !file.starts_with('.')
-        && !file.chars().any(|c| c.is_control() || "/\\:*?\"<>|".contains(c))
+        && !file
+            .chars()
+            .any(|c| c.is_control() || "/\\:*?\"<>|".contains(c))
 }
 
 // -------------------------------------------------- problem mapping ----
@@ -426,20 +431,19 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
         return None;
     }
     let mut report = Vec::new();
-    let labels: Vec<String> = (0..p.controls.len()).map(|i| control_label(&p, i)).collect();
-    fn fix(
-        report: &mut Vec<Msg>,
-        label: &str,
-        field: RepairField,
-        v: &mut f64,
-        lo: f64,
-        hi: f64,
-    ) {
+    let labels: Vec<String> = (0..p.controls.len())
+        .map(|i| control_label(&p, i))
+        .collect();
+    fn fix(report: &mut Vec<Msg>, label: &str, field: RepairField, v: &mut f64, lo: f64, hi: f64) {
         if v.is_finite() && *v >= lo && *v <= hi {
             return;
         }
         let from = *v;
-        *v = if from.is_finite() { from.clamp(lo, hi) } else { lo };
+        *v = if from.is_finite() {
+            from.clamp(lo, hi)
+        } else {
+            lo
+        };
         report.push(Msg::Repaired {
             label: label.to_string(),
             field,
@@ -453,7 +457,14 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
             Control::Joystick { x, y, radius, .. } => {
                 fix(&mut report, l, RepairField::X, x, 0.0, 1.0);
                 fix(&mut report, l, RepairField::Y, y, 0.0, 1.0);
-                fix(&mut report, l, RepairField::Radius, radius, RADIUS_MIN, RADIUS_MAX);
+                fix(
+                    &mut report,
+                    l,
+                    RepairField::Radius,
+                    radius,
+                    RADIUS_MIN,
+                    RADIUS_MAX,
+                );
             }
             Control::Look {
                 x,
@@ -465,8 +476,22 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
             } => {
                 fix(&mut report, l, RepairField::X, x, 0.0, 1.0);
                 fix(&mut report, l, RepairField::Y, y, 0.0, 1.0);
-                fix(&mut report, l, RepairField::Sensitivity, sensitivity, SENS_MIN, SENS_MAX);
-                fix(&mut report, l, RepairField::Reach, reach, REACH_MIN, REACH_MAX);
+                fix(
+                    &mut report,
+                    l,
+                    RepairField::Sensitivity,
+                    sensitivity,
+                    SENS_MIN,
+                    SENS_MAX,
+                );
+                fix(
+                    &mut report,
+                    l,
+                    RepairField::Reach,
+                    reach,
+                    REACH_MIN,
+                    REACH_MAX,
+                );
                 if *release_after_ms > MAX_RELEASE_MS {
                     report.push(Msg::Repaired {
                         label: l.to_string(),
@@ -620,7 +645,10 @@ impl<F: Fs> ProfileStore<F> {
     }
 
     fn names(&self) -> Vec<String> {
-        self.list().into_iter().map(|e| e.name.to_lowercase()).collect()
+        self.list()
+            .into_iter()
+            .map(|e| e.name.to_lowercase())
+            .collect()
     }
 
     /// New profile from a template, named `Hồ sơ N` (smallest free N).
@@ -665,7 +693,10 @@ impl<F: Fs> ProfileStore<F> {
         p.name = name.to_string();
         let slug = slugify(name);
         let stem = &file[..file.len() - 5];
-        let new_file = if stem == slug || stem.strip_prefix(&format!("{slug}-")).is_some_and(|k| k.parse::<u32>().is_ok())
+        let new_file = if stem == slug
+            || stem
+                .strip_prefix(&format!("{slug}-"))
+                .is_some_and(|k| k.parse::<u32>().is_ok())
         {
             file.to_string()
         } else {
@@ -769,8 +800,8 @@ impl<F: Fs> ProfileStore<F> {
     /// from `hint` (e.g. the dropped file's name), else from the profile's
     /// name. An unnamed profile is named after the hint.
     pub fn import_text(&mut self, text: &str, hint: &str) -> Result<String, StoreError> {
-        let mut p = Profile::from_json(text)
-            .map_err(|e| StoreError::Invalid(explain_text(text, &e)))?;
+        let mut p =
+            Profile::from_json(text).map_err(|e| StoreError::Invalid(explain_text(text, &e)))?;
         let hint = hint.trim();
         let hint = hint
             .get(hint.len().saturating_sub(5)..)
@@ -828,5 +859,720 @@ impl<F: Fs> ProfileStore<F> {
             .into_iter()
             .filter(|n| safe_file(n))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::menu::templates::Template::*;
+
+    const DIR: &str = "keymaps";
+
+    fn store() -> ProfileStore<MemFs> {
+        ProfileStore::new(MemFs::new(), DIR)
+    }
+
+    fn data(sub: &str) -> Vec<(String, String)> {
+        let dir = format!("{}/tests/data/{sub}", env!("CARGO_MANIFEST_DIR"));
+        let mut v: Vec<(String, String)> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|e| e == "json"))
+            .filter(|p| p.file_name().unwrap() != "expected.json")
+            .map(|p| {
+                (
+                    p.file_name().unwrap().to_string_lossy().into_owned(),
+                    String::from_utf8(std::fs::read(&p).unwrap()).unwrap(),
+                )
+            })
+            .collect();
+        v.sort();
+        assert!(!v.is_empty());
+        v
+    }
+
+    fn files(s: &ProfileStore<MemFs>) -> Vec<String> {
+        s.fs().paths()
+    }
+
+    // test 59
+    #[test]
+    fn create_numbers_profiles_and_names_files() {
+        let mut s = store();
+        assert_eq!(s.create(BasicLandscape).unwrap(), "ho-so-1.json");
+        assert_eq!(s.create(ShooterLandscape).unwrap(), "ho-so-2.json");
+        assert_eq!(
+            s.create(Empty(Orientation::Portrait)).unwrap(),
+            "ho-so-3.json"
+        );
+        let names: Vec<String> = s.list().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["Hồ sơ 1", "Hồ sơ 2", "Hồ sơ 3"]);
+        assert_eq!(
+            s.load("ho-so-3.json").unwrap().orientation,
+            Orientation::Portrait
+        );
+        // a hole is refilled
+        s.delete("ho-so-2.json").unwrap();
+        assert_eq!(s.create(BasicPortrait).unwrap(), "ho-so-2.json");
+    }
+
+    #[test]
+    fn slug_collisions_get_a_number() {
+        let mut s = store();
+        // an imported profile that squats on the slug of "Hồ sơ 1"
+        let other = r#"{"version":1,"name":"Của tôi","orientation":"landscape"}"#;
+        assert_eq!(
+            s.import_text(other, "Hồ sơ 1.json").unwrap(),
+            "ho-so-1.json"
+        );
+        assert_eq!(s.create(BasicLandscape).unwrap(), "ho-so-1-2.json");
+        assert_eq!(s.create(BasicLandscape).unwrap(), "ho-so-2.json");
+        assert_eq!(s.load("ho-so-1-2.json").unwrap().name, "Hồ sơ 1");
+        // and again: -3
+        let third = s.import_text(other, "Hồ sơ 1").unwrap();
+        assert_eq!(third, "ho-so-1-3.json");
+    }
+
+    // test 60
+    #[test]
+    fn slugify_cases() {
+        assert_eq!(slugify("Hồ sơ Ngang"), "ho-so-ngang");
+        assert_eq!(slugify("Đấu trường"), "dau-truong");
+        assert_eq!(slugify("ĐẤU TRƯỜNG"), "dau-truong");
+        assert_eq!(slugify("Tiếng Việt: ươ ữ ỹ ỵ"), "tieng-viet-uo-u-y-y");
+        // decomposed: o + circumflex + dot below
+        assert_eq!(slugify("Ho\u{0302}\u{0300} so\u{031b}"), "ho-so");
+        assert_eq!(slugify("  A   B__C  "), "a-b-c");
+        for r in ["CON", "con", "Prn", "AUX", "nul", "COM1", "lpt9", "Com5"] {
+            assert_eq!(slugify(r), format!("ho-so-{}", r.to_lowercase()), "{r}");
+        }
+        assert_eq!(slugify("COM0"), "com0");
+        assert_eq!(slugify("CONSOLE"), "console");
+        assert_eq!(slugify("name..."), "name");
+        assert_eq!(slugify("...hidden"), "hidden");
+        assert_eq!(slugify(".-."), "ho-so");
+        assert_eq!(slugify(""), "ho-so");
+        assert_eq!(slugify("***"), "ho-so");
+        assert_eq!(slugify("日本語"), "ho-so");
+        let long = slugify(&"ab ".repeat(100));
+        assert!(long.len() <= 48 && !long.ends_with('-') && !long.starts_with('-'));
+        let long = slugify(&"x".repeat(100));
+        assert_eq!(long.len(), 48);
+        // the truncation point may land on a '-'
+        let s = slugify(&format!("{} y", "x".repeat(47)));
+        assert_eq!(s, "x".repeat(47));
+        for n in ["a/b", "a\\b", "a:b", "a*b?\"<>|", "tab\there"] {
+            let s = slugify(n);
+            assert!(
+                s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+                "{s}"
+            );
+        }
+    }
+
+    fn some_profile(name: &str) -> Profile {
+        let mut p = template(BasicLandscape);
+        p.name = name.to_string();
+        p
+    }
+
+    // test 61
+    #[test]
+    fn save_writes_bak_and_validates() {
+        let mut s = store();
+        let a = some_profile("A");
+        s.save("a.json", &a).unwrap();
+        assert!(!s.fs().exists("keymaps/a.json.bak"));
+        let mut b = some_profile("B");
+        b.name = "B".into();
+        s.save("a.json", &b).unwrap();
+        assert_eq!(
+            s.fs().get("keymaps/a.json.bak").unwrap(),
+            a.to_json_pretty()
+        );
+        assert_eq!(s.fs().get("keymaps/a.json").unwrap(), b.to_json_pretty());
+        let c = some_profile("C");
+        s.save("a.json", &c).unwrap();
+        assert_eq!(
+            s.fs().get("keymaps/a.json.bak").unwrap(),
+            b.to_json_pretty()
+        );
+        // invalid profile: refused, nothing changes
+        let before = files(&s);
+        let mut bad = some_profile("D");
+        bad.toggle_key = "F8".into(); // equals the panic key
+        assert!(matches!(
+            s.save("a.json", &bad),
+            Err(StoreError::Invalid(ProblemMsg::TogglePanicSame))
+        ));
+        assert_eq!(files(&s), before);
+        assert_eq!(s.fs().get("keymaps/a.json").unwrap(), c.to_json_pretty());
+        // unsafe file names
+        for f in [
+            "../x.json",
+            "a/b.json",
+            "x.txt",
+            "",
+            ".json",
+            ".hidden.json",
+        ] {
+            assert_eq!(s.save(f, &c), Err(StoreError::NotFound), "{f}");
+        }
+    }
+
+    #[test]
+    fn failed_write_leaves_the_old_file_for_every_fs_op() {
+        let old = some_profile("Old");
+        let new = some_profile("New");
+        for op in [
+            FsOp::List,
+            FsOp::Read,
+            FsOp::WriteAtomic,
+            FsOp::Rename,
+            FsOp::Remove,
+        ] {
+            for skip in 0..3 {
+                let mut s = store();
+                s.save("a.json", &old).unwrap();
+                s.fs_mut().fail_nth(op, skip);
+                let r = s.save("a.json", &new);
+                let now = s.fs().get("keymaps/a.json").unwrap().to_string();
+                match r {
+                    Err(StoreError::Fs(_)) => {
+                        assert_eq!(now, old.to_json_pretty(), "{op:?} {skip}")
+                    }
+                    Ok(()) => assert_eq!(now, new.to_json_pretty(), "{op:?} {skip}"),
+                    Err(e) => panic!("{op:?} {skip}: {e:?}"),
+                }
+                // whatever happened, the file is a complete valid profile
+                assert!(Profile::from_json(&now).is_ok());
+            }
+        }
+        // the main write failing (second write_atomic) keeps the old bytes
+        let mut s = store();
+        s.save("a.json", &old).unwrap();
+        s.fs_mut().fail_nth(FsOp::WriteAtomic, 1);
+        assert!(matches!(
+            s.save("a.json", &new),
+            Err(StoreError::Fs(FsError::Io(_)))
+        ));
+        assert_eq!(s.fs().get("keymaps/a.json").unwrap(), old.to_json_pretty());
+        // failure is one-shot
+        s.save("a.json", &new).unwrap();
+    }
+
+    #[test]
+    fn failures_in_other_operations_change_nothing() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        let before = s.fs().clone().paths();
+        s.fs_mut().fail_next(FsOp::Rename);
+        assert!(matches!(s.delete(&f), Err(StoreError::Fs(_))));
+        assert_eq!(s.fs().paths(), before);
+        s.fs_mut().fail_next(FsOp::WriteAtomic);
+        assert!(matches!(s.rename(&f, "Khác"), Err(StoreError::Fs(_))));
+        assert_eq!(s.fs().paths(), before);
+        s.fs_mut().fail_next(FsOp::WriteAtomic);
+        assert!(matches!(s.duplicate(&f), Err(StoreError::Fs(_))));
+        assert_eq!(s.fs().paths(), before);
+        s.fs_mut().fail_next(FsOp::Read);
+        assert!(matches!(s.load(&f), Err(StoreError::Fs(_))));
+        s.fs_mut().fail_next(FsOp::List);
+        assert!(s.list().is_empty()); // list failure: empty, not a panic
+        assert_eq!(s.list().len(), 1);
+    }
+
+    // test 62
+    #[test]
+    fn rename_updates_name_and_file() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        s.save(&f, &some_profile("Hồ sơ 1")).unwrap(); // makes a .bak
+        s.write_draft(&f, &some_profile("Nháp")).unwrap();
+        let g = s.rename(&f, "  Đấu trường  ").unwrap();
+        assert_eq!(g, "dau-truong.json");
+        assert_eq!(s.load(&g).unwrap().name, "Đấu trường");
+        assert!(!s.fs().exists("keymaps/ho-so-1.json"));
+        assert!(s.fs().exists("keymaps/dau-truong.json.bak"));
+        assert!(!s.fs().exists("keymaps/ho-so-1.json.bak"));
+        assert_eq!(s.drafts(), std::slice::from_ref(&g));
+        // same slug: file kept, name changes
+        assert_eq!(s.rename(&g, "ĐẤU TRƯỜNG").unwrap(), g);
+        assert_eq!(s.load(&g).unwrap().name, "ĐẤU TRƯỜNG");
+        // taken name (case-insensitive) and bad names
+        let h = s.create(BasicLandscape).unwrap();
+        assert_eq!(s.rename(&h, "đấu trường"), Err(StoreError::NameTaken));
+        assert!(matches!(
+            s.rename(&h, &"x".repeat(101)),
+            Err(StoreError::Invalid(ProblemMsg::NameTooLong {
+                max: 100,
+                ..
+            }))
+        ));
+        assert!(matches!(s.rename(&h, "   "), Err(StoreError::Invalid(_))));
+        assert_eq!(s.rename("nope.json", "Z"), Err(StoreError::NotFound));
+        // another profile's slug: gets -2
+        let k = s.rename(&h, "Đấu-trường").unwrap();
+        assert_eq!(k, "dau-truong-2.json");
+        // keeping the "-2" file when renaming back to the same slug
+        assert_eq!(s.rename(&k, "Đấu trường!").unwrap(), k);
+    }
+
+    #[test]
+    fn duplicate_names_are_unique() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        let d1 = s.duplicate(&f).unwrap();
+        let d2 = s.duplicate(&f).unwrap();
+        let d3 = s.duplicate(&d1).unwrap();
+        let names: Vec<String> = [&d1, &d2, &d3]
+            .iter()
+            .map(|x| s.load(x).unwrap().name)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "Hồ sơ 1 (bản sao)",
+                "Hồ sơ 1 (bản sao 2)",
+                "Hồ sơ 1 (bản sao) (bản sao)"
+            ]
+        );
+        assert_eq!(s.load(&f).unwrap().controls, s.load(&d1).unwrap().controls);
+        let mut long = some_profile(&"é".repeat(100));
+        long.name = "é".repeat(100);
+        s.save("long.json", &long).unwrap();
+        let d = s.duplicate("long.json").unwrap();
+        assert!(s.load(&d).unwrap().name.chars().count() <= 100);
+    }
+
+    // test 63
+    #[test]
+    fn delete_undelete_restores_bytes_and_purge_empties_trash() {
+        let mut s = store();
+        let f = s.create(ShooterLandscape).unwrap();
+        s.save(&f, &some_profile("Hồ sơ 1")).unwrap();
+        let bytes = s.fs().get("keymaps/ho-so-1.json").unwrap().to_string();
+        let bak = s.fs().get("keymaps/ho-so-1.json.bak").unwrap().to_string();
+        let t = s.delete(&f).unwrap();
+        assert!(s.list().is_empty());
+        assert!(!s.fs().exists("keymaps/ho-so-1.json"));
+        assert!(s.fs().exists("keymaps/.trash/ho-so-1.json"));
+        let back = s.undelete(t.clone()).unwrap();
+        assert_eq!(back, "ho-so-1.json");
+        assert_eq!(s.fs().get("keymaps/ho-so-1.json").unwrap(), bytes);
+        assert_eq!(s.fs().get("keymaps/ho-so-1.json.bak").unwrap(), bak);
+        assert_eq!(s.undelete(t), Err(StoreError::NotFound)); // used up
+
+        // the name was reused meanwhile: restored under another file name
+        let t = s.delete("ho-so-1.json").unwrap();
+        s.create(BasicLandscape).unwrap();
+        assert_eq!(s.undelete(t).unwrap(), "ho-so-1-2.json");
+        assert_eq!(s.fs().get("keymaps/ho-so-1-2.json").unwrap(), bytes);
+
+        // two deletes of the same file name do not clobber each other
+        let t1 = s.delete("ho-so-1.json").unwrap();
+        let named = r#"{"version":1,"name":"Khác","orientation":"landscape"}"#;
+        assert_eq!(s.import_text(named, "ho-so-1").unwrap(), "ho-so-1.json");
+        let t2 = s.delete("ho-so-1.json").unwrap();
+        assert_ne!(t1, t2);
+        assert_eq!(
+            s.fs()
+                .paths()
+                .iter()
+                .filter(|p| p.contains(".trash"))
+                .count(),
+            2
+        );
+
+        s.purge_trash();
+        assert!(!s.fs().paths().iter().any(|p| p.contains(".trash")));
+        assert_eq!(s.undelete(t1), Err(StoreError::NotFound));
+        assert_eq!(s.delete("ghost.json"), Err(StoreError::NotFound));
+        // deleting also drops a draft
+        s.write_draft("ho-so-1-2.json", &some_profile("x")).unwrap();
+        s.delete("ho-so-1-2.json").unwrap();
+        assert!(s.drafts().is_empty());
+    }
+
+    // test 64
+    #[test]
+    fn broken_files_are_listed_and_never_removed() {
+        let mut s = store();
+        s.create(BasicLandscape).unwrap();
+        let broken = [
+            ("b-garbage.json", "not json at all", ProblemMsg::NotReadable),
+            (
+                "b-range.json",
+                r#"{"version":1,"orientation":"landscape","controls":[{"type":"button","label":"Bắn","x":1.5,"y":0.5,"key":"Space"}]}"#,
+                ProblemMsg::OutOfScreen {
+                    label: "Bắn".into(),
+                },
+            ),
+            (
+                "b-newer.json",
+                r#"{"version":2,"name":"Mới","orientation":"portrait"}"#,
+                ProblemMsg::NewerVersion,
+            ),
+        ];
+        for (f, t, _) in &broken {
+            s.fs_mut().put(&format!("keymaps/{f}"), t);
+        }
+        s.fs_mut().put("keymaps/readme.txt", "ignore me");
+        s.fs_mut().put("keymaps/c.json.bak", "{}");
+        let before = files(&s);
+        let list = s.list();
+        assert_eq!(files(&s), before, "list must not touch anything");
+        assert_eq!(list.len(), 4);
+        assert_eq!(list[0].file, "b-garbage.json");
+        for (f, _, msg) in &broken {
+            let e = list.iter().find(|e| e.file == *f).unwrap();
+            assert_eq!(e.health, Health::Broken(msg.clone()), "{f}");
+        }
+        let range = list.iter().find(|e| e.file == "b-range.json").unwrap();
+        assert_eq!(
+            (range.controls, range.orientation),
+            (1, Some(Orientation::Landscape))
+        );
+        assert_eq!(
+            list.iter()
+                .find(|e| e.file == "b-garbage.json")
+                .unwrap()
+                .name,
+            "b-garbage"
+        );
+        assert_eq!(
+            list.iter().find(|e| e.file == "b-newer.json").unwrap().name,
+            "Mới"
+        );
+        assert_eq!(
+            list.iter()
+                .find(|e| e.file == "ho-so-1.json")
+                .unwrap()
+                .health,
+            Health::Ok
+        );
+        // loading one says why; a broken file can be deleted and restored
+        assert!(matches!(
+            s.load("b-newer.json"),
+            Err(StoreError::Invalid(ProblemMsg::NewerVersion))
+        ));
+        let t = s.delete("b-garbage.json").unwrap();
+        s.undelete(t).unwrap();
+        assert_eq!(
+            s.fs().get("keymaps/b-garbage.json").unwrap(),
+            "not json at all"
+        );
+        // creating more profiles does not disturb them
+        s.create(BasicPortrait).unwrap();
+        assert_eq!(
+            s.fs().get("keymaps/b-garbage.json").unwrap(),
+            "not json at all"
+        );
+        // an unreadable file (read failure) is listed as broken, too
+        s.fs_mut().fail_nth(FsOp::Read, 0);
+        let list = s.list();
+        assert_eq!(list.len(), 5);
+        assert!(
+            list.iter()
+                .any(|e| e.health == Health::Broken(ProblemMsg::NotReadable))
+        );
+    }
+
+    // test 65
+    #[test]
+    fn import_accepts_every_valid_sample() {
+        for (name, text) in data("valid") {
+            let mut s = store();
+            let file = s
+                .import_text(&text, &name)
+                .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            let p = Profile::from_json(&text).unwrap();
+            let got = s.load(&file).unwrap();
+            assert_eq!(got.controls, p.controls, "{name}");
+            assert_eq!(got.orientation, p.orientation);
+            assert!(safe_file(&file));
+            // second import never overwrites: another file name
+            let again = s.import_text(&text, &name).unwrap();
+            assert_ne!(again, file);
+            assert_eq!(s.list().len(), 2);
+        }
+    }
+
+    #[test]
+    fn import_rejects_every_invalid_sample_and_writes_nothing() {
+        let mut s = store();
+        s.create(BasicLandscape).unwrap();
+        let before = s.fs().clone().paths();
+        let bytes = s.fs().get("keymaps/ho-so-1.json").unwrap().to_string();
+        for (name, text) in data("invalid") {
+            match s.import_text(&text, &name) {
+                Err(StoreError::Invalid(m)) => {
+                    for lang in [Lang::Vi, Lang::En] {
+                        assert!(
+                            !Msg::Problem(m.clone()).text(lang).trim().is_empty(),
+                            "{name}"
+                        );
+                    }
+                }
+                other => panic!("{name}: {other:?}"),
+            }
+            assert_eq!(s.fs().paths(), before, "{name} wrote something");
+        }
+        assert_eq!(s.fs().get("keymaps/ho-so-1.json").unwrap(), bytes);
+    }
+
+    #[test]
+    fn invalid_samples_map_to_the_expected_messages() {
+        let want = |n: &str| -> ProblemMsg {
+            use ProblemMsg::*;
+            match n {
+                "array-root.json"
+                | "bad-orientation.json"
+                | "missing-orientation.json"
+                | "not-json.json" => {
+                    if n == "bad-orientation.json" {
+                        NotUnderstood
+                    } else {
+                        NotReadable
+                    }
+                }
+                "unknown-field.json" | "unknown-type.json" => NotUnderstood,
+                "bad-version.json" => NewerVersion,
+                "name-too-long.json" => NameTooLong {
+                    text: String::new(),
+                    max: 100,
+                },
+                "mouse-toggle.json" => MouseOnToggle,
+                "toggle-equals-panic.json" => TogglePanicSame,
+                "too-many-controls.json" => TooManyControls { max: 64 },
+                "second-look.json" => SecondLook,
+                "x-out-of-range.json" | "y-out-of-range.json" | "second-look-then-bad-x.json" => {
+                    OutOfScreen {
+                        label: String::new(),
+                    }
+                }
+                "radius-too-big.json" | "radius-zero.json" => RadiusRange {
+                    label: String::new(),
+                },
+                "reach-too-big.json" | "reach-zero.json" => ReachRange,
+                "sensitivity-zero.json" => SensitivityRange,
+                "release-too-long.json" => ReleaseRange,
+                "unknown-key.json" | "unknown-joystick-key.json" => UnknownKey {
+                    key: String::new(),
+                    label: String::new(),
+                },
+                _ => DuplicateKey {
+                    key: String::new(),
+                    a: String::new(),
+                    b: String::new(),
+                },
+            }
+        };
+        for (name, text) in data("invalid") {
+            let got = match Profile::from_json(&text) {
+                Err(e) => explain_text(&text, &e),
+                Ok(_) => panic!("{name} is valid"),
+            };
+            assert_eq!(
+                std::mem::discriminant(&got),
+                std::mem::discriminant(&want(&name)),
+                "{name}: {got:?}"
+            );
+            if let ProblemMsg::DuplicateKey { key, a, b } = &got {
+                assert!(!key.is_empty() && !a.is_empty() && !b.is_empty(), "{got:?}");
+            }
+            if let ProblemMsg::UnknownKey { key, label } = &got {
+                assert!(!key.is_empty() && !label.is_empty(), "{got:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn import_names_and_hints() {
+        let mut s = store();
+        let unnamed = r#"{"version":1,"orientation":"landscape"}"#;
+        let f = s.import_text(unnamed, "Cấu hình của Nam.json").unwrap();
+        assert_eq!(f, "cau-hinh-cua-nam.json");
+        assert_eq!(s.load(&f).unwrap().name, "Cấu hình của Nam");
+        let f = s.import_text(unnamed, "").unwrap();
+        assert_eq!(f, "ho-so-1.json");
+        assert_eq!(s.load(&f).unwrap().name, "Hồ sơ 1");
+        let named = r#"{"version":1,"name":"Súng","orientation":"landscape"}"#;
+        assert_eq!(s.import_text(named, "").unwrap(), "sung.json");
+        // BOM is accepted
+        assert!(s.import_text(&format!("\u{feff}{named}"), "").is_ok());
+        // pre-existing file with different case is not overwritten
+        s.fs_mut().put("keymaps/SUNG-2.json", "x");
+        assert_eq!(s.import_text(named, "").unwrap(), "sung-3.json");
+    }
+
+    // test 66
+    #[test]
+    fn export_equals_pretty_json_and_reimports() {
+        let mut s = store();
+        let f = s.create(ShooterLandscape).unwrap();
+        let text = s.export_text(&f).unwrap();
+        assert_eq!(text, s.load(&f).unwrap().to_json_pretty());
+        let g = s.import_text(&text, "copy").unwrap();
+        assert_eq!(s.load(&g).unwrap().controls, s.load(&f).unwrap().controls);
+        assert_eq!(s.export_text("none.json"), Err(StoreError::NotFound));
+    }
+
+    // test 67
+    #[test]
+    fn drafts_write_read_drop() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        assert_eq!(s.draft(&f), None);
+        assert!(s.drafts().is_empty());
+        let mut p = s.load(&f).unwrap();
+        p.name = "Chưa lưu".into();
+        s.write_draft(&f, &p).unwrap();
+        s.write_draft("moi.json", &p).unwrap(); // draft of a never-saved profile
+        assert_eq!(s.draft(&f), Some(p.clone()));
+        assert_eq!(s.drafts(), [f.clone(), "moi.json".to_string()]);
+        assert_eq!(
+            s.load(&f).unwrap().name,
+            "Hồ sơ 1",
+            "draft is not the profile"
+        );
+        assert_eq!(s.list().len(), 1, "drafts are not listed as profiles");
+        s.drop_draft(&f);
+        assert_eq!(s.draft(&f), None);
+        s.drop_draft(&f); // idempotent
+        assert_eq!(s.drafts(), ["moi.json"]);
+        // a damaged draft reads as none
+        s.fs_mut().put("keymaps/.draft/moi.json", "{");
+        assert_eq!(s.draft("moi.json"), None);
+        // failed write: nothing changes
+        s.fs_mut().fail_next(FsOp::WriteAtomic);
+        assert!(s.write_draft(&f, &p).is_err());
+        assert_eq!(s.draft(&f), None);
+        // invalid draft refused
+        let mut bad = p.clone();
+        bad.panic_key = bad.toggle_key.clone();
+        assert!(matches!(
+            s.write_draft(&f, &bad),
+            Err(StoreError::Invalid(_))
+        ));
+    }
+
+    // test 68
+    #[test]
+    fn repair_ranges_only_for_pure_range_problems() {
+        let wrap = |c: &str| {
+            format!(r#"{{"version":1,"name":"R","orientation":"landscape","controls":[{c}]}}"#)
+        };
+        let btn =
+            |x: &str| format!(r#"{{"type":"button","label":"Bắn","x":{x},"y":0.5,"key":"Space"}}"#);
+        // x out of range
+        let (p, rep) = repair_ranges(&wrap(&btn("1.4"))).unwrap();
+        assert!(p.validate().is_ok());
+        assert_eq!(rep.len(), 1);
+        assert_eq!(
+            rep[0],
+            Msg::Repaired {
+                label: "Bắn".into(),
+                field: RepairField::X,
+                from: 1.4,
+                to: 1.0
+            }
+        );
+        assert_eq!(
+            rep[0].text(Lang::Vi),
+            "Đã chỉnh vị trí ngang của “Bắn”: 1,40 → 1,00."
+        );
+        assert_eq!(
+            rep[0].text(Lang::En),
+            "Adjusted horizontal position of “Bắn”: 1.40 → 1.00."
+        );
+        // several numbers in several controls: one line each
+        let text = wrap(&format!(
+            "{},{},{}",
+            r#"{"type":"joystick","x":-0.2,"y":0.7,"radius":0.9,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"}"#,
+            r#"{"type":"look","x":0.7,"y":0.4,"sensitivity":0,"reach":0,"release_after_ms":90000}"#,
+            btn("0.5"),
+        ));
+        let (p, rep) = repair_ranges(&text).unwrap();
+        assert!(p.validate().is_ok());
+        assert_eq!(rep.len(), 5);
+        match (&p.controls[0], &p.controls[1]) {
+            (
+                Control::Joystick { x, radius, .. },
+                Control::Look {
+                    sensitivity,
+                    reach,
+                    release_after_ms,
+                    ..
+                },
+            ) => {
+                assert_eq!((*x, *radius), (0.0, RADIUS_MAX));
+                assert_eq!(
+                    (*sensitivity, *reach, *release_after_ms),
+                    (SENS_MIN, REACH_MIN, 60_000)
+                );
+            }
+            c => panic!("{c:?}"),
+        }
+        // unlabeled controls are named like in the editor
+        let (_, rep) = repair_ranges(&wrap(
+            r#"{"type":"button","x":2,"y":0.5,"key":"Space"},{"type":"button","x":0.5,"y":2,"key":"KeyE"}"#,
+        ))
+        .unwrap();
+        assert!(matches!(&rep[0], Msg::Repaired { label, .. } if label == "Nút 1"));
+        assert!(matches!(&rep[1], Msg::Repaired { label, .. } if label == "Nút 2"));
+        // range problem plus another problem: refused
+        for bad in [
+            wrap(&format!("{},{}", btn("1.4"), btn("0.4"))), // duplicate key
+            wrap(r#"{"type":"button","x":1.4,"y":0.5,"key":"Nope"}"#),
+            wrap(r#"{"type":"look","x":0.5,"y":0.5},{"type":"look","x":1.5,"y":0.5}"#),
+            r#"{"version":2,"orientation":"landscape","controls":[{"type":"button","x":1.4,"y":0.5,"key":"Space"}]}"#.to_string(),
+            r#"{"version":1,"orientation":"landscape","extra":1,"controls":[{"type":"button","x":1.4,"y":0.5,"key":"Space"}]}"#.to_string(),
+            "not json".to_string(),
+            String::new(),
+        ] {
+            assert!(repair_ranges(&bad).is_none(), "{bad}");
+        }
+        // already valid: nothing to repair
+        assert!(repair_ranges(&wrap(&btn("0.5"))).is_none());
+        // every invalid sample: Some only when the result validates
+        let mut some = 0;
+        for (name, text) in data("invalid") {
+            if let Some((p, rep)) = repair_ranges(&text) {
+                some += 1;
+                assert!(p.validate().is_ok() && !rep.is_empty(), "{name}");
+                assert!(Profile::from_json(&p.to_json_pretty()).is_ok());
+            }
+        }
+        assert!(some >= 6, "{some}");
+    }
+
+    #[test]
+    fn repaired_text_can_be_imported() {
+        let mut s = store();
+        let text = r#"{"version":1,"orientation":"landscape","controls":[{"type":"button","x":1.4,"y":0.5,"key":"Space"}]}"#;
+        assert!(s.import_text(text, "x").is_err());
+        let (p, _) = repair_ranges(text).unwrap();
+        assert!(s.import_text(&p.to_json_pretty(), "x").is_ok());
+    }
+
+    #[test]
+    fn memfs_behaves() {
+        let mut fs = MemFs::new();
+        assert_eq!(fs.list("d"), Ok(vec![]));
+        fs.write_atomic("d/b", "1").unwrap();
+        fs.write_atomic("d/a", "2").unwrap();
+        fs.write_atomic("d/sub/c", "3").unwrap();
+        fs.write_atomic("dd/x", "4").unwrap();
+        assert_eq!(fs.list("d").unwrap(), ["a", "b"]);
+        assert_eq!(fs.list("d/").unwrap(), ["a", "b"]);
+        fs.rename("d/a", "d/b").unwrap();
+        assert_eq!(fs.read("d/b").unwrap(), "2");
+        assert_eq!(fs.rename("d/zz", "d/y"), Err(FsError::NotFound));
+        assert_eq!(fs.remove("d/zz"), Err(FsError::NotFound));
+        assert_eq!(fs.read("d/zz"), Err(FsError::NotFound));
+        fs.remove("d/b").unwrap();
+        assert!(!fs.exists("d/b"));
     }
 }

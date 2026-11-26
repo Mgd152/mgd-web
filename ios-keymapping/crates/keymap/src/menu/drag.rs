@@ -6,8 +6,8 @@
 //! `cancel` (Esc / F8) puts the document back byte for byte.
 
 use super::doc::{EditDoc, EditError, Kind};
-use super::hit::{EditView, Hit};
 use super::history::{Gesture, History};
+use super::hit::{EditView, Hit};
 use super::snap::{Guide, clamp_to_picture, snap_axes};
 use super::{CtrlId, Mods, Pt, RADIUS_MAX, RADIUS_MIN, REACH_MAX, REACH_MIN};
 
@@ -23,7 +23,10 @@ pub enum Axis {
 #[derive(Clone, PartialEq, Debug)]
 pub enum Drag {
     /// Pressed on a body; becomes `Move` after 4 logical px, else a select.
-    Pending { id: CtrlId, down: Pt },
+    Pending {
+        id: CtrlId,
+        down: Pt,
+    },
     Move {
         id: CtrlId,
         /// Window-px offset centre - pointer, taken when the drag started.
@@ -39,7 +42,9 @@ pub enum Drag {
         before: Box<EditDoc>,
     },
     /// Palette ghost following the pointer.
-    Place { kind: Kind },
+    Place {
+        kind: Kind,
+    },
 }
 
 /// What the drawer needs after a pointer move.
@@ -170,7 +175,8 @@ impl Drag {
                 };
                 if mods.shift {
                     if axis.is_none() {
-                        let (dx, dy) = ((target.x - start_px.x).abs(), (target.y - start_px.y).abs());
+                        let (dx, dy) =
+                            ((target.x - start_px.x).abs(), (target.y - start_px.y).abs());
                         if dx > 0.0 || dy > 0.0 {
                             *axis = Some(if dx >= dy { Axis::X } else { Axis::Y });
                         }
@@ -274,6 +280,426 @@ impl Drag {
                 hist.end(doc);
             }
             Drag::Pending { .. } | Drag::Place { .. } => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::{Contact, Engine, Input};
+    use crate::geom::{Rotation, View};
+    use crate::menu::Dir;
+    use crate::menu::PxRect;
+    use crate::menu::doc::Slot;
+    use crate::menu::hit::testing::{doc, pt, view};
+    use crate::menu::hit::{handle_pos, hit_test};
+    use crate::profile::Orientation;
+
+    const NONE: Mods = Mods {
+        shift: false,
+        ctrl: false,
+        alt: false,
+    };
+    const ALT: Mods = Mods {
+        shift: false,
+        ctrl: false,
+        alt: true,
+    };
+    const SHIFT: Mods = Mods {
+        shift: true,
+        ctrl: false,
+        alt: false,
+    };
+
+    fn pos(d: &EditDoc, id: CtrlId) -> (f64, f64) {
+        use crate::profile::Control;
+        match d.control(id).unwrap() {
+            Control::Joystick { x, y, .. }
+            | Control::Look { x, y, .. }
+            | Control::Button { x, y, .. } => (*x, *y),
+        }
+    }
+
+    /// One button at (0.5, 0.5) = window px (500, 250) in a 1000 x 500 picture.
+    fn one_button() -> (EditDoc, History, CtrlId) {
+        let mut d = doc();
+        let id = d.add(Kind::Button, pt(0.5, 0.5)).unwrap();
+        let h = History::new(&d);
+        (d, h, id)
+    }
+
+    fn grab(d: &EditDoc, h: &mut History, at: Pt) -> Drag {
+        let hit = hit_test(d, &view(), None, at);
+        Drag::from_hit(hit, at, d, h, 0).expect("a drag")
+    }
+
+    // test 25
+    #[test]
+    fn click_below_threshold_selects_only() {
+        let (mut d, mut h, id) = one_button();
+        let before = d.clone();
+        let mut drag = grab(&d, &mut h, pt(500.0, 250.0));
+        drag.update(&mut d, &mut h, &view(), pt(503.0, 252.0), NONE, 1);
+        assert!(matches!(drag, Drag::Pending { .. }));
+        let end = drag.finish(&mut d, &mut h, &view(), pt(503.0, 252.0), NONE, 2);
+        assert_eq!(end, DragEnd::Select(id));
+        assert_eq!(d, before);
+        assert!(!h.can_undo());
+        assert!(!h.dirty());
+        // At 4 px it is a move.
+        let mut drag = grab(&d, &mut h, pt(500.0, 250.0));
+        drag.update(&mut d, &mut h, &view(), pt(504.0, 250.0), NONE, 3);
+        assert!(matches!(drag, Drag::Move { .. }));
+    }
+
+    // test 26
+    #[test]
+    fn move_keeps_the_grab_offset() {
+        let (mut d, mut h, id) = one_button();
+        // Grab 10 px up-left of the centre.
+        let mut drag = grab(&d, &mut h, pt(490.0, 240.0));
+        drag.update(&mut d, &mut h, &view(), pt(600.0, 340.0), ALT, 1);
+        let end = drag.finish(&mut d, &mut h, &view(), pt(710.0, 440.0), ALT, 2);
+        assert_eq!(end, DragEnd::Moved(id));
+        // centre = pointer + (10, 10) -> (720, 450) px -> (0.72, 0.9)
+        assert_eq!(pos(&d, id), (0.72, 0.9));
+        assert!(h.can_undo());
+        h.undo(&mut d);
+        assert_eq!(pos(&d, id), (0.5, 0.5));
+        assert!(!h.can_undo()); // one step, not many
+    }
+
+    // test 27
+    #[test]
+    fn clamp_at_all_four_edges() {
+        for (to, want) in [
+            (pt(-300.0, 250.0), (0.0, 0.5)),
+            (pt(1500.0, 250.0), (1.0, 0.5)),
+            (pt(500.0, -300.0), (0.5, 0.0)),
+            (pt(500.0, 900.0), (0.5, 1.0)),
+            (pt(-9.0, -9.0), (0.0, 0.0)),
+            (pt(9999.0, 9999.0), (1.0, 1.0)),
+        ] {
+            let (mut d, mut h, id) = one_button();
+            let mut drag = grab(&d, &mut h, pt(500.0, 250.0));
+            drag.update(&mut d, &mut h, &view(), to, NONE, 1);
+            drag.finish(&mut d, &mut h, &view(), to, NONE, 2);
+            assert_eq!(pos(&d, id), want, "{to:?}");
+        }
+    }
+
+    // test 28
+    #[test]
+    fn shift_locks_an_axis_and_alt_disables_snapping() {
+        let (mut d, mut h, id) = one_button();
+        let mut drag = grab(&d, &mut h, pt(500.0, 250.0));
+        drag.update(&mut d, &mut h, &view(), pt(560.0, 270.0), SHIFT, 1);
+        assert_eq!(pos(&d, id), (0.56, 0.5)); // x dominates: y stays
+        drag.update(&mut d, &mut h, &view(), pt(570.0, 400.0), SHIFT, 2);
+        assert_eq!(pos(&d, id), (0.57, 0.5)); // the axis stays locked
+        drag.update(&mut d, &mut h, &view(), pt(570.0, 400.0), NONE, 3);
+        assert_eq!(pos(&d, id), (0.57, 0.8)); // released: free again
+        drag.finish(&mut d, &mut h, &view(), pt(570.0, 400.0), NONE, 4);
+
+        // Snapping: another control at x = 0.3 (300 px).
+        for (mods, want_x) in [(NONE, 0.3), (ALT, 0.303)] {
+            let mut d = doc();
+            let a = d.add(Kind::Button, pt(0.3, 0.2)).unwrap();
+            let b = d.add(Kind::Button, pt(0.6, 0.7)).unwrap();
+            let mut h = History::new(&d);
+            let mut drag = grab(&d, &mut h, pt(600.0, 350.0));
+            let up = drag.update(&mut d, &mut h, &view(), pt(303.0, 350.0), mods, 1);
+            assert_eq!(pos(&d, b).0, want_x);
+            assert_eq!(up.guides.is_empty(), mods.alt);
+            drag.finish(&mut d, &mut h, &view(), pt(303.0, 350.0), mods, 2);
+            assert_eq!(pos(&d, a), (0.3, 0.2));
+        }
+    }
+
+    // test 30
+    #[test]
+    fn resize_values_and_clamps() {
+        let v = view(); // short side 500
+        let c = pt(500.0, 250.0);
+        assert_eq!(resize_value(Kind::Joystick, c, pt(600.0, 250.0), &v), 0.2);
+        assert_eq!(resize_value(Kind::Joystick, c, pt(560.0, 330.0), &v), 0.2); // 3-4-5
+        assert_eq!(resize_value(Kind::Joystick, c, c, &v), RADIUS_MIN);
+        assert_eq!(
+            resize_value(Kind::Joystick, c, pt(0.0, 0.0), &v),
+            RADIUS_MAX
+        );
+        assert_eq!(resize_value(Kind::Look, c, pt(650.0, 300.0), &v), 0.3);
+        assert_eq!(resize_value(Kind::Look, c, pt(520.0, 100.0), &v), 0.3);
+        assert_eq!(resize_value(Kind::Look, c, c, &v), REACH_MIN);
+        assert_eq!(resize_value(Kind::Look, c, pt(0.0, 0.0), &v), REACH_MAX);
+
+        // Through the handle, as one undo step, with the value for the label.
+        let mut d = doc();
+        let id = d.add(Kind::Joystick, pt(0.5, 0.5)).unwrap();
+        let before = d.clone();
+        let mut h = History::new(&d);
+        let hp = handle_pos(&d, &v, id).unwrap();
+        let hit = hit_test(&d, &v, Some(id), hp);
+        assert_eq!(hit, Hit::Handle(id));
+        let mut drag = Drag::from_hit(hit, hp, &d, &mut h, 0).unwrap();
+        let up = drag.update(&mut d, &mut h, &v, pt(600.0, 250.0), NONE, 1);
+        assert_eq!(up.value, Some(0.2));
+        drag.update(&mut d, &mut h, &v, pt(0.0, 0.0), NONE, 2);
+        assert_eq!(d.profile().controls.len(), 1);
+        let end = drag.finish(&mut d, &mut h, &v, pt(560.0, 330.0), NONE, 3);
+        assert_eq!(end, DragEnd::Resized(id));
+        h.undo(&mut d);
+        assert_eq!(d, before);
+        assert!(!h.can_undo());
+    }
+
+    // test 31
+    #[test]
+    fn esc_restores_the_start() {
+        // Unrounded start value: the restore must still be exact.
+        let mut p = doc().profile().clone();
+        p.controls.push(crate::profile::Control::Button {
+            label: String::new(),
+            x: 0.123_456,
+            y: 0.654_321,
+            key: "Space".into(),
+            mode: Default::default(),
+        });
+        let mut d = EditDoc::from_profile(p).unwrap();
+        let id = d.ids()[0];
+        let before = d.clone();
+        let mut h = History::new(&d);
+        let v = view();
+        let c = v.to_px(pt(0.123_456, 0.654_321));
+        let mut drag = grab(&d, &mut h, c);
+        drag.update(&mut d, &mut h, &v, pt(c.x + 200.0, c.y + 50.0), NONE, 1);
+        assert_ne!(pos(&d, id), (0.123_456, 0.654_321));
+        drag.cancel(&mut d, &mut h);
+        assert_eq!(d, before);
+        assert!(!h.can_undo() && !h.dirty());
+
+        // Same for a resize.
+        let mut d = doc();
+        let j = d.add(Kind::Joystick, pt(0.5, 0.5)).unwrap();
+        let before = d.clone();
+        let mut h = History::new(&d);
+        let hp = handle_pos(&d, &v, j).unwrap();
+        let mut drag = Drag::from_hit(Hit::Handle(j), hp, &d, &mut h, 0).unwrap();
+        drag.update(&mut d, &mut h, &v, pt(900.0, 250.0), NONE, 1);
+        assert_ne!(d, before);
+        drag.cancel(&mut d, &mut h);
+        assert_eq!(d, before);
+        assert!(!h.can_undo());
+    }
+
+    // test 32
+    #[test]
+    fn palette_placement_is_one_undo_step_and_esc_adds_nothing() {
+        let mut d = doc();
+        let before = d.clone();
+        let mut h = History::new(&d);
+        let v = view();
+        let mut drag = Drag::place(Kind::Button);
+        drag.update(&mut d, &mut h, &v, pt(700.0, 125.0), NONE, 1);
+        assert_eq!(d, before); // the ghost is not in the document
+        let end = drag.finish(&mut d, &mut h, &v, pt(700.0, 125.0), NONE, 2);
+        let DragEnd::Placed(id) = end else {
+            panic!("{end:?}")
+        };
+        assert_eq!(pos(&d, id), (0.7, 0.25));
+        assert_eq!(d.profile().controls.len(), 1);
+        h.undo(&mut d);
+        assert_eq!(d, before);
+        assert!(!h.can_undo());
+
+        // Esc adds nothing and records nothing.
+        let drag = Drag::place(Kind::Joystick);
+        drag.cancel(&mut d, &mut h);
+        assert_eq!(d, before);
+        assert!(!h.can_undo());
+
+        // Released outside the picture: nothing.
+        let end = Drag::place(Kind::Look).finish(&mut d, &mut h, &v, pt(1200.0, 100.0), NONE, 3);
+        assert_eq!(end, DragEnd::Nothing);
+        assert_eq!(d, before);
+
+        // A second look is refused and leaves no step.
+        let mut d2 = doc();
+        d2.add(Kind::Look, pt(0.5, 0.5)).unwrap();
+        let mut h2 = History::new(&d2);
+        let end = Drag::place(Kind::Look).finish(&mut d2, &mut h2, &v, pt(100.0, 100.0), NONE, 4);
+        assert_eq!(end, DragEnd::Refused(EditError::SecondLook));
+        assert!(!h2.can_undo());
+    }
+
+    // test 86
+    #[test]
+    fn pixel_placed_is_hid_sent_for_a_button() {
+        // (rotation, picture rectangle, P): a letterboxed picture in the window.
+        let cases = [
+            (
+                Rotation::R0,
+                PxRect {
+                    x: 300.0,
+                    y: 10.0,
+                    w: 500.0,
+                    h: 1000.0,
+                },
+                pt(675.0, 760.0),
+            ),
+            (
+                Rotation::R90,
+                PxRect {
+                    x: 200.0,
+                    y: 20.0,
+                    w: 1000.0,
+                    h: 500.0,
+                },
+                pt(840.0, 395.0),
+            ),
+            (
+                Rotation::R180,
+                PxRect {
+                    x: 300.0,
+                    y: 10.0,
+                    w: 500.0,
+                    h: 1000.0,
+                },
+                pt(425.0, 260.0),
+            ),
+            (
+                Rotation::R270,
+                PxRect {
+                    x: 200.0,
+                    y: 20.0,
+                    w: 1000.0,
+                    h: 500.0,
+                },
+                pt(360.0, 145.0),
+            ),
+        ];
+        for (rot, picture, p) in cases {
+            let ev = EditView {
+                window: (1400.0, 1100.0),
+                picture,
+                scale: 1.0,
+            };
+            let mut d = doc();
+            d.set_orientation(if rot.is_landscape() {
+                Orientation::Landscape
+            } else {
+                Orientation::Portrait
+            });
+            let id = d.add(Kind::Button, pt(0.5, 0.5)).unwrap();
+            let mut h = History::new(&d);
+            let start = ev.to_px(pt(0.5, 0.5));
+            let mut drag = Drag::from_hit(Hit::Body(id), start, &d, &mut h, 0).unwrap();
+            drag.update(&mut d, &mut h, &ev, p, ALT, 1);
+            drag.finish(&mut d, &mut h, &ev, p, ALT, 2);
+
+            let hv = View {
+                rotation: rot,
+                aspect: picture.w / picture.h,
+            };
+            let mut e = Engine::new(d.profile().clone()).unwrap();
+            e.set_view(hv);
+            e.activate().unwrap();
+            let key = d.key_of(Slot::Button(id)).unwrap().to_string();
+            let o = e.handle(Input::Press(&key), 0);
+            let n = ev.to_norm(p);
+            let (x, y) = hv.to_hid(n.x, n.y);
+            assert_eq!(
+                o.frames[0].contacts(),
+                &[Contact {
+                    id: 0,
+                    touching: true,
+                    x,
+                    y
+                }],
+                "{rot:?}"
+            );
+        }
+    }
+
+    // test 87
+    #[test]
+    fn pixel_placed_is_hid_sent_for_a_joystick() {
+        let cases = [
+            (
+                Rotation::R0,
+                PxRect {
+                    x: 300.0,
+                    y: 10.0,
+                    w: 500.0,
+                    h: 1000.0,
+                },
+                pt(675.0, 760.0),
+            ),
+            (
+                Rotation::R90,
+                PxRect {
+                    x: 200.0,
+                    y: 20.0,
+                    w: 1000.0,
+                    h: 500.0,
+                },
+                pt(840.0, 395.0),
+            ),
+        ];
+        for (rot, picture, p) in cases {
+            let ev = EditView {
+                window: (1400.0, 1100.0),
+                picture,
+                scale: 1.0,
+            };
+            let mut d = doc();
+            d.set_orientation(if rot.is_landscape() {
+                Orientation::Landscape
+            } else {
+                Orientation::Portrait
+            });
+            let id = d.add(Kind::Joystick, pt(0.5, 0.5)).unwrap();
+            let mut h = History::new(&d);
+            // Move the joystick, then size it by dragging the handle.
+            let start = ev.to_px(pt(0.5, 0.5));
+            let mut drag = Drag::from_hit(Hit::Body(id), start, &d, &mut h, 0).unwrap();
+            drag.update(&mut d, &mut h, &ev, p, ALT, 1);
+            drag.finish(&mut d, &mut h, &ev, p, ALT, 2);
+            let r_px = 0.2 * ev.short_px();
+            let hp = handle_pos(&d, &ev, id).unwrap();
+            let mut drag = Drag::from_hit(Hit::Handle(id), hp, &d, &mut h, 3).unwrap();
+            let target = pt(p.x + r_px, p.y);
+            drag.update(&mut d, &mut h, &ev, target, NONE, 4);
+            drag.finish(&mut d, &mut h, &ev, target, NONE, 5);
+
+            let hv = View {
+                rotation: rot,
+                aspect: picture.w / picture.h,
+            };
+            let close =
+                |a: (u16, u16), b: (u16, u16)| a.0.abs_diff(b.0) <= 1 && a.1.abs_diff(b.1) <= 1;
+            for (dir, dx, dy) in [
+                (Dir::Up, 0.0, -r_px),
+                (Dir::Down, 0.0, r_px),
+                (Dir::Left, -r_px, 0.0),
+                (Dir::Right, r_px, 0.0),
+            ] {
+                let mut e = Engine::new(d.profile().clone()).unwrap();
+                e.set_view(hv);
+                e.activate().unwrap();
+                let key = d.key_of(Slot::Dir(id, dir)).unwrap().to_string();
+                let o = e.handle(Input::Press(&key), 0);
+                assert_eq!(o.frames.len(), 2);
+                let c0 = o.frames[0].contacts()[0];
+                let c1 = o.frames[1].contacts()[0];
+                let n = ev.to_norm(p);
+                let want0 = hv.to_hid(n.x, n.y);
+                let n1 = ev.to_norm(pt(p.x + dx, p.y + dy));
+                let want1 = hv.to_hid(n1.x, n1.y);
+                assert!(close((c0.x, c0.y), want0), "{rot:?} {dir:?} centre");
+                assert!(close((c1.x, c1.y), want1), "{rot:?} {dir:?} edge");
+            }
         }
     }
 }

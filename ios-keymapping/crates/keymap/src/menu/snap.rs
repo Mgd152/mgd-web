@@ -95,14 +95,70 @@ pub fn snap_axes(
 }
 
 /// `snap_axes` on both axes; `enabled == false` returns the target untouched.
-pub fn snap_move(
-    target: Pt,
-    others: &[Pt],
-    view: &EditView,
-    enabled: bool,
-) -> (Pt, Vec<Guide>) {
+pub fn snap_move(target: Pt, others: &[Pt], view: &EditView, enabled: bool) -> (Pt, Vec<Guide>) {
     if !enabled {
         return (target, Vec::new());
     }
     snap_axes(target, others, view, true, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::menu::hit::testing::{pt, view};
+
+    // test 29
+    #[test]
+    fn snap_at_6_px_not_at_7_and_guides_only_when_snapped() {
+        let v = view();
+        let others = [pt(300.0, 100.0)];
+        let (p, g) = snap_move(pt(306.0, 400.0), &others, &v, true);
+        assert_eq!((p.x, p.y), (300.0, 400.0));
+        assert_eq!(g.len(), 1);
+        assert_eq!((g[0].a.x, g[0].b.x), (300.0, 300.0));
+        let (p, g) = snap_move(pt(307.0, 400.0), &others, &v, true);
+        assert_eq!((p.x, p.y), (307.0, 400.0));
+        assert!(g.is_empty());
+        // Axes snap independently; both at once give two guides.
+        let (p, g) = snap_move(pt(294.0, 105.0), &others, &v, true);
+        assert_eq!((p.x, p.y), (300.0, 100.0));
+        assert_eq!(g.len(), 2);
+        // Disabled: untouched.
+        let (p, g) = snap_move(pt(301.0, 101.0), &others, &v, false);
+        assert_eq!((p.x, p.y), (301.0, 101.0));
+        assert!(g.is_empty());
+        // The threshold is in logical px: 12 physical at scale 2.
+        let mut v2 = v;
+        v2.scale = 2.0;
+        assert_eq!(snap_move(pt(312.0, 400.0), &others, &v2, true).0.x, 300.0);
+        assert_eq!(snap_move(pt(313.0, 400.0), &others, &v2, true).0.x, 313.0);
+    }
+
+    #[test]
+    fn nearest_other_wins_and_guide_spans_aligned_centres() {
+        let v = view();
+        let others = [pt(300.0, 50.0), pt(304.0, 200.0), pt(304.0, 450.0)];
+        let (p, g) = snap_move(pt(303.0, 300.0), &others, &v, true);
+        assert_eq!(p.x, 304.0);
+        assert_eq!(g.len(), 1);
+        assert_eq!((g[0].a.y, g[0].b.y), (200.0, 450.0));
+    }
+
+    #[test]
+    fn edge_band_is_six_percent() {
+        assert!(in_edge_band(pt(0.05, 0.5)));
+        assert!(in_edge_band(pt(0.5, 0.95)));
+        assert!(!in_edge_band(pt(0.06, 0.5)));
+        assert!(!in_edge_band(pt(0.5, 0.94)));
+        assert!(!in_edge_band(pt(0.5, 0.5)));
+    }
+
+    #[test]
+    fn clamp_to_picture_all_edges() {
+        let v = view();
+        let c = clamp_to_picture(pt(-50.0, 900.0), &v);
+        assert_eq!((c.x, c.y), (0.0, 500.0));
+        let c = clamp_to_picture(pt(2000.0, -1.0), &v);
+        assert_eq!((c.x, c.y), (1000.0, 0.0));
+    }
 }

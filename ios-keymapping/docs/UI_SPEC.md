@@ -1811,6 +1811,129 @@ additive; nothing in SPEC.md or the existing public API changed.
 14. **Edition.** The workspace is on edition 2024; the new code avoids
     let-chains so it also builds under older editions.
 
+### Implementation notes (WP2, 2026-11-26)
+
+Geometry slice: `hit.rs`, `drag.rs`, `snap.rs`, `lint.rs`, `tracker.rs`. All
+additive; where the spec was silent or ambiguous:
+
+1. **File split.** `snap.rs` holds `Guide`, `snap_move`, `snap_axes` (per-axis
+   switches, used by the Shift lock), `in_edge_band`, `clamp_to_picture`.
+   `drag.rs` holds `Drag`, `Axis`, `resize_value`. Everything is re-exported
+   from `menu`.
+2. **`Env` and `Link` live in `lint.rs`** because `lints(doc, env)` needs them
+   and `shell.rs` does not exist yet. WP4's `shell.rs` must `pub use` them,
+   not define second copies (same rule as WP1 note 2).
+3. **Drag drives the history.** The spec's `Drag` enum only listed data; the
+   tests (25, 31, 32) need behaviour, so `Drag` has `from_hit`, `place`,
+   `update`, `finish`, `cancel`. A move opens `Gesture::Drag` when the 4 px
+   threshold is crossed (`>=`), a resize opens it on press, `finish` closes
+   it. `Move`/`Resize` keep a clone of the document from before the first
+   change (`before`), and `cancel` (Esc / F8) restores it and calls
+   `History::end`, which drops the step: exact even for profiles that were
+   loaded unrounded, and the redo stack is untouched. A palette `Place` adds
+   in one `Gesture::Single` step; released outside the picture it adds nothing;
+   a refusal (second look, 65th control) is `DragEnd::Refused` with no step.
+4. **Move order.** target = pointer + grab; Shift locks the dominant axis (kept
+   until Shift is released); the target is clamped to the picture, snapped
+   (not on a locked axis, not with Alt), clamped again, then `move_to` rounds.
+   Guides are the aligned centres' line, returned only for axes that snapped.
+5. **Key caps.** Joystick: four 36 x 28 logical px caps centred on the ring
+   (up, down, left, right). Button: one cap of the same size directly below its
+   disc, so that a click on the disc selects/drags and a click on the cap
+   rebinds (the spec's "click control = select, click key cap = capture" cannot
+   both hold if the cap covers the disc). Look: no caps. The WP4 drawer must
+   draw the button's key label in that cap.
+6. **Resize handle.** Joystick: on the ring at 45 degrees down-right; look:
+   bottom-right corner of the square; slop 10 logical px (`<=`).
+   `resize_value` already clamps to `RADIUS_*` / `REACH_*`; a button returns 0.
+7. **Look hit zone.** The anchor disc (14 lp) plus a band of 8 lp **total**
+   (4 lp each side) around the dashed border. Overlap rank uses the area of
+   the disc / the whole square, so any button or joystick inside a look box
+   wins over its border, and equal areas go to the later control.
+8. **Minimum button radius.** `max(22 lp, 18 physical px)`: the 18 only matters
+   below scale 0.82.
+9. **`lints` order and rules.** Profile-wide first (orientation mismatch only
+   when `env.has_picture`; no look; more than five controls = `controls.len()`
+   > 5, one finger each; advice for the toggle/panic keys), then per control in
+   array order: near edge (centre closer than `EDGE_BAND`; exactly 0.06 is
+   fine), `key_advice` of each key it uses (target = that control), and
+   overlap with the look anchor (centre distance <= anchor 14 lp + the
+   control's hit radius; a joystick uses its ring radius).
+10. **`explain`** takes `(&Problem, &Profile)` as specified and names an
+    unlabeled control in Vietnamese; `explain_in(.., lang)` is the same with
+    `Lang`. Quoted over-long text is cut to 20 characters plus `…`.
+    `explain_json_error` maps serde's `unknown field/variant`, `missing field`,
+    `invalid type/value` to `NotUnderstood` and everything else (syntax errors,
+    non-object root) to `NotReadable`. A `ProfileError::Invalid` passed to it
+    (it has no profile) gives `NotUnderstood`; use `explain` for those.
+11. **`dots_from_frame`** treats a frame as a full snapshot (engine.rs: "every
+    contact that is down, plus contacts lifting now"): a contact that is absent
+    or `touching == false` has no dot, so `prev` is unused (kept for the spec's
+    signature).
+12. **`HeldTracker`** ignores keys no control uses; a joystick's bit stays set
+    while any of its four keys is held, so `on_key` returns `false` for a
+    second direction. Mouse-button names work like keys.
+13. **Let-chains.** Clippy (edition 2024) asks for `if let ... && ...` in
+    `hit.rs` and `lint.rs`, so WP2 uses them, unlike WP1 note 14.
+14. **Tests 86/87** are in `drag.rs` (`pixel_placed_is_hid_sent_*`): they move
+    the control with `Drag` in a letterboxed picture, build an `Engine` from
+    the document and compare the contact with `View::to_hid(to_norm(P))`
+    (button: R0/R90/R180/R270, exact; joystick: R0/R90, centre and all four
+    directions, within 1 HID unit because the radius is rounded to 4 decimals).
+
+### Implementation notes (WP3, 2026-11-26)
+
+`store.rs` and `prefs.rs`; additive, no change to SPEC.md or the crate API.
+
+1. **`FsError` / `FsOp` / `MemFs`.** 6.12 names them without defining them.
+   `FsError` is `NotFound | Io(String)`; `FsOp` is `List | Read | WriteAtomic |
+   Rename | Remove` (`exists` cannot fail). `Fs::list` of a missing directory is
+   an empty list and `write_atomic` creates parents (the app's impl must do the
+   same). `MemFs` has directories implicit; failure injection is
+   `fail_next(op)` (once) and `fail_nth(op, skip)`; it uses a `Cell` so
+   `list`/`read` (which take `&self`) can fail too. Also `put/get/paths` for tests.
+2. **Problem texts.** `explain_error` (crate-private, in `store.rs`) maps a
+   `ProfileError` to a `ProblemMsg`, because `lint::explain` (WP2) was not
+   there when WP3 started. Unknown field / unknown variant (also a bad
+   `orientation`) is `NotUnderstood`; other JSON errors `NotReadable`;
+   `version` greater than 1 is `NewerVersion`, otherwise `BadVersion`. WP4 may
+   later swap it for `lint::explain` if the two agree.
+3. **`Msg::Repaired`** (+ `RepairField`) was added to `msg.rs` for the
+   `repair_ranges` report (one line per clamped number, numbers formatted by
+   language). `Lang` now derives serde (`"vi"`/`"en"`) for `UiPrefs`.
+4. **`repair_ranges`** returns `None` also when the text is already valid
+   (nothing to repair) and when nothing changed. Clamps: x, y to [0, 1]; radius
+   to [0.03, 0.5]; reach to [0.05, 1]; sensitivity to [0.05, 100]; release to
+   60000. Unknown fields, bad keys, a second look, a bad version, a too long
+   name -> `None`.
+5. **Names and files.** `create`: N is the smallest N with no profile (broken
+   ones included) named `Hồ sơ N`; the file is `slug.json`, then `slug-2.json`,
+   `-3` ... (compared case-insensitively, so a hand-made `SUNG-2.json` counts).
+   `rename`: trims; empty or > 100 chars is `Invalid(NameTooLong)`; a name that
+   another profile has (case-insensitive) is `NameTaken`; the file name is kept
+   when it is already `slug` or `slug-N`, otherwise a new unique one; the new
+   file is written first, then the old file, its `.bak` and draft are
+   removed/moved (best effort). `duplicate`: `<name> (bản sao)`, `(bản sao 2)` ...,
+   base shortened to keep 100 chars. All of them need a valid source profile.
+6. **File-name safety.** Every method taking `file` accepts only `*.json`
+   without `/ \ : * ? " < > |`, control characters or a leading dot;
+   anything else is `NotFound`. `list()` shows only such names.
+7. **`save`** backs up the old file (even a broken one) to `<file>.bak` before
+   writing; if the `.bak` write fails the save fails and nothing changed.
+8. **Trash.** `delete` moves the file and its `.bak` to `.trash/` (a numeric
+   prefix keeps two deletes of the same name apart) and drops the draft.
+   `undelete` restores under the old name, or `slug-2` etc. if it is taken now.
+9. **`import_text`.** The file name comes from `hint` (a trailing `.json` is
+   ignored; slugified), else from the profile name. An unnamed profile is named
+   after the hint (else `Hồ sơ 1`). The stored text is the normalised
+   `to_json_pretty`, not the input bytes.
+10. **`write_draft`** refuses an invalid profile (`EditDoc` is always valid).
+    `draft` of a damaged draft is `None`.
+11. **`UiPrefs`.** `from_text` (garbage, wrong types, unknown enum value ->
+    `UiPrefs::default()`), `to_text`, `load(&fs, path)`, `save(&mut fs, path)`;
+    `PREFS_FILE = "keymap-ui.json"`. If either sensitivity key is not a known
+    keyboard key, or both are the same, both reset to `[` and `]`.
+
 Cut line if time runs out: WP1-WP6 are the usable product (Hub, guided
 editing on the live picture, Test, Play with toast only and overlay `Tắt`).
 WP7-WP9 improve it; WP10 is v1.1.

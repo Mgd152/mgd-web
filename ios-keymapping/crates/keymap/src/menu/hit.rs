@@ -18,8 +18,16 @@ pub struct EditView {
 impl EditView {
     /// Window px -> picture fraction (not clamped).
     pub fn to_norm(&self, p: Pt) -> Pt {
-        let w = if self.picture.w > 0.0 { self.picture.w } else { 1.0 };
-        let h = if self.picture.h > 0.0 { self.picture.h } else { 1.0 };
+        let w = if self.picture.w > 0.0 {
+            self.picture.w
+        } else {
+            1.0
+        };
+        let h = if self.picture.h > 0.0 {
+            self.picture.h
+        } else {
+            1.0
+        };
         Pt {
             x: (p.x - self.picture.x) / w,
             y: (p.y - self.picture.y) / h,
@@ -215,12 +223,11 @@ fn body_hit(c: &Control, view: &EditView, p: Pt) -> Option<f64> {
 /// What is under `p` (window px). Order: resize handle of the selection, key
 /// caps (later controls on top), bodies (smallest area first).
 pub fn hit_test(doc: &EditDoc, view: &EditView, selected: Option<CtrlId>, p: Pt) -> Hit {
-    if let Some(id) = selected {
-        if let Some(h) = handle_pos(doc, view, id) {
-            if dist(h, p) <= view.lp(HANDLE_SLOP_LP) {
-                return Hit::Handle(id);
-            }
-        }
+    if let Some(id) = selected
+        && let Some(h) = handle_pos(doc, view, id)
+        && dist(h, p) <= view.lp(HANDLE_SLOP_LP)
+    {
+        return Hit::Handle(id);
     }
     for id in doc.ids().iter().rev() {
         for (slot, r) in cap_rects(doc, view, *id).into_iter().rev() {
@@ -242,5 +249,212 @@ pub fn hit_test(doc: &EditDoc, view: &EditView, selected: Option<CtrlId>, p: Pt)
     match best {
         Some((_, id)) => Hit::Body(id),
         None => Hit::None,
+    }
+}
+
+/// Shared helpers for the tests of `hit`, `drag`, `snap` and `lint`.
+#[cfg(test)]
+pub(crate) mod testing {
+    use super::*;
+    use crate::menu::templates::{Template, template};
+    use crate::profile::Orientation;
+
+    pub fn pt(x: f64, y: f64) -> Pt {
+        Pt { x, y }
+    }
+
+    /// 1000 x 500 picture filling a 1000 x 500 window, scale 1.
+    pub fn view() -> EditView {
+        EditView {
+            window: (1000.0, 500.0),
+            picture: PxRect {
+                x: 0.0,
+                y: 0.0,
+                w: 1000.0,
+                h: 500.0,
+            },
+            scale: 1.0,
+        }
+    }
+
+    pub fn doc() -> EditDoc {
+        EditDoc::from_profile(template(Template::Empty(Orientation::Landscape))).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::testing::*;
+    use super::*;
+    use crate::geom::{Rotation, View};
+    use crate::menu::doc::Kind;
+
+    fn with(doc: &mut EditDoc, kind: Kind, x: f64, y: f64) -> CtrlId {
+        doc.add(kind, pt(x, y)).unwrap()
+    }
+
+    // test 19
+    #[test]
+    fn handle_beats_cap_beats_body() {
+        let mut d = doc();
+        let id = with(&mut d, Kind::Joystick, 0.5, 0.5);
+        d.set_radius(id, 0.03).unwrap(); // ring radius 15 px
+        let v = view();
+        let h = handle_pos(&d, &v, id).unwrap();
+        // A tiny ring: the handle overlaps the right and down caps.
+        assert_eq!(hit_test(&d, &v, Some(id), h), Hit::Handle(id));
+        assert!(matches!(hit_test(&d, &v, None, h), Hit::Cap(_)));
+        // The down cap centre is inside the body disc: the cap wins.
+        let down = pt(500.0, 250.0 + 15.0);
+        assert_eq!(
+            hit_test(&d, &v, None, down),
+            Hit::Cap(Slot::Dir(id, Dir::Down))
+        );
+        // On a bigger ring only the body is left at the centre.
+        d.set_radius(id, 0.2).unwrap();
+        assert_eq!(hit_test(&d, &v, Some(id), pt(500.0, 250.0)), Hit::Body(id));
+        assert_eq!(hit_test(&d, &v, Some(id), pt(900.0, 50.0)), Hit::None);
+    }
+
+    // test 20
+    #[test]
+    fn smallest_body_first() {
+        let mut d = doc();
+        let joy = with(&mut d, Kind::Joystick, 0.5, 0.5);
+        d.set_radius(joy, 0.3).unwrap(); // 150 px
+        let btn = with(&mut d, Kind::Button, 0.5, 0.5);
+        let v = view();
+        assert_eq!(hit_test(&d, &v, None, pt(510.0, 250.0)), Hit::Body(btn));
+        assert_eq!(hit_test(&d, &v, None, pt(590.0, 250.0)), Hit::Body(joy));
+        // Order of creation does not matter.
+        let mut d2 = doc();
+        let btn2 = with(&mut d2, Kind::Button, 0.5, 0.5);
+        let joy2 = with(&mut d2, Kind::Joystick, 0.5, 0.5);
+        d2.set_radius(joy2, 0.3).unwrap();
+        assert_eq!(hit_test(&d2, &v, None, pt(510.0, 250.0)), Hit::Body(btn2));
+    }
+
+    // test 21
+    #[test]
+    fn look_interior_is_click_through() {
+        let mut d = doc();
+        let look = with(&mut d, Kind::Look, 0.5, 0.5);
+        d.set_reach(look, 0.4).unwrap(); // half side 200 px
+        let btn = with(&mut d, Kind::Button, 0.4, 0.4); // inside the box
+        let v = view();
+        assert_eq!(hit_test(&d, &v, None, pt(500.0, 250.0)), Hit::Body(look)); // anchor
+        assert_eq!(hit_test(&d, &v, None, pt(510.0, 258.0)), Hit::Body(look));
+        assert_eq!(hit_test(&d, &v, None, pt(450.0, 200.0)), Hit::None); // interior
+        assert_eq!(hit_test(&d, &v, None, pt(700.0, 250.0)), Hit::Body(look)); // border
+        assert_eq!(hit_test(&d, &v, None, pt(703.9, 250.0)), Hit::Body(look));
+        assert_eq!(hit_test(&d, &v, None, pt(705.0, 250.0)), Hit::None);
+        assert_eq!(hit_test(&d, &v, None, pt(400.0, 200.0)), Hit::Body(btn));
+        // Handle at the bottom-right corner of the box.
+        assert_eq!(handle_pos(&d, &v, look), Some(pt(700.0, 450.0)));
+        assert_eq!(
+            hit_test(&d, &v, Some(look), pt(705.0, 445.0)),
+            Hit::Handle(look)
+        );
+    }
+
+    // test 22
+    #[test]
+    fn button_min_hit_radius_at_every_scale() {
+        for scale in [0.5, 1.0, 1.5, 2.0] {
+            let mut d = doc();
+            let id = with(&mut d, Kind::Button, 0.5, 0.5);
+            let mut v = view();
+            v.scale = scale;
+            let r = (22.0 * scale).max(18.0);
+            assert_eq!(button_hit_radius(&v), r);
+            assert_eq!(
+                hit_test(&d, &v, None, pt(500.0 + r - 0.1, 250.0)),
+                Hit::Body(id)
+            );
+            assert_eq!(
+                hit_test(&d, &v, None, pt(500.0 + r + 0.1, 250.0)),
+                Hit::None
+            );
+            assert_eq!(
+                hit_test(&d, &v, None, pt(500.0, 250.0 - r + 0.1)),
+                Hit::Body(id)
+            );
+        }
+    }
+
+    // test 23
+    #[test]
+    fn norm_px_round_trip() {
+        let views = [
+            (1950.0, 900.0, 0.0, 0.0),    // 19.5:9
+            (900.0, 1950.0, 0.0, 0.0),    // 9:19.5
+            (1400.0, 700.0, 200.0, 20.0), // letterboxed
+        ];
+        for (w, h, ox, oy) in views {
+            let (pw, ph) = if ox > 0.0 { (1000.0, 500.0) } else { (w, h) };
+            let v = EditView {
+                window: (w, h),
+                picture: PxRect {
+                    x: ox,
+                    y: oy,
+                    w: pw,
+                    h: ph,
+                },
+                scale: 1.25,
+            };
+            for n in [pt(0.0, 0.0), pt(0.3, 0.9), pt(1.0, 1.0), pt(-0.1, 1.2)] {
+                let back = v.to_norm(v.to_px(n));
+                assert!((back.x - n.x).abs() < 1e-12 && (back.y - n.y).abs() < 1e-12);
+            }
+            let p = v.to_px(pt(0.0, 0.0));
+            assert_eq!((p.x, p.y), (ox, oy));
+            let p = v.to_px(pt(1.0, 1.0));
+            assert_eq!((p.x, p.y), (ox + pw, oy + ph));
+        }
+    }
+
+    // test 24
+    #[test]
+    fn ring_radius_agrees_with_the_engine_view() {
+        for (w, h) in [(1950.0, 900.0), (900.0, 1950.0)] {
+            let v = EditView {
+                window: (w, h),
+                picture: PxRect {
+                    x: 0.0,
+                    y: 0.0,
+                    w,
+                    h,
+                },
+                scale: 1.0,
+            };
+            assert_eq!(v.short_px(), w.min(h));
+            let mut d = doc();
+            let id = with(&mut d, Kind::Joystick, 0.5, 0.5);
+            d.set_radius(id, 0.12).unwrap();
+            let caps = cap_rects(&d, &v, id);
+            let up = caps
+                .iter()
+                .find(|c| c.0 == Slot::Dir(id, Dir::Up))
+                .unwrap()
+                .1;
+            let right = caps
+                .iter()
+                .find(|c| c.0 == Slot::Dir(id, Dir::Right))
+                .unwrap()
+                .1;
+            let cx = right.x + right.w / 2.0;
+            let cy = up.y + up.h / 2.0;
+            let ring_px = (cx - w / 2.0, h / 2.0 - cy);
+            assert!((ring_px.0 - 0.12 * w.min(h)).abs() < 1e-9);
+            assert!((ring_px.1 - 0.12 * w.min(h)).abs() < 1e-9);
+            // The engine's short-side units give the same pixel length.
+            let ev = View {
+                rotation: Rotation::R0,
+                aspect: w / h,
+            };
+            let (fx, fy) = ev.short_side_units(0.12);
+            assert!((fx * w - ring_px.0).abs() < 1e-9);
+            assert!((fy * h - ring_px.1).abs() < 1e-9);
+        }
     }
 }
