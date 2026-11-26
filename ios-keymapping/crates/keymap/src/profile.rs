@@ -136,13 +136,19 @@ impl fmt::Display for ProfileError {
 impl std::error::Error for ProfileError {}
 
 fn problem(path: impl Into<String>, message: impl Into<String>) -> Problem {
-    Problem { path: path.into(), message: message.into() }
+    Problem {
+        path: path.into(),
+        message: message.into(),
+    }
 }
 
 fn check_len(out: &mut Vec<Problem>, path: &str, s: &str, max: usize) {
     let n = s.chars().count();
     if n > max {
-        out.push(problem(path, format!("must be at most {max} characters, got {n}")));
+        out.push(problem(
+            path,
+            format!("must be at most {max} characters, got {n}"),
+        ));
     }
 }
 
@@ -168,7 +174,10 @@ fn check_kbd_key(out: &mut Vec<Problem>, path: &str, key: &str) {
     if !keys::is_known_key(key) {
         out.push(problem(path, format!("unknown key \"{key}\"")));
     } else if keys::is_mouse_button(key) {
-        out.push(problem(path, format!("must be a keyboard key, got \"{key}\"")));
+        out.push(problem(
+            path,
+            format!("must be a keyboard key, got \"{key}\""),
+        ));
     }
 }
 
@@ -176,7 +185,8 @@ impl Profile {
     /// Parse and validate. A leading UTF-8 BOM is accepted.
     pub fn from_json(text: &str) -> Result<Profile, ProfileError> {
         let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        let p: Profile = serde_json::from_str(text).map_err(|e| ProfileError::Json(e.to_string()))?;
+        let p: Profile =
+            serde_json::from_str(text).map_err(|e| ProfileError::Json(e.to_string()))?;
         p.validate()?;
         Ok(p)
     }
@@ -197,7 +207,9 @@ impl Profile {
     }
 
     pub fn has_look(&self) -> bool {
-        self.controls.iter().any(|c| matches!(c, Control::Look { .. }))
+        self.controls
+            .iter()
+            .any(|c| matches!(c, Control::Look { .. }))
     }
 
     /// Every bound key with its path: toggle, panic, then controls in order.
@@ -208,7 +220,13 @@ impl Profile {
         ];
         for (i, c) in self.controls.iter().enumerate() {
             match c {
-                Control::Joystick { up, down, left, right, .. } => {
+                Control::Joystick {
+                    up,
+                    down,
+                    left,
+                    right,
+                    ..
+                } => {
                     v.push((format!("controls[{i}].up"), up.as_str()));
                     v.push((format!("controls[{i}].down"), down.as_str()));
                     v.push((format!("controls[{i}].left"), left.as_str()));
@@ -225,7 +243,10 @@ impl Profile {
     pub fn problems(&self) -> Vec<Problem> {
         let mut out = Vec::new();
         if self.version != 1 {
-            out.push(problem("version", format!("must be 1, got {}", self.version)));
+            out.push(problem(
+                "version",
+                format!("must be 1, got {}", self.version),
+            ));
         }
         check_len(&mut out, "name", &self.name, MAX_NAME_CHARS);
         check_len(&mut out, "app", &self.app, MAX_NAME_CHARS);
@@ -234,14 +255,26 @@ impl Profile {
         if self.controls.len() > MAX_CONTROLS {
             out.push(problem(
                 "controls",
-                format!("at most {MAX_CONTROLS} controls are allowed, got {}", self.controls.len()),
+                format!(
+                    "at most {MAX_CONTROLS} controls are allowed, got {}",
+                    self.controls.len()
+                ),
             ));
         }
         let mut first_look: Option<usize> = None;
         for (i, c) in self.controls.iter().enumerate() {
             let p = |f: &str| format!("controls[{i}].{f}");
             match c {
-                Control::Joystick { label, x, y, radius, up, down, left, right } => {
+                Control::Joystick {
+                    label,
+                    x,
+                    y,
+                    radius,
+                    up,
+                    down,
+                    left,
+                    right,
+                } => {
                     check_len(&mut out, &p("label"), label, MAX_LABEL_CHARS);
                     check_unit(&mut out, p("x"), *x);
                     check_unit(&mut out, p("y"), *y);
@@ -251,7 +284,15 @@ impl Profile {
                     check_key(&mut out, p("left"), left);
                     check_key(&mut out, p("right"), right);
                 }
-                Control::Look { label, x, y, sensitivity, reach, release_after_ms, .. } => {
+                Control::Look {
+                    label,
+                    x,
+                    y,
+                    sensitivity,
+                    reach,
+                    release_after_ms,
+                    ..
+                } => {
                     check_len(&mut out, &p("label"), label, MAX_LABEL_CHARS);
                     check_unit(&mut out, p("x"), *x);
                     check_unit(&mut out, p("y"), *y);
@@ -264,12 +305,17 @@ impl Profile {
                         ));
                     }
                     if first_look.is_some() {
-                        out.push(problem(format!("controls[{i}]"), "only one look control is allowed"));
+                        out.push(problem(
+                            format!("controls[{i}]"),
+                            "only one look control is allowed",
+                        ));
                     } else {
                         first_look = Some(i);
                     }
                 }
-                Control::Button { label, x, y, key, .. } => {
+                Control::Button {
+                    label, x, y, key, ..
+                } => {
                     check_len(&mut out, &p("label"), label, MAX_LABEL_CHARS);
                     check_unit(&mut out, p("x"), *x);
                     check_unit(&mut out, p("y"), *y);
@@ -283,7 +329,10 @@ impl Profile {
                 continue;
             }
             if let Some((first, _)) = seen.iter().find(|(_, k)| *k == key) {
-                out.push(problem(path, format!("key \"{key}\" is already used by {first}")));
+                out.push(problem(
+                    path,
+                    format!("key \"{key}\" is already used by {first}"),
+                ));
             } else {
                 seen.push((path, key));
             }
@@ -328,7 +377,14 @@ mod tests {
         ))
         .unwrap();
         match &p.controls[0] {
-            Control::Look { label, sensitivity, invert_y, reach, release_after_ms, .. } => {
+            Control::Look {
+                label,
+                sensitivity,
+                invert_y,
+                reach,
+                release_after_ms,
+                ..
+            } => {
                 assert_eq!(label, "");
                 assert_eq!(*sensitivity, 1.0);
                 assert!(!*invert_y);
@@ -366,8 +422,14 @@ mod tests {
 
     #[test]
     fn wrong_version() {
-        assert_eq!(first_path(r#"{"version":2,"orientation":"portrait"}"#), "version");
-        assert_eq!(first_path(r#"{"version":0,"orientation":"portrait"}"#), "version");
+        assert_eq!(
+            first_path(r#"{"version":2,"orientation":"portrait"}"#),
+            "version"
+        );
+        assert_eq!(
+            first_path(r#"{"version":0,"orientation":"portrait"}"#),
+            "version"
+        );
     }
 
     #[test]
@@ -389,7 +451,9 @@ mod tests {
     #[test]
     fn coordinates_bounds() {
         let b = |x: &str, y: &str| {
-            with_controls(&format!(r#"{{"type":"button","x":{x},"y":{y},"key":"Space"}}"#))
+            with_controls(&format!(
+                r#"{{"type":"button","x":{x},"y":{y},"key":"Space"}}"#
+            ))
         };
         assert!(Profile::from_json(&b("0", "1")).is_ok());
         assert!(Profile::from_json(&b("1.0", "0.0")).is_ok());
@@ -399,11 +463,22 @@ mod tests {
 
     #[test]
     fn non_finite_coordinates_are_rejected_for_built_profiles() {
-        let mut p = Profile::from_json(&with_controls(r#"{"type":"button","x":0.5,"y":0.5,"key":"Space"}"#)).unwrap();
+        let mut p = Profile::from_json(&with_controls(
+            r#"{"type":"button","x":0.5,"y":0.5,"key":"Space"}"#,
+        ))
+        .unwrap();
         if let Control::Button { x, .. } = &mut p.controls[0] {
             *x = f64::NAN;
         }
-        assert_eq!(p.validate().unwrap_err().to_string().split(':').next().unwrap(), "controls[0].x");
+        assert_eq!(
+            p.validate()
+                .unwrap_err()
+                .to_string()
+                .split(':')
+                .next()
+                .unwrap(),
+            "controls[0].x"
+        );
     }
 
     #[test]
@@ -424,20 +499,34 @@ mod tests {
 
     #[test]
     fn look_numeric_bounds() {
-        let l = |extra: &str| with_controls(&format!(r#"{{"type":"look","x":0.5,"y":0.5,{extra}}}"#));
+        let l =
+            |extra: &str| with_controls(&format!(r#"{{"type":"look","x":0.5,"y":0.5,{extra}}}"#));
         assert_eq!(first_path(&l(r#""reach":0"#)), "controls[0].reach");
         assert_eq!(first_path(&l(r#""reach":1.5"#)), "controls[0].reach");
         assert!(Profile::from_json(&l(r#""reach":1"#)).is_ok());
-        assert_eq!(first_path(&l(r#""sensitivity":0"#)), "controls[0].sensitivity");
-        assert_eq!(first_path(&l(r#""sensitivity":100.5"#)), "controls[0].sensitivity");
+        assert_eq!(
+            first_path(&l(r#""sensitivity":0"#)),
+            "controls[0].sensitivity"
+        );
+        assert_eq!(
+            first_path(&l(r#""sensitivity":100.5"#)),
+            "controls[0].sensitivity"
+        );
         assert!(Profile::from_json(&l(r#""sensitivity":100"#)).is_ok());
-        assert_eq!(first_path(&l(r#""release_after_ms":60001"#)), "controls[0].release_after_ms");
+        assert_eq!(
+            first_path(&l(r#""release_after_ms":60001"#)),
+            "controls[0].release_after_ms"
+        );
         assert!(Profile::from_json(&l(r#""release_after_ms":60000"#)).is_ok());
     }
 
     #[test]
     fn unknown_keys_and_mouse_toggle() {
-        let b = |k: &str| with_controls(&format!(r#"{{"type":"button","x":0.5,"y":0.5,"key":"{k}"}}"#));
+        let b = |k: &str| {
+            with_controls(&format!(
+                r#"{{"type":"button","x":0.5,"y":0.5,"key":"{k}"}}"#
+            ))
+        };
         assert_eq!(first_path(&b("Foo")), "controls[0].key");
         assert_eq!(first_path(&b("keya")), "controls[0].key");
         assert!(Profile::from_json(&b("MouseBack")).is_ok());
@@ -458,7 +547,9 @@ mod tests {
     #[test]
     fn toggle_equals_panic() {
         assert_eq!(
-            first_path(r#"{"version":1,"orientation":"portrait","toggle_key":"F2","panic_key":"F2"}"#),
+            first_path(
+                r#"{"version":1,"orientation":"portrait","toggle_key":"F2","panic_key":"F2"}"#
+            ),
             "panic_key"
         );
     }
@@ -471,7 +562,10 @@ mod tests {
         assert_eq!(first_path(&two), "controls[1].key");
         match Profile::from_json(&two) {
             Err(ProfileError::Invalid(p)) => {
-                assert_eq!(p.message, "key \"Space\" is already used by controls[0].key")
+                assert_eq!(
+                    p.message,
+                    "key \"Space\" is already used by controls[0].key"
+                )
             }
             o => panic!("{o:?}"),
         }
@@ -491,9 +585,8 @@ mod tests {
 
     #[test]
     fn second_look_rejected() {
-        let two = with_controls(
-            r#"{"type":"look","x":0.5,"y":0.5},{"type":"look","x":0.6,"y":0.5}"#,
-        );
+        let two =
+            with_controls(r#"{"type":"look","x":0.5,"y":0.5},{"type":"look","x":0.6,"y":0.5}"#);
         assert_eq!(first_path(&two), "controls[1]");
     }
 
@@ -509,7 +602,10 @@ mod tests {
             "not json",
             "",
         ] {
-            assert!(matches!(Profile::from_json(j), Err(ProfileError::Json(_))), "{j}");
+            assert!(
+                matches!(Profile::from_json(j), Err(ProfileError::Json(_))),
+                "{j}"
+            );
         }
     }
 
@@ -537,7 +633,14 @@ mod tests {
         let paths: Vec<String> = p.problems().into_iter().map(|p| p.path).collect();
         assert_eq!(
             paths,
-            ["version", "toggle_key", "controls[0].x", "controls[0].reach", "controls[1]", "controls[2].key"]
+            [
+                "version",
+                "toggle_key",
+                "controls[0].x",
+                "controls[0].reach",
+                "controls[1]",
+                "controls[2].key"
+            ]
         );
     }
 

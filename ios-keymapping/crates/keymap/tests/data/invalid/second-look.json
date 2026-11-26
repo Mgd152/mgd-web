@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "look",
+      "x": 0.7,
+      "y": 0.5
+    },
+    {
+      "type": "look",
+      "x": 0.3,
+      "y": 0.5
+    }
+  ]
+}

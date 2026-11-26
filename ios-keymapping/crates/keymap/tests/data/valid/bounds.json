@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "joystick",
+      "x": 0.0,
+      "y": 1.0,
+      "radius": 0.5,
+      "up": "KeyW",
+      "down": "KeyS",
+      "left": "KeyA",
+      "right": "KeyD"
+    },
+    {
+      "type": "look",
+      "x": 1.0,
+      "y": 0.0,
+      "sensitivity": 100,
+      "reach": 1,
+      "release_after_ms": 60000
+    },
+    {
+      "type": "button",
+      "x": 0.0,
+      "y": 0.0,
+      "key": "F24"
+    }
+  ]
+}

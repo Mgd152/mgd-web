@@ -59,7 +59,11 @@ pub struct View {
 impl View {
     /// Portrait phone panel `panel_w` x `panel_h` shown with `rotation`.
     pub fn from_panel(panel_w: f64, panel_h: f64, rotation: Rotation) -> View {
-        let a = if panel_h > 0.0 { panel_w / panel_h } else { 1.0 };
+        let a = if panel_h > 0.0 {
+            panel_w / panel_h
+        } else {
+            1.0
+        };
         let aspect = if rotation.is_landscape() { 1.0 / a } else { a };
         View { rotation, aspect }
     }
@@ -69,7 +73,11 @@ impl View {
     /// any aspect ratio. Returns that length as (fraction of width, fraction
     /// of height).
     pub fn short_side_units(&self, len: f64) -> (f64, f64) {
-        let aspect = if self.aspect.is_finite() && self.aspect > 0.0 { self.aspect } else { 1.0 };
+        let aspect = if self.aspect.is_finite() && self.aspect > 0.0 {
+            self.aspect
+        } else {
+            1.0
+        };
         if aspect >= 1.0 {
             // Wide: height is the short side.
             (len / aspect, len)
@@ -80,7 +88,9 @@ impl View {
 
     /// Picture point -> HID touchscreen coordinates (0..=65535, panel space).
     pub fn to_hid(&self, u: f64, v: f64) -> (u16, u16) {
-        let (x, y) = self.rotation.picture_to_panel(u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        let (x, y) = self
+            .rotation
+            .picture_to_panel(u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
         (to_u16(x), to_u16(y))
     }
 }
@@ -128,24 +138,39 @@ mod tests {
 
     #[test]
     fn short_side_units_keep_circles_round() {
-        let v = View { rotation: Rotation::R90, aspect: 2.0 };
+        let v = View {
+            rotation: Rotation::R90,
+            aspect: 2.0,
+        };
         let (w, h) = v.short_side_units(0.1);
         // In pixels: 0.05 * width(2) == 0.1 * height(1).
         assert!((w * 2.0 - h * 1.0).abs() < 1e-12);
-        let v = View { rotation: Rotation::R0, aspect: 0.5 };
+        let v = View {
+            rotation: Rotation::R0,
+            aspect: 0.5,
+        };
         let (w, h) = v.short_side_units(0.1);
         assert!((w * 0.5 - h * 1.0).abs() < 1e-12);
         // Degenerate aspect falls back to square.
-        let v = View { rotation: Rotation::R0, aspect: f64::NAN };
+        let v = View {
+            rotation: Rotation::R0,
+            aspect: f64::NAN,
+        };
         assert_eq!(v.short_side_units(0.2), (0.2, 0.2));
     }
 
     #[test]
     fn to_hid_clamps_and_rotates() {
-        let v = View { rotation: Rotation::R0, aspect: 0.5 };
+        let v = View {
+            rotation: Rotation::R0,
+            aspect: 0.5,
+        };
         assert_eq!(v.to_hid(0.0, 0.0), (0, 0));
         assert_eq!(v.to_hid(1.5, -1.0), (65535, 0));
-        let v = View { rotation: Rotation::R90, aspect: 2.0 };
+        let v = View {
+            rotation: Rotation::R90,
+            aspect: 2.0,
+        };
         // Picture top-right -> panel top-left.
         assert_eq!(v.to_hid(1.0, 0.0), (0, 0));
         assert_eq!(to_u16(0.5), 32768);

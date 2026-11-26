@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "slider",
+      "x": 0.5,
+      "y": 0.5
+    }
+  ]
+}

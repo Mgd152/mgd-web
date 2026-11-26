@@ -1,0 +1,19 @@
+# Golden script: toggle, WASD, tap + wait, look, focus loss.
+press KeyW
+press Backquote
+release Backquote
+press KeyW
+wait 100
+press KeyD
+release KeyW
+release KeyD
+wait 10
+press KeyJ
+wait 100
+release KeyJ
+move 30 -20
+press Space
+move 90 0
+wait 5
+focus-lost
+press KeyQ

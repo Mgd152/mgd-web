@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "orientation": "landscape",
+  "controls": [
+    {
+      "type": "joystick",
+      "x": 0.15,
+      "y": 0.7,
+      "radius": 0.12,
+      "up": "KeyW",
+      "down": "KeyS",
+      "left": "KeyA",
+      "right": "KeyD"
+    },
+    {
+      "type": "look",
+      "x": 0.75,
+      "y": 0.5
+    },
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.7,
+      "key": "KeyE"
+    }
+  ]
+}

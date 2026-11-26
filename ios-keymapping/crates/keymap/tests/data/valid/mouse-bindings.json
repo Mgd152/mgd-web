@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.5,
+      "key": "MouseLeft"
+    },
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.4,
+      "key": "MouseRight",
+      "mode": "tap"
+    },
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.3,
+      "key": "MouseMiddle"
+    },
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.2,
+      "key": "MouseBack"
+    },
+    {
+      "type": "button",
+      "x": 0.9,
+      "y": 0.1,
+      "key": "MouseForward",
+      "mode": "tap"
+    }
+  ]
+}

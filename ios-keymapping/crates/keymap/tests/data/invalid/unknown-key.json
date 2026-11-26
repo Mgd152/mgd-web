@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "button",
+      "x": 0.85,
+      "y": 0.8,
+      "key": "KeyFoo"
+    }
+  ]
+}

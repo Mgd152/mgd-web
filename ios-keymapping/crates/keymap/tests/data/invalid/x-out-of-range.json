@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "orientation": "portrait",
+  "controls": [
+    {
+      "type": "button",
+      "x": 1.2,
+      "y": 0.5,
+      "key": "Space"
+    }
+  ]
+}
