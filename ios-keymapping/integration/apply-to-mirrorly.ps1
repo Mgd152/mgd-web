@@ -168,6 +168,16 @@ dependencies that are statically linked into Mirrorly.exe.
     if (-not (Test-Path $editor)) { throw "required file missing: $editor" }
     New-Item -ItemType Directory -Force (Join-Path $stage 'editor') | Out-Null
     Copy-Item $editor (Join-Path $stage 'editor')
+    # Double-click launchers, so nobody has to type a command line. ASCII
+    # names and content: cmd.exe reads .bat files in the OEM code page.
+    $launchers = [ordered]@{
+        'Chay-keymap-doc.bat'   = "@echo off`r`nrem Mirrorly with the portrait touch-test profile.`r`nstart `"`" `"%~dp0Mirrorly.exe`" --keymap `"%~dp0profiles\touch-test-portrait.json`"`r`n"
+        'Chay-keymap-ngang.bat' = "@echo off`r`nrem Mirrorly with the landscape touch-test profile.`r`nstart `"`" `"%~dp0Mirrorly.exe`" --keymap `"%~dp0profiles\touch-test-landscape.json`"`r`n"
+        'Keo-ho-so-vao-day.bat' = "@echo off`r`nrem Drop a profile .json (for example one exported by editor\index.html) on this file.`r`nif `"%~1`"==`"`" (`r`n  echo Keo mot file ho so .json tha vao file nay de chay Mirrorly voi ho so do.`r`n  pause`r`n  exit /b 1`r`n)`r`nstart `"`" `"%~dp0Mirrorly.exe`" --keymap `"%~f1`"`r`n"
+    }
+    foreach ($name in $launchers.Keys) {
+        [IO.File]::WriteAllText((Join-Path $stage $name), $launchers[$name], [Text.Encoding]::ASCII)
+    }
     Write-Host "Staged: $stage"
 }
 

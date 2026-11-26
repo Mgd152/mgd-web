@@ -160,12 +160,16 @@ Việc sửa này chưa được chạy lại, nên artifact chưa được xác
 1. Đóng mọi cửa sổ Mirrorly đang chạy (Mirrorly là single-instance; nếu còn
    cửa sổ cũ, cờ `--keymap` bị bỏ qua).
 2. Cắm iPhone bằng USB, mở app kiểm thử cảm ứng trên điện thoại.
-3. Mở terminal trong `ios-keymapping\dist\Mirrorly-keymap\` (hoặc thư mục đã
-   giải nén của artifact `mirrorly-keymap-<sha>`), nơi có `Mirrorly.exe`, các DLL
-   FFmpeg, `keymap-sim.exe`, `profiles\` và `editor\`. Chạy:
-   `Mirrorly.exe --keymap profiles\touch-test-portrait.json`
-   (hoặc `...landscape.json`; với ngang, bấm **F12** để xoay khung nhìn cho
-   khớp, hướng hồ sơ phải khớp hướng khung nhìn).
+3. Trong thư mục đã giải nén (artifact `mirrorly-keymap-<sha>`, hoặc
+   `ios-keymapping\dist\Mirrorly-keymap\`), **bấm đúp** một trong các file:
+   - `Chay-keymap-doc.bat`: hồ sơ mẫu màn hình dọc;
+   - `Chay-keymap-ngang.bat`: hồ sơ mẫu màn hình ngang (bấm **F12** để xoay
+     khung nhìn cho khớp; hướng hồ sơ phải khớp hướng khung nhìn);
+   - `Keo-ho-so-vao-day.bat`: kéo file hồ sơ `.json` của bạn (ví dụ xuất từ
+     `editor\index.html`) thả vào file này.
+
+   Cách gõ lệnh tương đương:
+   `Mirrorly.exe --keymap profiles\touch-test-portrait.json`.
 4. Bấm **`` ` ``** (Backquote) để bật/tắt keymap. Khi bật, tiêu đề cửa sổ hiện
    "Keymap ON"; nếu hồ sơ có điều khiển `look`, con trỏ bị nhốt trong cửa sổ
    và ẩn. Hồ sơ được **đọc lại mỗi lần bật**, nên sửa trong editor rồi bật lại
