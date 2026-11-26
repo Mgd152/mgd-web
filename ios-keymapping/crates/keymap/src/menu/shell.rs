@@ -643,7 +643,7 @@ impl<F: Fs> Shell<F> {
         let helpers = self
             .active
             .as_ref()
-            .map_or(true, |(_, p)| {
+            .is_none_or(|(_, p)| {
                 !profile_binds(p, &self.prefs.sens_down_key)
                     && !profile_binds(p, &self.prefs.sens_up_key)
             })
@@ -1418,7 +1418,17 @@ impl<F: Fs> Shell<F> {
                     }
                 }
                 EditorOut::SaveAndPlay => {
+                    let guided = self
+                        .editor
+                        .as_ref()
+                        .is_some_and(|e| e.guide_step().is_some());
                     if !veto && self.save_editor(fx) {
+                        if guided {
+                            // The guide counts as done only once its profile
+                            // is safely on disk.
+                            self.prefs.guide_done = true;
+                            self.save_prefs();
+                        }
                         self.leave_edit(fx);
                         self.hub_play(fx);
                     } else {
@@ -3651,5 +3661,188 @@ mod tests {
                 mods: Mods::default(),
             })
         }
+    }
+
+    // ---- WP4 review fixes ----
+
+    #[test]
+    fn xem_cach_sua_opens_the_clicked_row() {
+        let mut fs = fs_of(
+            &[("ho-so-1.json", prof("Hồ sơ 1", Template::ShooterLandscape))],
+            PLAYABLE,
+        );
+        for (f, n) in [("a-bad.json", "A lỗi"), ("b-bad.json", "B lỗi")] {
+            let mut bad = prof(n, Template::BasicLandscape);
+            if let Control::Button { key, .. } = &mut bad.controls[2] {
+                *key = "KeyW".into();
+            }
+            fs.put(&format!("{DIR}/{f}"), &bad.to_json_pretty());
+        }
+        let mut t = T::new(fs);
+        t.cmd(Command::OpenHub);
+        let buttons: Vec<Widget> = t
+            .widgets()
+            .into_iter()
+            .filter(|w| caption(w).as_deref() == Some("Xem cách sửa"))
+            .collect();
+        assert_eq!(buttons.len(), 2);
+        let p = centre(&buttons[1]);
+        t.ev(UiEvent::PointerMove {
+            p,
+            mods: Mods::default(),
+        });
+        t.ev(UiEvent::PointerDown {
+            p,
+            button: "MouseLeft",
+            mods: Mods::default(),
+        });
+        t.ev(UiEvent::PointerUp {
+            p,
+            button: "MouseLeft",
+            mods: Mods::default(),
+        });
+        let s = t.sh.scene(&t.env, t.now).unwrap();
+        let has = |name: &str| {
+            s.prims()
+                .any(|p| matches!(p, Prim::Text { text, .. } if text.contains(name)))
+        };
+        assert!(has("b-bad.json") && !has("a-bad.json"));
+    }
+
+    #[test]
+    fn a_failed_undelete_keeps_the_offer_and_the_file() {
+        let mut t = T::two();
+        t.cmd(Command::OpenHub);
+        t.key("ArrowDown");
+        t.key("Delete");
+        assert_eq!(t.sh.entries().len(), 1);
+        assert!(t.has("Hoàn tác"));
+        t.sh.store_mut().fs_mut().fail_next(FsOp::Rename);
+        let fx = t.ctrl("KeyZ");
+        assert!(toast_has(&fx, Msg::SaveFailed));
+        assert_eq!(t.sh.entries().len(), 1);
+        assert!(t.has("Hoàn tác"), "the offer is still there");
+        t.ctrl("KeyZ");
+        assert_eq!(t.sh.entries().len(), 2, "the retry brings it back");
+    }
+
+    #[test]
+    fn play_started_after_the_editor_opened_closes_the_editor() {
+        let mut t = T::playable();
+        t.goto_edit();
+        t.key("Tab");
+        t.key("Delete"); // a pending change
+        t.ev(UiEvent::PlayStarted);
+        assert_eq!(t.sh.mode(), Mode::Play);
+        assert!(t.sh.editor().is_none());
+        t.ev(UiEvent::PlayEnded {
+            reason: PlayEnd::Panic,
+            look_sensitivity: None,
+        });
+        assert_eq!(t.sh.mode(), Mode::Off);
+        let fx = t.ev(UiEvent::PointerMove {
+            p: Pt { x: 10.0, y: 10.0 },
+            mods: Mods::default(),
+        });
+        assert!(!fx.contains(&Effect::Redraw), "Off stays silent: {fx:?}");
+    }
+
+    #[test]
+    fn the_play_toast_names_the_real_helper_keys_or_none() {
+        let mut t = T::playable();
+        let fx = t.ev(UiEvent::PlayStarted);
+        let txt = fx
+            .iter()
+            .find_map(|e| match e {
+                Effect::Toast { msg, .. } => Some(msg.text(Lang::Vi)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(txt.contains("[ ]") || txt.contains("độ nhạy"), "{txt}");
+        // keys changed by the preferences
+        let mut t = T::new(fs_of(
+            &[("ho-so-1.json", prof("Hồ sơ 1", Template::ShooterLandscape))],
+            r#"{"active":"ho-so-1.json","notice_ack":1,"sens_down_key":"KeyN","sens_up_key":"KeyM"}"#,
+        ));
+        let fx = t.ev(UiEvent::PlayStarted);
+        let txt = fx
+            .iter()
+            .find_map(|e| match e {
+                Effect::Toast { msg, .. } => Some(msg.text(Lang::Vi)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(txt.contains("N M độ nhạy"), "{txt}");
+        // a profile that binds them hides the advert
+        let mut p = prof("Hồ sơ 1", Template::ShooterLandscape);
+        if let Control::Button { key, .. } = &mut p.controls[2] {
+            *key = "BracketLeft".into();
+        }
+        let mut t = T::new(fs_of(&[("ho-so-1.json", p)], PLAYABLE));
+        let fx = t.ev(UiEvent::PlayStarted);
+        let txt = fx
+            .iter()
+            .find_map(|e| match e {
+                Effect::Toast { msg, .. } => Some(msg.text(Lang::Vi)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(!txt.contains("độ nhạy"), "{txt}");
+    }
+
+    #[test]
+    fn open_edit_command_from_off_opens_the_editor() {
+        let mut t = T::playable();
+        t.cmd(Command::OpenEdit);
+        assert_eq!(t.sh.mode(), Mode::Edit);
+        assert!(t.sh.editor().is_some());
+    }
+
+    #[test]
+    fn a_broken_active_profile_does_not_start_play_from_the_hub() {
+        let mut fs = fs_of(&[], r#"{"active":"x.json","notice_ack":1}"#);
+        let mut bad = prof("Lỗi", Template::BasicLandscape);
+        if let Control::Button { key, .. } = &mut bad.controls[2] {
+            *key = "KeyW".into();
+        }
+        fs.put(&format!("{DIR}/x.json"), &bad.to_json_pretty());
+        let mut t = T::new(fs);
+        t.cmd(Command::OpenHub);
+        let fx = t.key("Enter");
+        assert!(!started(&fx));
+        assert_eq!(t.sh.mode(), Mode::Hub);
+    }
+
+    #[test]
+    fn the_play_overlay_is_translucent() {
+        let mut t = T::playable();
+        t.ev(UiEvent::PlayStarted);
+        let s = t.sh.scene(&t.env, t.now).unwrap();
+        assert!(s.alpha < 1.0);
+    }
+
+    #[test]
+    fn guide_done_is_recorded_only_after_a_good_save() {
+        let mut t = T::new(fs_of(&[], r#"{"notice_ack":1}"#));
+        t.cmd(Command::OpenHub);
+        t.click("Tạo hồ sơ đầu tiên");
+        t.click("Bắn súng – màn hình ngang · đề nghị");
+        while t.sh.editor().unwrap().guide_step() != Some(6) {
+            t.click("Tiếp");
+        }
+        t.sh.store_mut().fs_mut().fail_next(FsOp::WriteAtomic);
+        t.click("Lưu & Chơi");
+        assert_eq!(t.sh.mode(), Mode::Edit, "a failed save stays in the editor");
+        assert!(
+            !t.prefs_json().contains("\"guide_done\":true")
+                && !t.prefs_json().contains("\"guide_done\": true")
+        );
+        assert!(t.sh.editor().unwrap().guide_step().is_some());
+        t.click("Lưu & Chơi");
+        assert_ne!(t.sh.mode(), Mode::Edit);
+        assert!(
+            t.prefs_json().contains("\"guide_done\":true")
+                || t.prefs_json().contains("\"guide_done\": true")
+        );
     }
 }

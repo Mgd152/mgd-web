@@ -440,9 +440,25 @@ impl Editor {
         let c = match self.sel {
             Some(id) => self.doc.control(id)?,
             None => {
-                let g = self.guide.as_ref()?;
-                let i = g.target(self.doc.profile())?;
-                self.doc.profile().controls.get(i)?
+                let target = self
+                    .guide
+                    .as_ref()
+                    .and_then(|g| g.target(self.doc.profile()))
+                    .and_then(|i| self.doc.profile().controls.get(i));
+                match target {
+                    Some(c) => c,
+                    // A bottom sheet with nothing selected goes where the
+                    // controls are not: toward the side with fewer of them.
+                    None if env.view.picture.w < 2.0 * env.view.lp(DOCK_W) => {
+                        let cs = &self.doc.profile().controls;
+                        if cs.is_empty() {
+                            return None;
+                        }
+                        let y = cs.iter().map(|c| pt_of(c).y).sum::<f64>() / cs.len() as f64;
+                        return Some(env.view.to_px(Pt { x: 0.5, y }));
+                    }
+                    None => return None,
+                }
             }
         };
         Some(env.view.to_px(pt_of(c)))
@@ -1346,7 +1362,7 @@ impl Editor {
             self.revert_ask = false;
         } else if self.sel.is_some() {
             self.sel = None;
-        } else if self.hist.dirty() {
+        } else if self.dirty() {
             self.save_prompt = true;
             self.collapsed = false;
         } else {
@@ -3061,7 +3077,7 @@ impl Editor {
             mid,
             UiText::RevertBtn,
             false,
-            self.hist.dirty(),
+            self.dirty(),
             Act::Revert,
         );
     }
@@ -3252,6 +3268,15 @@ mod tests {
                         continue;
                     }
                     for (t, wpx, font) in widget_texts(&w, lang, 1.0) {
+                        // All-caps headings are wider than the 0.58 em average.
+                        if t.chars().filter(|c| c.is_alphabetic()).count() > 6
+                            && t == t.to_uppercase()
+                        {
+                            assert!(
+                                t.chars().count() as f64 * font.size_lp() * 0.68 <= wpx,
+                                "{lang:?} all-caps {t:?} too wide for {wpx}px"
+                            );
+                        }
                         assert!(
                             crate::menu::scene::fits(&t, wpx, font, 1.0),
                             "{lang:?} {t:?} ({} chars) does not fit {wpx}px",
@@ -4298,5 +4323,342 @@ mod tests {
             seeds_checked >= 3,
             "only {seeds_checked} seeds were light enough to check undo-all"
         );
+    }
+
+    // ---- WP4 review fixes ----
+
+    fn guided(w: f64, h: f64, rot: Rotation, tpl: Template) -> Ed {
+        let mut e = Ed::with(template(tpl));
+        e.env = env_sized(w, h, 1.0, rot);
+        e.ed = Editor::open("a.json", template(tpl), true).unwrap();
+        e.key("KeyQ"); // any event runs the guide check
+        e
+    }
+
+    #[test]
+    fn the_dock_never_covers_the_control_the_guide_asks_to_drag() {
+        for (w, h, rot, tpl) in [
+            (1280.0, 590.0, Rotation::R90, Template::ShooterLandscape),
+            (1700.0, 1000.0, Rotation::R90, Template::ShooterLandscape),
+            (400.0, 860.0, Rotation::R0, Template::BasicPortrait),
+        ] {
+            for step in 2..=4u8 {
+                let mut e = guided(w, h, rot, tpl);
+                while e.ed.guide_step().is_some_and(|s| s < step) {
+                    e.ed.guide.as_mut().unwrap().advance();
+                }
+                e.key("KeyQ");
+                assert_eq!(e.ed.guide_step(), Some(step));
+                let i =
+                    e.ed.guide
+                        .as_ref()
+                        .unwrap()
+                        .target(e.ed.profile())
+                        .expect("a target");
+                let id = e.ed.doc.ids()[i];
+                let c = e.ed.profile().controls[i].clone();
+                let ctr = e.env.view.to_px(pt_of(&c));
+                let built = e.ed.build(&e.env);
+                let dock = built.dock_rect.expect("dock");
+                assert!(
+                    !contains(dock, ctr),
+                    "{w}x{h} step {step}: the dock {dock:?} hides the target at {ctr:?}"
+                );
+                assert!(
+                    matches!(
+                        hit_test(&e.ed.doc, &e.env.view, None, ctr),
+                        Hit::Body(b) | Hit::Handle(b) if b == id
+                    ),
+                    "{w}x{h} step {step}: the target is not hit"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_bottom_sheet_with_nothing_selected_keeps_off_the_controls() {
+        let mut e = Ed::with(template(Template::BasicPortrait));
+        e.env = env_sized(400.0, 860.0, 1.0, Rotation::R0);
+        e.key("KeyQ");
+        let dock = e.ed.build(&e.env).dock_rect.unwrap();
+        for (i, c) in e.ed.profile().controls.iter().enumerate() {
+            if matches!(c, Control::Look { .. }) {
+                continue;
+            }
+            let p = e.env.view.to_px(pt_of(c));
+            assert!(!contains(dock, p), "control {i} at {p:?} under {dock:?}");
+        }
+    }
+
+    const VI_ONLY: [&str; 3] = ["Chuột", "Nút ", "Phím bật/tắt"];
+
+    fn assert_english(e: &Ed, what: &str) {
+        let s = e.ed.scene(&e.env, Lang::En, 0);
+        for p in s.prims() {
+            if let Prim::Text { text, .. } = p {
+                for bad in VI_ONLY {
+                    assert!(!text.contains(bad), "{what}: Vietnamese {text:?}");
+                }
+                let b = text.as_bytes();
+                for i in 1..b.len().saturating_sub(1) {
+                    assert!(
+                        !(b[i] == b',' && b[i - 1].is_ascii_digit() && b[i + 1].is_ascii_digit()),
+                        "{what}: decimal comma in {text:?}"
+                    );
+                }
+            }
+        }
+        for w in e.ed.widgets(&e.env, Lang::En) {
+            for (t, _, _) in widget_texts(&w, Lang::En, 1.0) {
+                for bad in VI_ONLY {
+                    assert!(!t.contains(bad), "{what}: Vietnamese widget {t:?}");
+                }
+            }
+        }
+    }
+
+    fn click_cap(e: &mut Ed, slot: Slot) {
+        let id = match slot {
+            Slot::Button(i) | Slot::Dir(i, _) => i,
+            _ => panic!("a control slot"),
+        };
+        let r = cap_rects(&e.ed.doc, &e.env.view, id)
+            .into_iter()
+            .find(|(s, _)| *s == slot)
+            .unwrap()
+            .1;
+        e.click(Pt {
+            x: r.x + r.w / 2.0,
+            y: r.y + r.h / 2.0,
+        });
+    }
+
+    #[test]
+    fn the_editor_is_english_all_the_way_down() {
+        let mut e = Ed::shooter();
+        e.ed.set_lang(Lang::En);
+        assert_english(&e, "nothing selected");
+        for n in 0..4 {
+            let mut e = Ed::shooter();
+            e.ed.set_lang(Lang::En);
+            e.select(n);
+            e.ed.advanced_open = true;
+            assert_english(&e, &format!("control {n}"));
+            e.ed.info_open = true;
+            assert_english(&e, &format!("control {n} with the finger list"));
+        }
+        // capture and its conflicts
+        let mut e = Ed::shooter();
+        e.ed.set_lang(Lang::En);
+        e.select(4);
+        let id = e.ed.doc.ids()[4];
+        click_cap(&mut e, Slot::Button(id));
+        assert!(e.ed.capturing());
+        assert_english(&e, "listening");
+        e.key("KeyR"); // used by another control
+        assert_english(&e, "conflict with a control");
+        e.key("Escape");
+        let mut e = Ed::shooter();
+        e.ed.set_lang(Lang::En);
+        e.select(4);
+        click_cap(&mut e, Slot::Button(id));
+        e.key("Backquote"); // the toggle key
+        assert_english(&e, "conflict with the toggle key");
+        // Test mode
+        let mut e = Ed::shooter();
+        e.ed.set_lang(Lang::En);
+        let mut out = Vec::new();
+        let (env, now) = (e.env, e.now);
+        e.ed.enter_test(&env, now, &mut out);
+        e.ev(UiEvent::Key {
+            name: "MouseLeft",
+            pressed: true,
+            mods: Mods::default(),
+        });
+        assert!(e.ed.in_test());
+        assert_english(&e, "test mode");
+    }
+
+    #[test]
+    fn canvas_text_stays_inside_the_window_even_at_the_bottom_edge() {
+        for (w, h) in [(1280.0, 590.0), (1700.0, 1000.0)] {
+            let mut e = Ed::shooter();
+            e.env = env_sized(w, h, 1.0, Rotation::R90);
+            e.key("KeyQ");
+            let s = e.ed.scene(&e.env, Lang::Vi, 0);
+            for p in s.prims() {
+                if let Prim::Text { r, text, .. } = p {
+                    assert!(
+                        r.x >= -0.5 && r.y >= -0.5 && r.x + r.w <= w + 0.5 && r.y + r.h <= h + 0.5,
+                        "{w}x{h}: {text:?} {r:?} leaves the window"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn undo_during_a_slider_drag_ends_the_drag() {
+        let mut e = Ed::shooter();
+        e.select(1);
+        let sens = |e: &Ed| match &e.ed.profile().controls[1] {
+            Control::Look { sensitivity, .. } => *sensitivity,
+            _ => panic!(),
+        };
+        let w = e
+            .widgets()
+            .into_iter()
+            .find(|w| matches!(w.kind, WidgetKind::Slider { log: true, .. }))
+            .unwrap();
+        let t = slider_parts(w.rect, 1.0).track;
+        let y = t.y + t.h / 2.0;
+        let s0 = sens(&e);
+        e.mv(Pt {
+            x: t.x + t.w * 0.7,
+            y,
+        });
+        e.down(Pt {
+            x: t.x + t.w * 0.7,
+            y,
+        });
+        let mid = sens(&e);
+        assert!(mid != s0);
+        e.ctrl("KeyZ");
+        assert_eq!(sens(&e), s0);
+        // the drag is over: moving on does not edit, and redo restores it
+        e.mv(Pt {
+            x: t.x + t.w * 0.95,
+            y,
+        });
+        assert_eq!(sens(&e), s0);
+        e.up(Pt {
+            x: t.x + t.w * 0.95,
+            y,
+        });
+        e.ctrl("KeyY");
+        assert_eq!(sens(&e), mid);
+    }
+
+    #[test]
+    fn a_failed_save_keeps_the_guide_and_save_and_play_does_not_report_it_done() {
+        let mut e = Ed::with(template(Template::ShooterLandscape));
+        e.ed = Editor::open("a.json", template(Template::ShooterLandscape), true).unwrap();
+        e.key("KeyQ");
+        let mut out = Vec::new();
+        let (env, now) = (e.env, e.now);
+        let (rect, p0) = (
+            PxRect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            },
+            Pt { x: 0.0, y: 0.0 },
+        );
+        e.ed.widget_down(
+            Act::GuideSaveAndPlay,
+            rect,
+            &WidgetKind::Label(Msg::Cancel),
+            0.0,
+            p0,
+            &env,
+            now,
+            &mut out,
+        );
+        assert!(out.contains(&EditorOut::SaveAndPlay));
+        assert!(!out.contains(&EditorOut::GuideDone));
+        assert!(e.ed.guide_step().is_some(), "the guide waits for the save");
+    }
+
+    #[test]
+    fn revert_lands_on_a_clean_document() {
+        let mut e = Ed::shooter();
+        let n = e.ed.profile().controls.len();
+        e.select(0);
+        e.key("Delete");
+        assert!(e.ed.dirty());
+        e.click_text("Huỷ thay đổi");
+        e.click_text("Huỷ thay đổi"); // the confirm button has the same caption
+        assert_eq!(e.ed.profile().controls.len(), n);
+        assert!(!e.ed.dirty(), "the profile equals the saved one");
+        let outs = e.key("Escape");
+        assert!(outs.contains(&EditorOut::Leave), "no save prompt: {outs:?}");
+    }
+
+    #[test]
+    fn the_dock_scroll_is_clamped_and_resets_with_the_selection() {
+        let mut e = Ed::shooter();
+        e.env = env_sized(1280.0, 590.0, 1.0, Rotation::R90);
+        e.select(1);
+        let p = {
+            let d = e.ed.build(&e.env).dock_rect.unwrap();
+            Pt {
+                x: d.x + d.w / 2.0,
+                y: d.y + d.h / 2.0,
+            }
+        };
+        for _ in 0..200 {
+            e.ev(UiEvent::Wheel {
+                p,
+                dy: -1.0,
+                mods: Mods::default(),
+            });
+        }
+        let max = e.ed.build(&e.env).max_scroll;
+        assert!(max > 0.0, "the card overflows at 590 px");
+        assert!(e.ed.scroll <= max + 1e-9);
+        assert!(e.ed.build(&e.env).cue_up.is_some() && e.ed.build(&e.env).cue_down.is_none());
+        e.ev(UiEvent::Wheel {
+            p,
+            dy: 1.0,
+            mods: Mods::default(),
+        });
+        assert!(e.ed.scroll < max, "scrolling back moves at once");
+        e.key("Tab");
+        assert_eq!(e.ed.scroll, 0.0, "a new selection starts at the top");
+        assert!(e.ed.build(&e.env).cue_down.is_some());
+    }
+
+    #[test]
+    fn dock_layout_holds_in_prompt_capture_and_guide_states() {
+        for (w, h, rot, tpl) in [
+            (1280.0, 590.0, Rotation::R90, Template::ShooterLandscape),
+            (400.0, 860.0, Rotation::R0, Template::BasicPortrait),
+        ] {
+            for state in ["save", "revert", "capture", "conflict", "guide"] {
+                let mut e = Ed::with(template(tpl));
+                e.env = env_sized(w, h, 1.0, rot);
+                match state {
+                    "save" => e.ed.save_prompt = true,
+                    "revert" => e.ed.revert_ask = true,
+                    "guide" => {
+                        e.ed = Editor::open("a.json", template(tpl), true).unwrap();
+                    }
+                    _ => {
+                        e.select(2);
+                        let id = e.ed.doc.ids()[2];
+                        click_cap(&mut e, Slot::Button(id));
+                        if state == "conflict" {
+                            e.key("Backquote");
+                        }
+                    }
+                }
+                e.key("KeyQ");
+                let (dock, ws) = dock_widgets(&e);
+                for (i, a) in ws.iter().enumerate() {
+                    let r = a.rect;
+                    assert!(
+                        r.x >= dock.x - 0.5
+                            && r.y >= dock.y - 0.5
+                            && r.x + r.w <= dock.x + dock.w + 0.5
+                            && r.y + r.h <= dock.y + dock.h + 0.5,
+                        "{w}x{h} {state}: widget {i} {r:?} outside {dock:?}"
+                    );
+                    for b in &ws[i + 1..] {
+                        assert!(!overlap(r, b.rect), "{w}x{h} {state}: {a:?} overlaps {b:?}");
+                    }
+                }
+            }
+        }
     }
 }

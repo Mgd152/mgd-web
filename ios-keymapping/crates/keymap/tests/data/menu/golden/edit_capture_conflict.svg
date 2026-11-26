@@ -23,45 +23,54 @@
 <rect x="693.4" y="59" width="354" height="354" fill="none" stroke="#2563eb" stroke-width="2" stroke-opacity="0.7" stroke-dasharray="6 4"/>
 <line x1="862.4" y1="236" x2="878.4" y2="236" stroke="#2563eb" stroke-width="2" stroke-opacity="0.7"/>
 <line x1="870.4" y1="228" x2="870.4" y2="244" stroke="#2563eb" stroke-width="2" stroke-opacity="0.7"/>
+<rect x="697.4" y="61" width="84.56" height="18" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="699.4" y="70" font-size="12" text-anchor="start" dominant-baseline="central" fill="#2563eb">Xoay camera</text>
 <circle cx="1113.6" cy="354" r="22" fill="#2563eb" fill-opacity="0.7"/>
+<rect x="1099.16" y="405" width="28.88" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="1113.6" y="413" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Bắn</text>
 <rect x="1095.6" y="376" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="1095.6" y="376" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
-<text x="1113.6" y="390" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">M1</text>
+<text x="1113.6" y="390" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">Ch.T</text>
 <circle cx="998.4" cy="259.6" r="22" fill="#2563eb" fill-opacity="0.7"/>
+<rect x="980.48" y="310.6" width="35.84" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="998.4" y="318.6" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Ngắm</text>
 <rect x="980.4" y="281.6" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="980.4" y="281.6" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
-<text x="998.4" y="295.6" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">M2</text>
+<text x="998.4" y="295.6" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">Ch.P</text>
 <circle cx="1190.4" cy="448.4" r="22" fill="#2563eb"/>
 <circle cx="1190.4" cy="448.4" r="26" fill="none" stroke="#ea580c" stroke-width="2"/>
+<rect x="1172.48" y="499.4" width="35.84" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="1190.4" y="507.4" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Nhảy</text>
 <rect x="1172.4" y="470.4" width="36" height="28" rx="5" fill="#dbeafe"/>
 <rect x="1172.4" y="470.4" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="2"/>
 <text x="1190.4" y="484.4" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">…</text>
 <circle cx="1075.2" cy="483.8" r="22" fill="#2563eb" fill-opacity="0.7"/>
+<rect x="1057.28" y="534.8" width="35.84" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="1075.2" y="542.8" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Ngồi</text>
 <rect x="1057.2" y="505.8" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="1057.2" y="505.8" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
 <text x="1075.2" y="519.8" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">C</text>
 <circle cx="921.6" cy="495.6" r="22" fill="#2563eb" fill-opacity="0.7"/>
+<rect x="893.24" y="546.6" width="56.72" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
 <text x="921.6" y="554.6" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Nạp đạn</text>
 <rect x="903.6" y="517.6" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="903.6" y="517.6" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
 <text x="921.6" y="531.6" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">R</text>
 <circle cx="640" cy="531" r="22" fill="#2563eb" fill-opacity="0.7"/>
-<text x="640" y="590" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Súng 1</text>
+<rect x="615.12" y="492" width="49.76" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
+<text x="640" y="500" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Súng 1</text>
 <rect x="622" y="553" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="622" y="553" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
 <text x="640" y="567" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">1</text>
 <circle cx="742.4" cy="531" r="22" fill="#2563eb" fill-opacity="0.7"/>
-<text x="742.4" y="590" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Súng 2</text>
+<rect x="717.52" y="492" width="49.76" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
+<text x="742.4" y="500" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Súng 2</text>
 <rect x="724.4" y="553" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="724.4" y="553" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
 <text x="742.4" y="567" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">2</text>
 <circle cx="512" cy="531" r="22" fill="#2563eb" fill-opacity="0.7"/>
-<text x="512" y="590" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Hồi máu</text>
+<rect x="483.64" y="492" width="56.72" height="16" rx="4" fill="#ffffff" fill-opacity="0.8"/>
+<text x="512" y="500" font-size="12" text-anchor="middle" dominant-baseline="central" fill="#2563eb">Hồi máu</text>
 <rect x="494" y="553" width="36" height="28" rx="5" fill="#ffffff"/>
 <rect x="494" y="553" width="36" height="28" rx="5" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.7"/>
 <text x="512" y="567" font-size="11" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-weight="600">F</text>
@@ -88,7 +97,7 @@
 <text x="231.5" y="527" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Xong</text>
 <text x="22" y="561.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">Chuột đang không điều khiển điện thoại.</text>
 <rect x="20" y="108" width="280" height="25" rx="6" fill="#eef2f7"/>
-<rect x="20" y="108" width="4" height="25" fill="#d97706"/>
+<rect x="20" y="108" width="4" height="25" fill="#b45309"/>
 <text x="32" y="120.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Phím R đang dùng cho “Nạp đạn”.</text>
 <rect x="20" y="141" width="137" height="36" rx="6" fill="#2563eb"/>
 <text x="88.5" y="159" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Đổi chỗ</text>
@@ -114,5 +123,6 @@
 <rect x="20" y="402" width="280" height="36" rx="6" fill="#eef2f7"/>
 <rect x="20" y="402" width="280" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
 <text x="160" y="420" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Gợi ý tên</text>
+<text x="306" y="450" font-size="12" text-anchor="end" dominant-baseline="central" fill="#475569">▾</text>
 </g>
 </svg>

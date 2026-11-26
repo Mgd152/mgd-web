@@ -41,9 +41,16 @@ fn check(name: &str, svg: &str) {
 /// Sanity check of the display list: no text exceeds its box. (Painters
 /// already ellipsize, so the real per-caption budget test is on the widgets,
 /// in the unit tests of `editor` and `shell`.)
-fn assert_texts_fit(name: &str, sc: &Scene) {
+fn assert_texts_fit(name: &str, sc: &Scene, window: (f64, f64)) {
     for p in sc.prims() {
         if let Prim::Text { r, text, font, .. } = p {
+            assert!(
+                r.x >= -0.5
+                    && r.y >= -0.5
+                    && r.x + r.w <= window.0 + 0.5
+                    && r.y + r.h <= window.1 + 0.5,
+                "{name}: the box of {text:?} ({r:?}) leaves the {window:?} window"
+            );
             assert!(
                 fits(text, r.w, *font, sc.scale),
                 "{name}: {text:?} ({} chars) does not fit {:.0}px of {font:?}",
@@ -247,7 +254,7 @@ impl Drv {
 
     fn snap(&self, name: &str) {
         let sc = self.scene();
-        assert_texts_fit(name, &sc);
+        assert_texts_fit(name, &sc, self.scr.window);
         check(name, &sc.to_svg(self.scr.window, self.sh.pressed_mask()));
     }
 
@@ -502,6 +509,6 @@ fn play_overlay_with_a_pressed_mask() {
     d.ev(UiEvent::PlayStarted);
     assert_eq!(d.sh.mode(), Mode::Play);
     let sc = d.scene();
-    assert_texts_fit("play_overlay", &sc);
+    assert_texts_fit("play_overlay", &sc, d.scr.window);
     check("play_overlay", &sc.to_svg(d.scr.window, 0b1_0000_0101));
 }

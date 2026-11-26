@@ -46,6 +46,20 @@ golden scenes, the "ngón N/5" counter and the v1.1 engine ideas.
 - The keymap stays refused on a Wi-Fi link (SPEC.md: iOS ignores
   universalhidservice touch reports over Wi-Fi); `PlayRefusal::Wifi` stays.
 
+**Amendment to 3.2 (WP4 review fix, 2026-11-26; recorded for the lead to
+confirm):** "with no selection the card sits on the right" is replaced by: with
+nothing selected the dock keeps away from the guide's target control while the
+guide runs (landscape: the card goes to the other half; portrait: the sheet goes
+to the other half), and a bottom sheet without a guide target goes to the half
+of the picture with fewer controls. A selection or a drag still decides first.
+Without a guide and in landscape the card stays on the right.
+
+**Still open for the lead:** WP2 note 5 (key cap drawn as a disc plus a cap
+below it, instead of 3.2's single 22 lp cap). The goldens and the hit tests
+already follow it; if the lead prefers the alternative (a click on a selected
+button's cap starts the capture) `cap_rects`, `draw_controls` and the goldens
+change together.
+
 Not needed: any change to profile v1 for the v1 menu; any game-specific
 profile (SPEC 1 and 12 stay intact: templates are generic layouts by genre,
 see 2.2).
@@ -2003,15 +2017,16 @@ additive. Where the spec was ambiguous or silent:
    `can_grow_window`, leaving emits `ReserveRight(0.0)`. Test 52's "never covers
    the selected body" is tested without hysteresis (a control within 8 % of the
    middle can be covered while the card has not flipped yet, by design).
-   **Usability finding for the lead:** with nothing selected the card is on the
-   right (3.2), so a control on the right half cannot be clicked until the card
-   is collapsed (`–`), hidden (hold H), or the control is reached with Tab
-   (the card then flips). The goldens select such controls with Tab. A possible
-   fix without changing any API: while nothing is selected use the pointer as
-   the focus when it is over the picture.
+   **Fixed in review (see the amendment in section 0):** with nothing selected
+   the focus is the guide's target control (so the control the card asks the
+   user to drag is never under the dock), and a bottom sheet with no target
+   goes away from the controls. Outside the guide, in landscape, a control on
+   the right half still needs the card collapsed (`–`), hidden (hold H) or Tab.
 6. **Dock content.** Title, undo/redo and the footer (fingers counter, `Thử`,
    `Xong`, note) are pinned; everything between scrolls with the wheel and is
-   culled per widget (a widget half out of the region is not offered). On a
+   culled per widget (a widget half out of the region is not offered). The
+   scroll offset is clamped to the content, resets when the selection changes,
+   and a small `▴` / `▾` at the right of the region says content is hidden. On a
    590 px high picture only the first rows of the properties are visible.
    Order: save prompt, revert prompt, capture banner and chips, fingers info,
    guide card, palette, properties. The palette is two rows (the joystick
@@ -2032,8 +2047,9 @@ additive. Where the spec was ambiguous or silent:
    (`TestFull`, 2 s) is drawn by `Shell::scene`; the red pulse of the
    cap is not drawn. Finger dots are in `Editor::scene().dynamics` and in
    `Shell::dots()`; `Shell::scene_version` is not bumped by `RawMotion`.
-9. **Key caps on the canvas** show `cap_text`: at most 5 characters (`M1`..`M5`
-   for mouse buttons, `Shift` for `Shift trái`, ellipsis otherwise); the dock's
+9. **Key caps on the canvas** show `cap_text`: at most 5 characters (`Ch.T`
+   `Ch.P` `Ch.G` / `M.L` `M.R` `M.M` for the three main mouse buttons, `Ch.4`
+   `Ch.5` / `M.4` `M.5`, `Shift` for `Shift trái`, ellipsis otherwise); the dock's
    key caps show the full label. This follows the WP2 decision (disc plus cap).
 10. **Hub.** Each profile is a `Row` (icon glyph `▣` / `⚠`, no drawn mini
     preview yet) followed by its button row; the chosen row shows `CHƠI` or, when
@@ -2079,6 +2095,32 @@ additive. Where the spec was ambiguous or silent:
 18. **`Tự ẩn`.** The shell bumps `scene_version` once on the first `Tick` after
     5 s and stops reporting that deadline, so the app redraws once and then
     skips the Direct2D pass.
+
+19. **Review fixes (WP4, second round).** Canvas button names are kept inside the
+    picture (above the disc or the cap when below would leave it, clamped at the
+    side edges) and sit on a translucent plate (`Tone::Plate`); `Tone::Warn`
+    is darker (`#b45309`) for text contrast; `LookHdr` is `CAMERA BẰNG CHUỘT` /
+    `CAMERA (MOUSE)` (all-caps headings are budgeted at 0.68 em in the width
+    test). The editor uses its own language everywhere (dock, capture, conflicts,
+    Test). `HubAct::ShowProblems(i)` opens the clicked row. A failed undelete
+    keeps the offer and toasts `SaveFailed`. `PlayStarted` while an editor is
+    open writes its draft and closes it. `Lưu & Chơi` keeps the guide until the
+    save worked and the shell then records `guide_done`. `Editor::dirty()`
+    compares with the saved profile (a revert is clean). Undo, redo and every key
+    end a running slider drag. `Msg::PlayOn` carries the helper keys (or none
+    when the profile binds them). The Play overlay is drawn at `PLAY_ALPHA`
+    0.55. Notice bullets and stuck-help numbers are in the texts; Hold/Tap is a
+    round choice (`WidgetKind::Check { radio }`); `Đổi phím` is disabled on the
+    look control.
+20. **Accepted deviations (WP4), for the lead.** Guide step 5 has no
+    per-button highlight; the Hub has no mini preview; lints and `key_advice`
+    still know only the default helper keys `[` `]` (the shell only passes the
+    configured keys to the Play toast and the Hub note; the lint change is WP8);
+    mouse caps use abbreviations because a canvas cap is 36 lp wide; the dark
+    theme mapping of `Tone` needs its own contrast check in WP5 (goldens use a
+    fixed light palette); the canvas label plate is a translucent white, not the
+    theme colour; fuzz 84 reaches slider drags only through random pointer
+    events on dock widgets.
 
 Cut line if time runs out: WP1-WP6 are the usable product (Hub, guided
 editing on the live picture, Test, Play with toast only and overlay `Tắt`).

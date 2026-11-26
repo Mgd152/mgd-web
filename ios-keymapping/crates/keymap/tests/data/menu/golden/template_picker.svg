@@ -31,7 +31,7 @@
 <text x="324" y="303" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Trống</text>
 <text x="324" y="322" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">NGANG · 0 nút</text>
 <rect x="282" y="342" width="536" height="42" rx="6" fill="#eef2f7"/>
-<rect x="282" y="342" width="4" height="42" fill="#d97706"/>
+<rect x="282" y="342" width="4" height="42" fill="#b45309"/>
 <text x="294" y="363" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Vị trí chỉ là tạm. Bạn sẽ kéo từng nút cho trùng với nút trong game.</text>
 </g>
 </svg>

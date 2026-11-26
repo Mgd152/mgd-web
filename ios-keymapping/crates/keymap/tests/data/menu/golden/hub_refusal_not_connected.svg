@@ -31,7 +31,7 @@
 <text x="324" y="115" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Hồ sơ 1</text>
 <text x="324" y="134" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">NGANG · 10 nút · ● Đang dùng</text>
 <rect x="282" y="154" width="536" height="25" rx="6" fill="#eef2f7"/>
-<rect x="282" y="154" width="4" height="25" fill="#d97706"/>
+<rect x="282" y="154" width="4" height="25" fill="#b45309"/>
 <text x="294" y="166.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Điện thoại chưa kết nối.</text>
 <rect x="282" y="187" width="262" height="36" rx="6" fill="#eef2f7"/>
 <text x="413" y="205" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#94a3b8">CHƠI</text>
@@ -56,10 +56,10 @@
 <rect x="687" y="283" width="131" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
 <text x="752.5" y="301" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">⋯</text>
 <rect x="282" y="327" width="536" height="44" rx="6" fill="#eef2f7"/>
-<rect x="282" y="327" width="536" height="44" rx="6" fill="none" stroke="#d97706" stroke-width="1"/>
-<text x="302" y="349" font-size="16" text-anchor="middle" dominant-baseline="central" fill="#d97706">⚠</text>
+<rect x="282" y="327" width="536" height="44" rx="6" fill="none" stroke="#b45309" stroke-width="1"/>
+<text x="302" y="349" font-size="16" text-anchor="middle" dominant-baseline="central" fill="#b45309">⚠</text>
 <text x="324" y="340" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">thu-cam-ung.json</text>
-<text x="324" y="359" font-size="12" text-anchor="start" dominant-baseline="central" fill="#d97706">Phím W bị dùng 2 lần: “Di chuyển” và “Nút 1”.</text>
+<text x="324" y="359" font-size="12" text-anchor="start" dominant-baseline="central" fill="#b45309">Phím W bị dùng 2 lần: “Di chuyển” và “Nút 1”.</text>
 <rect x="282" y="379" width="397.5" height="36" rx="6" fill="#eef2f7"/>
 <rect x="282" y="379" width="397.5" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
 <text x="480.75" y="397" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Xem cách sửa</text>

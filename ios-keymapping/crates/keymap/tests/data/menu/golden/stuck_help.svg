@@ -12,13 +12,13 @@
 <text x="284" y="116" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Điện thoại cứ như bị chạm mãi, hoặc không điều khiển được?</text>
 <rect x="282" y="138" width="536" height="25" rx="6" fill="#eef2f7"/>
 <rect x="282" y="138" width="4" height="25" fill="#2563eb"/>
-<text x="294" y="150.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Bấm F8 (dừng khẩn cấp): nhấc hết các ngón tay.</text>
+<text x="294" y="150.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">1. Bấm F8 (dừng khẩn cấp): nhấc hết các ngón tay.</text>
 <rect x="282" y="171" width="536" height="25" rx="6" fill="#eef2f7"/>
 <rect x="282" y="171" width="4" height="25" fill="#2563eb"/>
-<text x="294" y="183.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Vẫn kẹt: bấm F3 để khoá màn hình điện thoại, rồi mở khoá lại.</text>
+<text x="294" y="183.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">2. Vẫn kẹt: bấm F3 để khoá màn hình điện thoại, rồi mở khoá lại.</text>
 <rect x="282" y="204" width="536" height="25" rx="6" fill="#eef2f7"/>
 <rect x="282" y="204" width="4" height="25" fill="#2563eb"/>
-<text x="294" y="216.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Vẫn chưa hết: rút cáp USB ra và cắm lại.</text>
+<text x="294" y="216.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">3. Vẫn chưa hết: rút cáp USB ra và cắm lại.</text>
 <rect x="282" y="237" width="265" height="36" rx="6" fill="#2563eb"/>
 <text x="414.5" y="255" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Đóng</text>
 </g>
