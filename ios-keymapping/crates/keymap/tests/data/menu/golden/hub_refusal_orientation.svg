@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" font-family="Segoe UI, Arial, sans-serif">
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b7280" stroke-width="2"/></pattern></defs>
+<rect width="1100" height="620" fill="#d9dee5"/>
+<g opacity="1">
+<rect x="0" y="0" width="1100" height="620" fill="#0f172a" fill-opacity="0.45"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="#ffffff"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="284" y="78" font-size="18" text-anchor="start" dominant-baseline="central" fill="#0f172a" font-weight="600">Bàn phím và chuột</text>
+<rect x="618" y="62" width="110" height="32" rx="6" fill="#eef2f7"/>
+<rect x="618" y="62" width="110" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="673" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Hướng dẫn</text>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="#eef2f7"/>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="776" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Đóng</text>
+<rect x="282" y="449" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="449" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="414.5" y="467" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">+ Hồ sơ mới</text>
+<rect x="553" y="449" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="553" y="449" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="685.5" y="467" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Chia sẻ hồ sơ ▾</text>
+<text x="284" y="501.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">` bật/tắt · F8 dừng khẩn cấp · 1 phím = 1 lần chạm. Không macro.</text>
+<rect x="282" y="514" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="514" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="414.5" y="532" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Điện thoại bị kẹt cảm ứng?</text>
+<rect x="553" y="514" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="553" y="514" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="685.5" y="532" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Lưu ý về luật chơi</text>
+<rect x="282" y="102" width="536" height="44" rx="6" fill="#dbeafe"/>
+<rect x="282" y="102" width="536" height="44" rx="6" fill="none" stroke="#2563eb" stroke-width="2"/>
+<text x="302" y="124" font-size="16" text-anchor="middle" dominant-baseline="central" fill="#475569">▣</text>
+<text x="324" y="115" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Hồ sơ 1</text>
+<text x="324" y="134" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">NGANG · 10 nút · ● Đang dùng</text>
+<rect x="282" y="154" width="536" height="25" rx="6" fill="#eef2f7"/>
+<rect x="282" y="154" width="4" height="25" fill="#d97706"/>
+<text x="294" y="166.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Hồ sơ này dành cho màn hình NGANG, hình đang DỌC.</text>
+<rect x="282" y="187" width="262" height="36" rx="6" fill="#2563eb"/>
+<text x="413" y="205" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Xoay hình (F12)</text>
+<rect x="550" y="187" width="131" height="36" rx="6" fill="#eef2f7"/>
+<rect x="550" y="187" width="131" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="615.5" y="205" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Sửa</text>
+<rect x="687" y="187" width="131" height="36" rx="6" fill="#eef2f7"/>
+<rect x="687" y="187" width="131" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="752.5" y="205" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">⋯</text>
+<rect x="282" y="231" width="536" height="44" rx="6" fill="#eef2f7"/>
+<rect x="282" y="231" width="536" height="44" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="302" y="253" font-size="16" text-anchor="middle" dominant-baseline="central" fill="#475569">▣</text>
+<text x="324" y="244" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Hồ sơ 2</text>
+<text x="324" y="263" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">DỌC · 5 nút</text>
+<rect x="282" y="283" width="262" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="283" width="262" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="413" y="301" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Chọn</text>
+<rect x="550" y="283" width="131" height="36" rx="6" fill="#eef2f7"/>
+<rect x="550" y="283" width="131" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="615.5" y="301" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Sửa</text>
+<rect x="687" y="283" width="131" height="36" rx="6" fill="#eef2f7"/>
+<rect x="687" y="283" width="131" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="752.5" y="301" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">⋯</text>
+<rect x="282" y="327" width="536" height="44" rx="6" fill="#eef2f7"/>
+<rect x="282" y="327" width="536" height="44" rx="6" fill="none" stroke="#d97706" stroke-width="1"/>
+<text x="302" y="349" font-size="16" text-anchor="middle" dominant-baseline="central" fill="#d97706">⚠</text>
+<text x="324" y="340" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">thu-cam-ung.json</text>
+<text x="324" y="359" font-size="12" text-anchor="start" dominant-baseline="central" fill="#d97706">Phím W bị dùng 2 lần: “Di chuyển” và “Nút 1”.</text>
+<rect x="282" y="379" width="397.5" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="379" width="397.5" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="480.75" y="397" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Xem cách sửa</text>
+<rect x="685.5" y="379" width="132.5" height="36" rx="6" fill="#eef2f7"/>
+<rect x="685.5" y="379" width="132.5" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="751.75" y="397" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">⋯</text>
+</g>
+</svg>

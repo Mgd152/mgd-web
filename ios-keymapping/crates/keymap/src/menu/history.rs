@@ -76,6 +76,20 @@ impl History {
         if self.undo.last().is_some_and(|s| s.doc == *doc) {
             self.undo.pop();
             self.redo = o.redo_backup;
+        } else {
+            self.trim();
+        }
+    }
+
+    /// Drop the oldest snapshots over the cap. Done only once a step is kept,
+    /// so a step that turns out to be a no-op never costs an older one.
+    fn trim(&mut self) {
+        while self.undo.len() > CAP {
+            self.undo.remove(0);
+            self.saved = match self.saved {
+                Some(0) | None => None,
+                Some(n) => Some(n - 1),
+            };
         }
     }
 
@@ -104,13 +118,6 @@ impl History {
             doc: doc.clone(),
             sel,
         });
-        if self.undo.len() > CAP {
-            self.undo.remove(0);
-            self.saved = match self.saved {
-                Some(0) | None => None,
-                Some(n) => Some(n - 1),
-            };
-        }
         self.open = Some(Open {
             g,
             last_ms: now_ms,
@@ -165,7 +172,10 @@ impl History {
         match &self.open {
             Some(o) if o.held => self.saved = Some(self.undo.len().saturating_sub(1)),
             _ => {
-                self.open = None; // later edits must not merge into a saved step
+                // Later edits must not merge into a saved step.
+                if self.open.take().is_some() {
+                    self.trim();
+                }
                 self.saved = Some(self.undo.len());
             }
         }
@@ -264,6 +274,26 @@ mod tests {
         }
         assert_eq!(n, 100);
         assert_eq!(d.profile().name, "n29");
+    }
+
+    #[test]
+    fn a_no_op_gesture_at_the_cap_keeps_every_step() {
+        let mut d = doc();
+        let name0 = d.profile().name.clone();
+        let mut h = History::new(&d);
+        for i in 0..100u64 {
+            edit(&mut h, &mut d, Gesture::Single, i * 10_000, |d| {
+                d.set_name(&format!("n{i}"));
+            });
+        }
+        h.begin(&d, None, Gesture::Drag, 2_000_000);
+        h.end(&d);
+        let mut n = 0;
+        while h.undo(&mut d).is_some() {
+            n += 1;
+        }
+        assert_eq!(n, 100);
+        assert_eq!(d.profile().name, name0);
     }
 
     // test 15

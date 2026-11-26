@@ -5,6 +5,7 @@
 use super::doc::Kind;
 use super::keynames::key_label;
 use super::templates::Template;
+use super::ui_text::UiText;
 use crate::profile::Orientation;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,35 @@ pub fn fmt_num(v: f64, decimals: usize, lang: Lang) -> String {
     match lang {
         Lang::Vi => s.replace('.', ","),
         Lang::En => s,
+    }
+}
+
+/// A number in a repair line: 2 to 6 decimals (trailing zeros beyond the
+/// second dropped, so near-boundary repairs still differ), whole numbers for
+/// milliseconds, and scientific form for absurd magnitudes.
+fn fmt_repair(v: f64, field: RepairField, lang: Lang) -> String {
+    if field == RepairField::ReleaseMs {
+        return fmt_num(v, 0, lang);
+    }
+    if v.is_finite() && v.abs() >= 1e9 {
+        let s = format!("{v:e}");
+        return if lang == Lang::Vi {
+            s.replace('.', ",")
+        } else {
+            s
+        };
+    }
+    let s = fmt_num(v, 6, lang);
+    let sep = if lang == Lang::Vi { ',' } else { '.' };
+    match s.find(sep) {
+        Some(i) => {
+            let mut end = s.len();
+            while end > i + 3 && s.as_bytes()[end - 1] == b'0' {
+                end -= 1;
+            }
+            s[..end].to_string()
+        }
+        None => s,
     }
 }
 
@@ -114,6 +144,7 @@ pub enum ProblemMsg {
     NewerVersion,
     BadVersion,
     NameTooLong { text: String, max: usize },
+    NameEmpty,
     MouseOnToggle,
     TogglePanicSame,
     TooManyControls { max: usize },
@@ -205,6 +236,10 @@ pub enum Msg {
     },
     SlotToggle,
     SlotPanic,
+    /// Captions of buttons, labels and menu items (`ui_text.rs`).
+    Ui(UiText),
+    /// User data shown as is (profile names, key lists): never translated.
+    Verbatim(String),
     /// `repair_ranges` report line: a number was clamped into its range.
     Repaired {
         label: String,
@@ -407,6 +442,8 @@ impl ProblemMsg {
             (ProblemMsg::BadVersion, Lang::En) => "The profile has no valid version number.".into(),
             (ProblemMsg::NameTooLong { text, max }, Lang::Vi) => format!("Tên “{text}” quá dài (tối đa {max} ký tự)."),
             (ProblemMsg::NameTooLong { text, max }, Lang::En) => format!("The name “{text}” is too long (at most {max} characters)."),
+            (ProblemMsg::NameEmpty, Lang::Vi) => "Tên không được để trống.".into(),
+            (ProblemMsg::NameEmpty, Lang::En) => "The name cannot be empty.".into(),
             (ProblemMsg::MouseOnToggle, Lang::Vi) => "Phím bật/tắt và phím dừng phải là phím trên bàn phím.".into(),
             (ProblemMsg::MouseOnToggle, Lang::En) => "The on/off key and the stop key must be keyboard keys.".into(),
             (ProblemMsg::TogglePanicSame, Lang::Vi) => "Phím bật/tắt và phím dừng khẩn cấp đang trùng nhau.".into(),
@@ -531,15 +568,14 @@ fn vi(m: &Msg) -> String {
         },
         Msg::SlotToggle => "Phím bật/tắt".into(),
         Msg::SlotPanic => "Phím dừng khẩn cấp".into(),
-        Msg::Repaired { label, field, from, to } => {
-            let d = if *field == RepairField::ReleaseMs { 0 } else { 2 };
-            format!(
-                "Đã chỉnh {} của “{label}”: {} → {}.",
-                field.text(l),
-                fmt_num(*from, d, l),
-                fmt_num(*to, d, l)
-            )
-        }
+        Msg::Ui(t) => t.text(l),
+        Msg::Verbatim(s) => s.clone(),
+        Msg::Repaired { label, field, from, to } => format!(
+            "Đã chỉnh {} của “{label}”: {} → {}.",
+            field.text(l),
+            fmt_repair(*from, *field, l),
+            fmt_repair(*to, *field, l)
+        ),
     }
 }
 
@@ -639,15 +675,14 @@ fn en(m: &Msg) -> String {
         },
         Msg::SlotToggle => "On/off key".into(),
         Msg::SlotPanic => "Emergency stop key".into(),
-        Msg::Repaired { label, field, from, to } => {
-            let d = if *field == RepairField::ReleaseMs { 0 } else { 2 };
-            format!(
-                "Adjusted {} of “{label}”: {} → {}.",
-                field.text(l),
-                fmt_num(*from, d, l),
-                fmt_num(*to, d, l)
-            )
-        }
+        Msg::Ui(t) => t.text(l),
+        Msg::Verbatim(s) => s.clone(),
+        Msg::Repaired { label, field, from, to } => format!(
+            "Adjusted {} of “{label}”: {} → {}.",
+            field.text(l),
+            fmt_repair(*from, *field, l),
+            fmt_repair(*to, *field, l)
+        ),
     }
 }
 
@@ -758,6 +793,7 @@ impl Msg {
             },
             Msg::SlotToggle,
             Msg::SlotPanic,
+            Msg::Verbatim("Hồ sơ 1".into()),
             Msg::Repaired {
                 label: "Nút 1".into(),
                 field: RepairField::Radius,
@@ -793,6 +829,7 @@ impl Msg {
                 text: a.clone(),
                 max: 100,
             },
+            ProblemMsg::NameEmpty,
             ProblemMsg::MouseOnToggle,
             ProblemMsg::TogglePanicSame,
             ProblemMsg::TooManyControls { max: 64 },
@@ -847,6 +884,7 @@ impl Msg {
         ] {
             v.push(Msg::Advice(ad));
         }
+        v.extend(UiText::all_samples().into_iter().map(Msg::Ui));
         for n in 1..=6 {
             v.push(Msg::GuideStep(n));
         }
@@ -923,9 +961,11 @@ mod tests {
             Msg::SlotToggle => 48,
             Msg::SlotPanic => 49,
             Msg::Repaired { .. } => 50,
+            Msg::Ui(_) => 51,
+            Msg::Verbatim(_) => 52,
         }
     }
-    const VARIANTS: usize = 51;
+    const VARIANTS: usize = 53;
 
     #[test]
     fn samples_cover_every_variant() {
@@ -943,7 +983,9 @@ mod tests {
                 assert!(!s.trim().is_empty(), "{m:?} {lang:?}");
                 assert!(!s.contains("{"), "unfilled placeholder: {s}");
             }
-            assert_ne!(m.text(Lang::Vi), m.text(Lang::En), "{m:?} not translated");
+            if !matches!(m, Msg::Verbatim(_)) {
+                assert_ne!(m.text(Lang::Vi), m.text(Lang::En), "{m:?} not translated");
+            }
         }
     }
 

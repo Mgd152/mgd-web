@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" font-family="Segoe UI, Arial, sans-serif">
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b7280" stroke-width="2"/></pattern></defs>
+<rect width="1100" height="620" fill="#d9dee5"/>
+<g opacity="1">
+<rect x="0" y="0" width="1100" height="620" fill="#0f172a" fill-opacity="0.45"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="#ffffff"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="284" y="78" font-size="18" text-anchor="start" dominant-baseline="central" fill="#0f172a" font-weight="600">Bàn phím và chuột</text>
+<rect x="618" y="62" width="110" height="32" rx="6" fill="#eef2f7"/>
+<rect x="618" y="62" width="110" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="673" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Hướng dẫn</text>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="#eef2f7"/>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="776" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Đóng</text>
+<rect x="282" y="449" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="449" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="414.5" y="467" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">+ Hồ sơ mới</text>
+<rect x="553" y="449" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="553" y="449" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="685.5" y="467" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Chia sẻ hồ sơ ▾</text>
+<text x="284" y="501.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">` bật/tắt · F8 dừng khẩn cấp · 1 phím = 1 lần chạm. Không macro.</text>
+<rect x="282" y="514" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="514" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="414.5" y="532" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Điện thoại bị kẹt cảm ứng?</text>
+<rect x="553" y="514" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="553" y="514" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="685.5" y="532" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Lưu ý về luật chơi</text>
+<text x="284" y="116" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Chưa có hồ sơ nào.</text>
+<rect x="282" y="138" width="260" height="44" rx="6" fill="#2563eb"/>
+<text x="412" y="160" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Tạo hồ sơ đầu tiên</text>
+</g>
+</svg>

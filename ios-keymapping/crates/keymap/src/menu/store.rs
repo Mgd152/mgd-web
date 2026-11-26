@@ -5,15 +5,14 @@
 //! the real file system: `Fs` is implemented by the app, and by `MemFs` in
 //! tests. Paths use `/` as separator.
 
-use super::doc::Kind;
+use super::lint;
 use super::msg::{Lang, Msg, ProblemMsg, RepairField};
 use super::templates::{Template, template};
 use super::{RADIUS_MAX, RADIUS_MIN, REACH_MAX, REACH_MIN};
-use crate::profile::{Control, Orientation, Problem, Profile, ProfileError};
+use crate::profile::{Control, Orientation, Profile, ProfileError};
 use std::collections::BTreeMap;
 
 const MAX_NAME_CHARS: usize = 100;
-const MAX_LABEL_CHARS: usize = 40;
 const MAX_RELEASE_MS: u32 = 60_000;
 const SENS_MIN: f64 = 0.05;
 const SENS_MAX: f64 = 100.0;
@@ -240,183 +239,58 @@ pub fn slugify(name: &str) -> String {
 }
 
 fn safe_file(file: &str) -> bool {
-    !file.is_empty()
+    let ok = !file.is_empty()
         && file.len() <= 120
         && file.to_ascii_lowercase().ends_with(".json")
         && !file.starts_with('.')
         && !file
             .chars()
-            .any(|c| c.is_control() || "/\\:*?\"<>|".contains(c))
+            .any(|c| c.is_control() || "/\\:*?\"<>|".contains(c));
+    if !ok {
+        return false;
+    }
+    // Windows: `CON.json` is still the console, `a .json` loses its space
+    let stem = &file[..file.len() - 5];
+    let device = stem.split('.').next().unwrap_or("").trim_end();
+    !is_reserved(device) && !stem.ends_with(' ') && !stem.ends_with('.')
 }
 
 // -------------------------------------------------- problem mapping ----
 
-fn control_label(p: &Profile, i: usize) -> String {
-    let Some(c) = p.controls.get(i) else {
-        return String::new();
-    };
-    let (label, kind) = match c {
-        Control::Joystick { label, .. } => (label, Kind::Joystick),
-        Control::Look { label, .. } => (label, Kind::Look),
-        Control::Button { label, .. } => (label, Kind::Button),
-    };
-    if !label.is_empty() {
-        return label.clone();
-    }
-    let same = |c: &Control| {
-        matches!(
-            (c, kind),
-            (Control::Joystick { .. }, Kind::Joystick)
-                | (Control::Look { .. }, Kind::Look)
-                | (Control::Button { .. }, Kind::Button)
-        )
-    };
-    let total = p.controls.iter().filter(|c| same(c)).count() as u32;
-    let pos = p.controls[..=i].iter().filter(|c| same(c)).count() as u32;
-    let n = match kind {
-        Kind::Button => pos,
-        Kind::Joystick if total > 1 => pos,
-        _ => 0,
-    };
-    Msg::ControlName { kind, n }.text(Lang::Vi)
-}
-
-fn path_owner(p: Option<&Profile>, path: &str) -> String {
-    match path {
-        "toggle_key" => Msg::SlotToggle.text(Lang::Vi),
-        "panic_key" => Msg::SlotPanic.text(Lang::Vi),
-        _ => match (p, control_index(path)) {
-            (Some(p), Some(i)) => control_label(p, i),
-            _ => path.to_string(),
-        },
-    }
-}
-
-fn control_index(path: &str) -> Option<usize> {
-    let rest = path.strip_prefix("controls[")?;
-    rest.split(']').next()?.parse().ok()
-}
-
-fn quoted(s: &str) -> String {
-    s.split('"').nth(1).unwrap_or("").to_string()
-}
-
+/// At most 20 characters of `s`, with `…` when cut (same rule as `lint`).
 fn short(s: &str) -> String {
-    if s.chars().count() > 30 {
-        let t: String = s.chars().take(30).collect();
+    let t: String = s.chars().take(20).collect();
+    if s.chars().count() > 20 {
         format!("{t}…")
     } else {
-        s.to_string()
+        t
     }
 }
 
-/// Plain-language reading of a validation failure. `p` is the leniently
-/// parsed profile (for control labels), when there is one.
-pub(crate) fn explain_error(e: &ProfileError, p: Option<&Profile>) -> ProblemMsg {
+/// The one mapping from a validation failure to a sentence is
+/// `lint::explain_in` / `lint::explain_json_error`; the store only supplies
+/// the leniently parsed profile.
+fn explain_profile(e: &ProfileError, p: &Profile, lang: Lang) -> ProblemMsg {
     match e {
-        ProfileError::Json(m) => {
-            if m.contains("unknown field") || m.contains("unknown variant") {
-                ProblemMsg::NotUnderstood
-            } else {
-                ProblemMsg::NotReadable
-            }
-        }
-        ProfileError::Invalid(Problem { path, message }) => explain_problem(path, message, p),
+        ProfileError::Json(_) => lint::explain_json_error(e),
+        ProfileError::Invalid(problem) => lint::explain_in(problem, p, lang),
     }
-}
-
-fn explain_problem(path: &str, message: &str, p: Option<&Profile>) -> ProblemMsg {
-    let label = || match control_index(path) {
-        Some(i) => p.map(|p| control_label(p, i)).unwrap_or_default(),
-        None => String::new(),
-    };
-    if path == "version" {
-        let newer = message
-            .rsplit("got ")
-            .next()
-            .and_then(|n| n.trim().parse::<u64>().ok())
-            .is_some_and(|n| n > 1);
-        return if newer {
-            ProblemMsg::NewerVersion
-        } else {
-            ProblemMsg::BadVersion
-        };
-    }
-    if path == "name" || path == "app" {
-        let text = p
-            .map(|p| if path == "name" { &p.name } else { &p.app })
-            .map(|s| short(s))
-            .unwrap_or_default();
-        return ProblemMsg::NameTooLong {
-            text,
-            max: MAX_NAME_CHARS,
-        };
-    }
-    if path == "controls" {
-        return ProblemMsg::TooManyControls { max: 64 };
-    }
-    if path == "toggle_key" || path == "panic_key" {
-        if message.starts_with("must be a keyboard key") {
-            return ProblemMsg::MouseOnToggle;
-        }
-        if message.contains("already used by") {
-            return ProblemMsg::TogglePanicSame;
-        }
-        return ProblemMsg::UnknownKey {
-            key: quoted(message),
-            label: path_owner(p, path),
-        };
-    }
-    if control_index(path).is_some() {
-        let field = path.rsplit('.').next().unwrap_or("");
-        if !path.contains('.') {
-            return ProblemMsg::SecondLook;
-        }
-        match field {
-            "x" | "y" => return ProblemMsg::OutOfScreen { label: label() },
-            "radius" => return ProblemMsg::RadiusRange { label: label() },
-            "reach" => return ProblemMsg::ReachRange,
-            "sensitivity" => return ProblemMsg::SensitivityRange,
-            "release_after_ms" => return ProblemMsg::ReleaseRange,
-            "label" => {
-                return ProblemMsg::NameTooLong {
-                    text: p
-                        .and_then(|p| control_index(path).and_then(|i| p.controls.get(i)))
-                        .map(|c| match c {
-                            Control::Joystick { label, .. }
-                            | Control::Look { label, .. }
-                            | Control::Button { label, .. } => short(label),
-                        })
-                        .unwrap_or_default(),
-                    max: MAX_LABEL_CHARS,
-                };
-            }
-            "up" | "down" | "left" | "right" | "key" => {
-                if message.contains("already used by") {
-                    let other = message.rsplit("used by ").next().unwrap_or("");
-                    return ProblemMsg::DuplicateKey {
-                        key: quoted(message),
-                        a: path_owner(p, other),
-                        b: path_owner(p, path),
-                    };
-                }
-                return ProblemMsg::UnknownKey {
-                    key: quoted(message),
-                    label: label(),
-                };
-            }
-            _ => {}
-        }
-    }
-    ProblemMsg::NotUnderstood
 }
 
 fn lenient(text: &str) -> Option<Profile> {
     serde_json::from_str(text.strip_prefix('\u{feff}').unwrap_or(text)).ok()
 }
 
+fn explain_text_in(text: &str, e: &ProfileError, lang: Lang) -> ProblemMsg {
+    match (e, lenient(text)) {
+        (ProfileError::Invalid(_), Some(p)) => explain_profile(e, &p, lang),
+        (ProfileError::Invalid(_), None) => ProblemMsg::NotUnderstood,
+        (e, _) => lint::explain_json_error(e),
+    }
+}
+
 fn explain_text(text: &str, e: &ProfileError) -> ProblemMsg {
-    explain_error(e, lenient(text).as_ref())
+    explain_text_in(text, e, Lang::Vi)
 }
 
 // ------------------------------------------------------------ repair ----
@@ -425,17 +299,34 @@ fn explain_text(text: &str, e: &ProfileError) -> ProblemMsg {
 /// valid profile, return it with one `Msg::Repaired` per changed number.
 /// `None` when the file is already valid (nothing to repair), is not a
 /// readable profile, or has any problem that is not a number out of range.
+/// Only numbers that break the SPEC rule are touched: x, y outside [0, 1];
+/// radius, reach, sensitivity not in (0, max]; release over 60000. A value
+/// that is valid but below an editor slider minimum is left alone.
 pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
+    repair_ranges_in(text, Lang::Vi)
+}
+
+/// Like [`repair_ranges`], with default control names (`Nút 1`) in `lang`.
+pub fn repair_ranges_in(text: &str, lang: Lang) -> Option<(Profile, Vec<Msg>)> {
     let mut p = lenient(text)?;
     if Profile::from_json(text).is_ok() {
         return None;
     }
     let mut report = Vec::new();
     let labels: Vec<String> = (0..p.controls.len())
-        .map(|i| control_label(&p, i))
+        .map(|i| lint::control_name(&p, i, lang))
         .collect();
-    fn fix(report: &mut Vec<Msg>, label: &str, field: RepairField, v: &mut f64, lo: f64, hi: f64) {
-        if v.is_finite() && *v >= lo && *v <= hi {
+    /// `positive`: the valid range is (0, hi] (clamped up to `lo`, the editor
+    /// minimum), else [0, hi].
+    fn fix(
+        report: &mut Vec<Msg>,
+        label: &str,
+        field: RepairField,
+        v: &mut f64,
+        (lo, hi, positive): (f64, f64, bool),
+    ) {
+        let valid = v.is_finite() && *v <= hi && if positive { *v > 0.0 } else { *v >= 0.0 };
+        if valid {
             return;
         }
         let from = *v;
@@ -451,20 +342,15 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
             to: *v,
         });
     }
+    const POS: (f64, f64, bool) = (0.0, 1.0, false);
     for (i, c) in p.controls.iter_mut().enumerate() {
         let l = labels[i].as_str();
         match c {
             Control::Joystick { x, y, radius, .. } => {
-                fix(&mut report, l, RepairField::X, x, 0.0, 1.0);
-                fix(&mut report, l, RepairField::Y, y, 0.0, 1.0);
-                fix(
-                    &mut report,
-                    l,
-                    RepairField::Radius,
-                    radius,
-                    RADIUS_MIN,
-                    RADIUS_MAX,
-                );
+                fix(&mut report, l, RepairField::X, x, POS);
+                fix(&mut report, l, RepairField::Y, y, POS);
+                let r = (RADIUS_MIN, RADIUS_MAX, true);
+                fix(&mut report, l, RepairField::Radius, radius, r);
             }
             Control::Look {
                 x,
@@ -474,24 +360,12 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
                 release_after_ms,
                 ..
             } => {
-                fix(&mut report, l, RepairField::X, x, 0.0, 1.0);
-                fix(&mut report, l, RepairField::Y, y, 0.0, 1.0);
-                fix(
-                    &mut report,
-                    l,
-                    RepairField::Sensitivity,
-                    sensitivity,
-                    SENS_MIN,
-                    SENS_MAX,
-                );
-                fix(
-                    &mut report,
-                    l,
-                    RepairField::Reach,
-                    reach,
-                    REACH_MIN,
-                    REACH_MAX,
-                );
+                fix(&mut report, l, RepairField::X, x, POS);
+                fix(&mut report, l, RepairField::Y, y, POS);
+                let s = (SENS_MIN, SENS_MAX, true);
+                fix(&mut report, l, RepairField::Sensitivity, sensitivity, s);
+                let r = (REACH_MIN, REACH_MAX, true);
+                fix(&mut report, l, RepairField::Reach, reach, r);
                 if *release_after_ms > MAX_RELEASE_MS {
                     report.push(Msg::Repaired {
                         label: l.to_string(),
@@ -503,8 +377,8 @@ pub fn repair_ranges(text: &str) -> Option<(Profile, Vec<Msg>)> {
                 }
             }
             Control::Button { x, y, .. } => {
-                fix(&mut report, l, RepairField::X, x, 0.0, 1.0);
-                fix(&mut report, l, RepairField::Y, y, 0.0, 1.0);
+                fix(&mut report, l, RepairField::X, x, POS);
+                fix(&mut report, l, RepairField::Y, y, POS);
             }
         }
     }
@@ -562,8 +436,19 @@ impl<F: Fs> ProfileStore<F> {
 
     /// `*.json` files, broken ones included (never removed or rewritten).
     pub fn list(&self) -> Vec<Entry> {
-        let names = self.fs.list(&self.dir).unwrap_or_default();
-        names
+        self.list_in(Lang::Vi)
+    }
+
+    /// Like [`list`](Self::list), with default control names in the health
+    /// messages written in `lang`.
+    pub fn list_in(&self, lang: Lang) -> Vec<Entry> {
+        self.list_checked(lang).unwrap_or_default()
+    }
+
+    /// `list_in`, but a directory that cannot be listed is an error.
+    fn list_checked(&self, lang: Lang) -> Result<Vec<Entry>, StoreError> {
+        let names = self.fs.list(&self.dir)?;
+        Ok(names
             .into_iter()
             .filter(|n| safe_file(n))
             .map(|file| {
@@ -580,7 +465,7 @@ impl<F: Fs> ProfileStore<F> {
                         let loose = lenient(&text);
                         let (health, strict) = match Profile::from_json(&text) {
                             Ok(p) => (Health::Ok, Some(p)),
-                            Err(e) => (Health::Broken(explain_text(&text, &e)), None),
+                            Err(e) => (Health::Broken(explain_text_in(&text, &e, lang)), None),
                         };
                         let shown = strict.as_ref().or(loose.as_ref());
                         Entry {
@@ -596,7 +481,7 @@ impl<F: Fs> ProfileStore<F> {
                     }
                 }
             })
-            .collect()
+            .collect())
     }
 
     pub fn load(&self, file: &str) -> Result<Profile, StoreError> {
@@ -610,7 +495,7 @@ impl<F: Fs> ProfileStore<F> {
     pub fn save(&mut self, file: &str, p: &Profile) -> Result<(), StoreError> {
         self.check_file(file)?;
         if let Err(e) = p.validate() {
-            return Err(StoreError::Invalid(explain_error(&e, Some(p))));
+            return Err(StoreError::Invalid(explain_profile(&e, p, Lang::Vi)));
         }
         let path = self.path(file);
         if self.fs.exists(&path) {
@@ -644,20 +529,39 @@ impl<F: Fs> ProfileStore<F> {
             .unwrap_or(first)
     }
 
-    fn names(&self) -> Vec<String> {
-        self.list()
+    /// Lower-case names of all listed profiles; an unlistable directory is an
+    /// error (a name must never be judged free from an empty list).
+    fn names(&self) -> Result<Vec<String>, StoreError> {
+        Ok(self
+            .list_checked(Lang::Vi)?
             .into_iter()
             .map(|e| e.name.to_lowercase())
-            .collect()
+            .collect())
+    }
+
+    /// `Hồ sơ N`, smallest N not in `names` (lower-case).
+    fn free_new_name(names: &[String]) -> String {
+        let n = (1u32..)
+            .find(|n| !names.contains(&Msg::NewProfileName(*n).text(Lang::Vi).to_lowercase()))
+            .unwrap_or(1);
+        Msg::NewProfileName(n).text(Lang::Vi)
+    }
+
+    /// `name`, or `name (2)`, `name (3)` ... when `names` already has it.
+    fn distinct_name(names: &[String], name: &str) -> String {
+        if !names.contains(&name.to_lowercase()) {
+            return name.to_string();
+        }
+        let base: String = name.chars().take(MAX_NAME_CHARS - 8).collect();
+        (2u32..)
+            .map(|k| format!("{base} ({k})"))
+            .find(|n| !names.contains(&n.to_lowercase()))
+            .unwrap_or_default()
     }
 
     /// New profile from a template, named `Hồ sơ N` (smallest free N).
     pub fn create(&mut self, tpl: Template) -> Result<String, StoreError> {
-        let names = self.names();
-        let n = (1u32..)
-            .find(|n| !names.contains(&Msg::NewProfileName(*n).text(Lang::Vi).to_lowercase()))
-            .unwrap_or(1);
-        let name = Msg::NewProfileName(n).text(Lang::Vi);
+        let name = Self::free_new_name(&self.names()?);
         let mut p = template(tpl);
         p.name = name.clone();
         let file = self.unique_file(&slugify(&name));
@@ -670,10 +574,7 @@ impl<F: Fs> ProfileStore<F> {
     pub fn rename(&mut self, file: &str, new_name: &str) -> Result<String, StoreError> {
         let name = new_name.trim();
         if name.is_empty() {
-            return Err(StoreError::Invalid(ProblemMsg::NameTooLong {
-                text: String::new(),
-                max: MAX_NAME_CHARS,
-            }));
+            return Err(StoreError::Invalid(ProblemMsg::NameEmpty));
         }
         if name.chars().count() > MAX_NAME_CHARS {
             return Err(StoreError::Invalid(ProblemMsg::NameTooLong {
@@ -684,7 +585,7 @@ impl<F: Fs> ProfileStore<F> {
         let mut p = self.load(file)?;
         let lower = name.to_lowercase();
         if self
-            .list()
+            .list_checked(Lang::Vi)?
             .iter()
             .any(|e| e.file != file && e.name.to_lowercase() == lower)
         {
@@ -702,14 +603,28 @@ impl<F: Fs> ProfileStore<F> {
         } else {
             self.unique_file(&slug)
         };
+        let draft = self.draft(file);
         self.save(&new_file, &p)?;
         if new_file != file {
-            // the new file is safely written; now move the old one's extras
+            // the new file is safely written; now remove the old one. If that
+            // fails there would be two profiles: undo and report.
             let (old, new) = (self.path(file), self.path(&new_file));
-            let _ = self.fs.remove(&old);
+            if let Err(e) = self.fs.remove(&old) {
+                let _ = self.fs.remove(&new);
+                let _ = self.fs.remove(&format!("{new}.bak"));
+                return Err(e.into());
+            }
             if self.fs.exists(&format!("{old}.bak")) {
                 let _ = self.fs.rename(&format!("{old}.bak"), &format!("{new}.bak"));
             }
+        }
+        // an unsaved edit travels with the profile and takes the new name
+        if let Some(mut d) = draft {
+            d.name = name.to_string();
+            if self.write_draft(&new_file, &d).is_ok() && new_file != file {
+                self.drop_draft(file);
+            }
+        } else if new_file != file {
             let (od, nd) = (
                 format!("{}/{file}", self.draft_dir()),
                 format!("{}/{new_file}", self.draft_dir()),
@@ -724,7 +639,7 @@ impl<F: Fs> ProfileStore<F> {
     /// Copy named `<name> (bản sao)`, `<name> (bản sao 2)`, ...
     pub fn duplicate(&mut self, file: &str) -> Result<String, StoreError> {
         let mut p = self.load(file)?;
-        let names = self.names();
+        let names = self.names()?;
         let base: String = p.name.chars().take(MAX_NAME_CHARS - 16).collect();
         let name = (1u32..)
             .map(|k| {
@@ -761,7 +676,11 @@ impl<F: Fs> ProfileStore<F> {
         if self.fs.exists(&format!("{src}.bak")) {
             let _ = self.fs.rename(&format!("{src}.bak"), &format!("{dst}.bak"));
         }
-        self.drop_draft(file);
+        // an unsaved draft goes to the trash too, so undo brings it back
+        let draft = format!("{}/{file}", self.draft_dir());
+        if self.fs.exists(&draft) && self.fs.rename(&draft, &format!("{dst}.draft")).is_err() {
+            self.drop_draft(file);
+        }
         Ok(TrashToken {
             file: file.to_string(),
             trash_name,
@@ -775,6 +694,7 @@ impl<F: Fs> ProfileStore<F> {
         if !self.fs.exists(&src) {
             return Err(StoreError::NotFound);
         }
+        let names = self.names()?;
         let file = if self.fs.exists(&self.path(&t.file)) {
             self.unique_file(&t.file[..t.file.len() - 5])
         } else {
@@ -784,6 +704,28 @@ impl<F: Fs> ProfileStore<F> {
         self.fs.rename(&src, &dst)?;
         if self.fs.exists(&format!("{src}.bak")) {
             let _ = self.fs.rename(&format!("{src}.bak"), &format!("{dst}.bak"));
+        }
+        // the name may have been reused while the profile was in the trash
+        let mut renamed = None;
+        if let Ok(mut p) = Profile::from_json(&self.fs.read(&dst).unwrap_or_default()) {
+            let name = p.name.trim().to_lowercase();
+            if !name.is_empty() && names.contains(&name) {
+                p.name = Self::distinct_name(&names, p.name.trim());
+                if self.fs.write_atomic(&dst, &p.to_json_pretty()).is_ok() {
+                    renamed = Some(p.name);
+                }
+            }
+        }
+        let draft_src = format!("{src}.draft");
+        if self.fs.exists(&draft_src) {
+            let draft_dst = format!("{}/{file}", self.draft_dir());
+            if self.fs.rename(&draft_src, &draft_dst).is_ok()
+                && let Some(n) = renamed
+                && let Some(mut d) = self.draft(&file)
+            {
+                d.name = n;
+                let _ = self.write_draft(&file, &d);
+            }
         }
         Ok(file)
     }
@@ -802,19 +744,25 @@ impl<F: Fs> ProfileStore<F> {
     pub fn import_text(&mut self, text: &str, hint: &str) -> Result<String, StoreError> {
         let mut p =
             Profile::from_json(text).map_err(|e| StoreError::Invalid(explain_text(text, &e)))?;
+        // a dropped file arrives as a full path: keep the last component
         let hint = hint.trim();
+        let hint = hint.rsplit(['/', '\\']).next().unwrap_or(hint).trim();
         let hint = hint
             .get(hint.len().saturating_sub(5)..)
             .filter(|t| t.eq_ignore_ascii_case(".json"))
             .map_or(hint, |_| &hint[..hint.len() - 5])
             .trim();
-        if p.name.trim().is_empty() {
-            p.name = if hint.is_empty() {
-                Msg::NewProfileName(1).text(Lang::Vi)
+        let names = self.names()?;
+        let name = if p.name.trim().is_empty() {
+            if hint.is_empty() {
+                Self::free_new_name(&names)
             } else {
                 hint.chars().take(MAX_NAME_CHARS).collect()
-            };
-        }
+            }
+        } else {
+            p.name.clone()
+        };
+        p.name = Self::distinct_name(&names, name.trim());
         let slug = slugify(if hint.is_empty() { &p.name } else { hint });
         let file = self.unique_file(&slug);
         self.save(&file, &p)?;
@@ -830,7 +778,7 @@ impl<F: Fs> ProfileStore<F> {
     pub fn write_draft(&mut self, file: &str, p: &Profile) -> Result<(), StoreError> {
         self.check_file(file)?;
         if let Err(e) = p.validate() {
-            return Err(StoreError::Invalid(explain_error(&e, Some(p))));
+            return Err(StoreError::Invalid(explain_profile(&e, p, Lang::Vi)));
         }
         let path = format!("{}/{file}", self.draft_dir());
         self.fs.write_atomic(&path, &p.to_json_pretty())?;
@@ -1168,7 +1116,10 @@ mod tests {
         let t = s.delete("ho-so-1.json").unwrap();
         s.create(BasicLandscape).unwrap();
         assert_eq!(s.undelete(t).unwrap(), "ho-so-1-2.json");
-        assert_eq!(s.fs().get("keymaps/ho-so-1-2.json").unwrap(), bytes);
+        // ... and under a free name, so two rows never read the same
+        let back = s.load("ho-so-1-2.json").unwrap();
+        assert_eq!(back.name, "Hồ sơ 1 (2)");
+        assert_eq!(back.controls, s.load("ho-so-1.json").unwrap().controls);
 
         // two deletes of the same file name do not clobber each other
         let t1 = s.delete("ho-so-1.json").unwrap();
@@ -1193,6 +1144,30 @@ mod tests {
         s.write_draft("ho-so-1-2.json", &some_profile("x")).unwrap();
         s.delete("ho-so-1-2.json").unwrap();
         assert!(s.drafts().is_empty());
+    }
+
+    #[test]
+    fn hub_health_equals_the_lint_explanation_for_serde_errors() {
+        let cases = [
+            r#"{"version":1,"orientation":"landscape","controls":[{"type":"button","x":"a","y":0.5,"key":"Space"}]}"#,
+            r#"{"version":1,"orientation":"landscape","controls":[{"x":0.5,"y":0.5,"key":"Space"}]}"#,
+            r#"{"version":1,"orientation":"landscape","release_after_ms":-1}"#,
+            r#"{"version":1,"orientation":"landscape","bogus":1}"#,
+        ];
+        for (i, t) in cases.iter().enumerate() {
+            let mut s = store();
+            s.fs_mut().put(&format!("keymaps/s{i}.json"), t);
+            let want = match Profile::from_json(t) {
+                Err(e @ ProfileError::Json(_)) => lint::explain_json_error(&e),
+                other => panic!("case {i}: {other:?}"),
+            };
+            let list = s.list();
+            let e = list
+                .iter()
+                .find(|e| e.file == format!("s{i}.json"))
+                .unwrap();
+            assert_eq!(e.health, Health::Broken(want), "case {i}");
+        }
     }
 
     // test 64
@@ -1327,17 +1302,11 @@ mod tests {
         let want = |n: &str| -> ProblemMsg {
             use ProblemMsg::*;
             match n {
-                "array-root.json"
-                | "bad-orientation.json"
+                "array-root.json" | "not-json.json" => NotReadable,
+                "bad-orientation.json"
                 | "missing-orientation.json"
-                | "not-json.json" => {
-                    if n == "bad-orientation.json" {
-                        NotUnderstood
-                    } else {
-                        NotReadable
-                    }
-                }
-                "unknown-field.json" | "unknown-type.json" => NotUnderstood,
+                | "unknown-field.json"
+                | "unknown-type.json" => NotUnderstood,
                 "bad-version.json" => NewerVersion,
                 "name-too-long.json" => NameTooLong {
                     text: String::new(),
@@ -1555,6 +1524,202 @@ mod tests {
         assert!(s.import_text(text, "x").is_err());
         let (p, _) = repair_ranges(text).unwrap();
         assert!(s.import_text(&p.to_json_pretty(), "x").is_ok());
+    }
+
+    #[test]
+    fn list_health_matches_lint_for_every_invalid_sample() {
+        for (name, text) in data("invalid") {
+            let mut s = store();
+            s.fs_mut().put("keymaps/x.json", &text);
+            let health = s.list()[0].health.clone();
+            let want = match Profile::from_json(&text) {
+                Err(ProfileError::Invalid(pr)) => {
+                    let p: Profile = serde_json::from_str(&text).unwrap();
+                    lint::explain(&pr, &p)
+                }
+                Err(e) => lint::explain_json_error(&e),
+                Ok(_) => panic!("{name} is valid"),
+            };
+            assert_eq!(health, Health::Broken(want), "{name}");
+        }
+    }
+
+    #[test]
+    fn english_labels_in_english_listing_and_report() {
+        let text = r#"{"version":1,"orientation":"landscape","controls":[{"type":"button","x":1.5,"y":0.5,"key":"Space"}]}"#;
+        let mut s = store();
+        s.fs_mut().put("keymaps/x.json", text);
+        let Health::Broken(m) = s.list_in(Lang::En)[0].health.clone() else {
+            panic!()
+        };
+        assert_eq!(
+            m.text(Lang::En),
+            "Control “Button 1” is outside the screen."
+        );
+        let (_, rep) = repair_ranges_in(text, Lang::En).unwrap();
+        assert_eq!(
+            rep[0].text(Lang::En),
+            "Adjusted horizontal position of “Button 1”: 1.50 → 1.00."
+        );
+    }
+
+    #[test]
+    fn repair_leaves_valid_small_numbers_alone() {
+        let text = r#"{"version":1,"name":"R","orientation":"landscape","controls":[
+            {"type":"joystick","x":1.2,"y":0.5,"radius":0.02,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"},
+            {"type":"look","x":0.7,"y":0.4,"sensitivity":0.01,"reach":0.04}]}"#;
+        let (p, rep) = repair_ranges(text).unwrap();
+        assert_eq!(rep.len(), 1, "{rep:?}");
+        match (&p.controls[0], &p.controls[1]) {
+            (
+                Control::Joystick { radius, .. },
+                Control::Look {
+                    sensitivity, reach, ..
+                },
+            ) => assert_eq!((*radius, *sensitivity, *reach), (0.02, 0.01, 0.04)),
+            c => panic!("{c:?}"),
+        }
+        // out of range ones still go to the editor minimum / the maximum
+        let bad = text.replace("0.02", "0").replace("0.01", "-1");
+        let (p, rep) = repair_ranges(&bad).unwrap();
+        assert_eq!(rep.len(), 3);
+        assert!(
+            matches!(&p.controls[0], Control::Joystick { radius, .. } if *radius == RADIUS_MIN)
+        );
+    }
+
+    #[test]
+    fn repair_numbers_read_sensibly() {
+        let m = |from: f64, to: f64| Msg::Repaired {
+            label: "A".into(),
+            field: RepairField::Radius,
+            from,
+            to,
+        };
+        assert_eq!(
+            m(0.50004, 0.5).text(Lang::En),
+            "Adjusted ring size of “A”: 0.50004 → 0.50."
+        );
+        assert_eq!(
+            m(0.0, 0.03).text(Lang::Vi),
+            "Đã chỉnh kích thước vòng của “A”: 0,00 → 0,03."
+        );
+        let huge = m(1e300, 0.5).text(Lang::En);
+        assert!(huge.chars().count() < 80, "{huge}");
+    }
+
+    #[test]
+    fn rename_to_blank_says_empty() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        assert_eq!(
+            s.rename(&f, "   "),
+            Err(StoreError::Invalid(ProblemMsg::NameEmpty))
+        );
+    }
+
+    #[test]
+    fn names_stay_distinct() {
+        let mut s = store();
+        let unnamed = r#"{"version":1,"orientation":"landscape"}"#;
+        let files: Vec<String> = (0..3)
+            .map(|_| s.import_text(unnamed, "").unwrap())
+            .collect();
+        let names: Vec<String> = files.iter().map(|f| s.load(f).unwrap().name).collect();
+        assert_eq!(names, ["Hồ sơ 1", "Hồ sơ 2", "Hồ sơ 3"]);
+        // a named profile imported twice
+        let named = r#"{"version":1,"name":"Súng","orientation":"landscape"}"#;
+        let a = s.import_text(named, "").unwrap();
+        let b = s.import_text(named, "").unwrap();
+        assert_eq!(s.load(&a).unwrap().name, "Súng");
+        assert_eq!(s.load(&b).unwrap().name, "Súng (2)");
+        // a listing that fails must not make a taken name look free
+        let f = s.create(BasicLandscape).unwrap();
+        s.fs_mut().fail_next(FsOp::List);
+        assert!(matches!(s.rename(&f, "Súng"), Err(StoreError::Fs(_))));
+        s.fs_mut().fail_next(FsOp::List);
+        assert!(matches!(s.create(BasicLandscape), Err(StoreError::Fs(_))));
+        s.fs_mut().fail_next(FsOp::List);
+        assert!(matches!(s.import_text(named, ""), Err(StoreError::Fs(_))));
+    }
+
+    #[test]
+    fn rename_failure_and_drafts() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        // the old file cannot be removed: nothing half done
+        s.fs_mut().fail_next(FsOp::Remove);
+        assert!(s.rename(&f, "Mới").is_err());
+        let list = s.list();
+        assert_eq!(list.len(), 1, "{list:?}");
+        assert_eq!(list[0].name, "Hồ sơ 1");
+        // the draft follows the rename and takes the new name
+        let mut d = s.load(&f).unwrap();
+        d.panic_key = "F9".into();
+        s.write_draft(&f, &d).unwrap();
+        let g = s.rename(&f, "Mới").unwrap();
+        assert_eq!(s.drafts(), std::slice::from_ref(&g));
+        let d = s.draft(&g).unwrap();
+        assert_eq!((d.name.as_str(), d.panic_key.as_str()), ("Mới", "F9"));
+        // same file, new name: the draft is renamed too
+        let g2 = s.rename(&g, "Mới!").unwrap();
+        assert_eq!(g2, g);
+        assert_eq!(s.draft(&g).unwrap().name, "Mới!");
+    }
+
+    #[test]
+    fn delete_keeps_the_draft_for_undo() {
+        let mut s = store();
+        let f = s.create(BasicLandscape).unwrap();
+        let mut d = s.load(&f).unwrap();
+        d.panic_key = "F9".into();
+        s.write_draft(&f, &d).unwrap();
+        let t = s.delete(&f).unwrap();
+        assert!(s.drafts().is_empty());
+        assert_eq!(s.undelete(t).unwrap(), f);
+        assert_eq!(s.draft(&f).unwrap().panic_key, "F9");
+        let t = s.delete(&f).unwrap();
+        s.purge_trash();
+        assert!(s.fs().paths().iter().all(|p| !p.contains(".trash")));
+        assert_eq!(s.undelete(t), Err(StoreError::NotFound));
+    }
+
+    #[test]
+    fn import_hint_is_a_file_name_not_a_path() {
+        let mut s = store();
+        let unnamed = r#"{"version":1,"orientation":"landscape"}"#;
+        for hint in [
+            r"C:\Users\nam\Downloads\cấu hình.json",
+            "/home/nam/cấu hình.JSON",
+        ] {
+            let mut s2 = store();
+            let f = s2.import_text(unnamed, hint).unwrap();
+            assert_eq!(f, "cau-hinh.json");
+            assert_eq!(s2.load(&f).unwrap().name, "cấu hình");
+        }
+        assert!(s.import_text(unnamed, "dir/").is_ok());
+    }
+
+    #[test]
+    fn device_names_and_trailing_spaces_are_unsafe_files() {
+        for f in [
+            "CON.json",
+            "nul.json",
+            "COM1.json",
+            "lpt9.JSON",
+            "con.x.json",
+            "a .json",
+            "a..json",
+            "CON .json",
+        ] {
+            assert!(!safe_file(f), "{f}");
+            assert_eq!(s_load(f), Err(StoreError::NotFound), "{f}");
+        }
+        assert!(safe_file("console.json") && safe_file("com10.json") && safe_file("ho-so-1.json"));
+    }
+
+    fn s_load(f: &str) -> Result<Profile, StoreError> {
+        store().load(f)
     }
 
     #[test]

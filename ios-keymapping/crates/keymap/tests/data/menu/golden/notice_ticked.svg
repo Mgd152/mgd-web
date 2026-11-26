@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" font-family="Segoe UI, Arial, sans-serif">
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b7280" stroke-width="2"/></pattern></defs>
+<rect width="1100" height="620" fill="#d9dee5"/>
+<g opacity="1">
+<rect x="0" y="0" width="1100" height="620" fill="#0f172a" fill-opacity="0.45"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="#ffffff"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="284" y="78" font-size="18" text-anchor="start" dominant-baseline="central" fill="#0f172a" font-weight="600">Bàn phím và chuột</text>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="#eef2f7"/>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="776" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Quay lại</text>
+<text x="284" y="116" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Trước khi chơi bằng bàn phím và chuột</text>
+<text x="284" y="146.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">Nhà phát hành game (ví dụ Garena với Free Fire) có thể không cho phép phần</text>
+<text x="284" y="163.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">mềm bên thứ ba. Chúng tôi chưa kiểm chứng luật hiện hành của họ. Bạn hãy tự</text>
+<text x="284" y="180.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">đọc điều khoản của game trước.</text>
+<text x="284" y="201.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">Không có gì bảo đảm tài khoản an toàn, kể cả tài khoản phụ. Game cũng có thể</text>
+<text x="284" y="218.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">xếp người chơi bàn phím–chuột vào nhóm ghép trận riêng; chúng tôi không biết</text>
+<text x="284" y="235.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">và không can thiệp việc đó.</text>
+<text x="284" y="256.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">Phần mềm này chỉ đổi 1 phím = 1 lần chạm. Không macro, không tự bắn, không tự</text>
+<text x="284" y="273.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">ngắm, không giảm giật, không che giấu gì.</text>
+<text x="284" y="294.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#475569">Điều khiển nhiều ngón trên iPhone thật chưa được kiểm chứng.</text>
+<rect x="282" y="316" width="18" height="18" rx="3" fill="#2563eb"/>
+<rect x="282" y="316" width="18" height="18" rx="3" fill="none" stroke="#2563eb" stroke-width="1"/>
+<line x1="286" y1="325" x2="290" y2="329" stroke="#ffffff" stroke-width="2"/>
+<line x1="290" y1="329" x2="296" y2="321" stroke="#ffffff" stroke-width="2"/>
+<text x="310" y="325" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Tôi đã đọc và tự chịu trách nhiệm</text>
+<rect x="282" y="351" width="265" height="36" rx="6" fill="#eef2f7"/>
+<rect x="282" y="351" width="265" height="36" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="414.5" y="369" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Thoát</text>
+<rect x="553" y="351" width="265" height="36" rx="6" fill="#2563eb"/>
+<text x="685.5" y="369" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Tiếp</text>
+</g>
+</svg>

@@ -153,7 +153,7 @@ fn parse_control_path(path: &str) -> Option<(usize, &str)> {
 }
 
 /// Name of control `i`: its label, else kind and number (as `EditDoc`).
-fn control_name(p: &Profile, i: usize, lang: Lang) -> String {
+pub(crate) fn control_name(p: &Profile, i: usize, lang: Lang) -> String {
     let Some(c) = p.controls.get(i) else {
         return String::new();
     };
@@ -242,6 +242,33 @@ pub fn explain(problem: &Problem, profile: &Profile) -> ProblemMsg {
 /// Like [`explain`], with the default names of unlabeled controls (`Nút 3`)
 /// written in `lang`.
 pub fn explain_in(problem: &Problem, profile: &Profile, lang: Lang) -> ProblemMsg {
+    // Labels and keys come from a possibly hand-edited file: every user
+    // string is cut to the quoting budget (6.10).
+    match explain_raw(problem, profile, lang) {
+        ProblemMsg::NameTooLong { text, max } => ProblemMsg::NameTooLong {
+            text: quote(&text),
+            max,
+        },
+        ProblemMsg::UnknownKey { key, label } => ProblemMsg::UnknownKey {
+            key: quote(&key),
+            label: quote(&label),
+        },
+        ProblemMsg::DuplicateKey { key, a, b } => ProblemMsg::DuplicateKey {
+            key: quote(&key),
+            a: quote(&a),
+            b: quote(&b),
+        },
+        ProblemMsg::OutOfScreen { label } => ProblemMsg::OutOfScreen {
+            label: quote(&label),
+        },
+        ProblemMsg::RadiusRange { label } => ProblemMsg::RadiusRange {
+            label: quote(&label),
+        },
+        other => other,
+    }
+}
+
+fn explain_raw(problem: &Problem, profile: &Profile, lang: Lang) -> ProblemMsg {
     let path = problem.path.as_str();
     let msg = problem.message.as_str();
     match path {
@@ -360,6 +387,31 @@ mod tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/data")
             .join(sub)
+    }
+
+    #[test]
+    fn user_text_in_sentences_is_cut() {
+        let long = "x".repeat(50);
+        let mut p =
+            crate::menu::templates::template(crate::menu::Template::Empty(Orientation::Landscape));
+        p.controls.push(Control::Button {
+            label: long.clone(),
+            x: 2.0,
+            y: 0.5,
+            key: "Nope".into(),
+            mode: Default::default(),
+        });
+        for path in ["controls[0].x", "controls[0].key"] {
+            let problem = Problem {
+                path: path.into(),
+                message: "bad".into(),
+            };
+            for lang in [Lang::Vi, Lang::En] {
+                let t = explain_in(&problem, &p, lang).text(lang);
+                assert!(!t.contains(&long), "{t}");
+                assert!(t.contains('…'), "{t}");
+            }
+        }
     }
 
     // test 49

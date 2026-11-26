@@ -7,7 +7,9 @@
 use super::msg::Lang;
 use super::store::{Fs, FsError};
 use crate::keys::{is_known_key, is_mouse_button};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 pub const PREFS_FILE: &str = "keymap-ui.json";
 pub const DEFAULT_SENS_DOWN_KEY: &str = "BracketLeft";
@@ -80,15 +82,39 @@ fn usable_key(k: &str) -> bool {
     is_known_key(k) && !is_mouse_button(k)
 }
 
+fn sens_change_ok(c: &(String, f64, f64)) -> bool {
+    let ok = |v: f64| v.is_finite() && v > 0.0 && v <= 100.0;
+    ok(c.1) && ok(c.2)
+}
+
 impl UiPrefs {
-    /// Parse; anything unreadable gives `UiPrefs::default()`. The two
+    /// Parse; anything unreadable gives `UiPrefs::default()`, and a field
+    /// that is missing or has an unknown value gives that field's default. The two
     /// sensitivity keys are reset to their defaults when either is not a
     /// known keyboard key or both are the same key.
     pub fn from_text(text: &str) -> UiPrefs {
         let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        let mut p = match serde_json::from_str::<UiPrefs>(text) {
-            Ok(p) => p,
-            Err(_) => return UiPrefs::default(),
+        let Ok(Value::Object(m)) = serde_json::from_str::<Value>(text) else {
+            return UiPrefs::default();
+        };
+        // each field on its own: one value this build does not know (say a
+        // newer overlay mode) must not reset the others
+        fn get<T: DeserializeOwned>(m: &Map<String, Value>, k: &str) -> Option<T> {
+            serde_json::from_value(m.get(k)?.clone()).ok()
+        }
+        let d = UiPrefs::default();
+        let mut p = UiPrefs {
+            version: get(&m, "version").unwrap_or(d.version),
+            active: get(&m, "active").unwrap_or(d.active),
+            overlay: get(&m, "overlay").unwrap_or(d.overlay),
+            sens_down_key: get(&m, "sens_down_key").unwrap_or(d.sens_down_key),
+            sens_up_key: get(&m, "sens_up_key").unwrap_or(d.sens_up_key),
+            notice_ack: get(&m, "notice_ack").unwrap_or(d.notice_ack),
+            guide_done: get(&m, "guide_done").unwrap_or(d.guide_done),
+            intro_toast_shown: get(&m, "intro_toast_shown").unwrap_or(d.intro_toast_shown),
+            lang: get(&m, "lang").unwrap_or(d.lang),
+            last_sensitivity_change: get(&m, "last_sensitivity_change")
+                .unwrap_or(d.last_sensitivity_change),
         };
         if !usable_key(&p.sens_down_key)
             || !usable_key(&p.sens_up_key)
@@ -97,17 +123,16 @@ impl UiPrefs {
             p.sens_down_key = d_down();
             p.sens_up_key = d_up();
         }
-        if p.last_sensitivity_change
-            .as_ref()
-            .is_some_and(|(_, a, b)| !(a.is_finite() && b.is_finite()))
-        {
-            p.last_sensitivity_change = None;
-        }
+        p.last_sensitivity_change = p.last_sensitivity_change.filter(sens_change_ok);
         p
     }
 
+    /// Text for the file; a sensitivity change that `from_text` would not
+    /// accept is left out so the file always reads back as written.
     pub fn to_text(&self) -> String {
-        let mut s = serde_json::to_string_pretty(self).unwrap_or_default();
+        let mut p = self.clone();
+        p.last_sensitivity_change = p.last_sensitivity_change.filter(sens_change_ok);
+        let mut s = serde_json::to_string_pretty(&p).unwrap_or_default();
         s.push('\n');
         s
     }
@@ -193,6 +218,41 @@ mod tests {
             (p.sens_down_key.as_str(), p.sens_up_key.as_str()),
             ("KeyN", "KeyM")
         );
+    }
+
+    #[test]
+    fn nonsense_sensitivity_change_is_dropped_and_never_written() {
+        let nan = UiPrefs {
+            notice_ack: 1,
+            lang: Lang::En,
+            active: Some("a.json".into()),
+            last_sensitivity_change: Some(("a.json".into(), f64::NAN, 1.0)),
+            ..UiPrefs::default()
+        };
+        let back = UiPrefs::from_text(&nan.to_text());
+        assert_eq!(back.last_sensitivity_change, None);
+        assert_eq!(
+            (back.notice_ack, back.lang, back.active.as_deref()),
+            (1, Lang::En, Some("a.json"))
+        );
+        for t in [
+            r#"{"last_sensitivity_change":["a",-5,1]}"#,
+            r#"{"last_sensitivity_change":["a",1,1e300]}"#,
+        ] {
+            assert_eq!(UiPrefs::from_text(t).last_sensitivity_change, None, "{t}");
+        }
+    }
+
+    #[test]
+    fn one_unknown_value_does_not_reset_the_other_fields() {
+        let p = UiPrefs::from_text(
+            r#"{"notice_ack":1,"lang":"en","overlay":"minimal","active":"a.json","guide_done":"yes"}"#,
+        );
+        assert_eq!(p.overlay, Overlay::Auto);
+        assert_eq!(p.notice_ack, 1);
+        assert_eq!(p.lang, Lang::En);
+        assert_eq!(p.active.as_deref(), Some("a.json"));
+        assert!(!p.guide_done);
     }
 
     #[test]

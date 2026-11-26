@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" font-family="Segoe UI, Arial, sans-serif">
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#6b7280" stroke-width="2"/></pattern></defs>
+<rect width="1100" height="620" fill="#d9dee5"/>
+<g opacity="1">
+<rect x="0" y="0" width="1100" height="620" fill="#0f172a" fill-opacity="0.45"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="#ffffff"/>
+<rect x="270" y="50" width="560" height="520" rx="12" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="284" y="78" font-size="18" text-anchor="start" dominant-baseline="central" fill="#0f172a" font-weight="600">Bàn phím và chuột</text>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="#eef2f7"/>
+<rect x="734" y="62" width="84" height="32" rx="6" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+<text x="776" y="78" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#0f172a">Quay lại</text>
+<text x="284" y="116" font-size="14" text-anchor="start" dominant-baseline="central" fill="#0f172a">Điện thoại cứ như bị chạm mãi, hoặc không điều khiển được?</text>
+<rect x="282" y="138" width="536" height="25" rx="6" fill="#eef2f7"/>
+<rect x="282" y="138" width="4" height="25" fill="#2563eb"/>
+<text x="294" y="150.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Bấm F8 (dừng khẩn cấp): nhấc hết các ngón tay.</text>
+<rect x="282" y="171" width="536" height="25" rx="6" fill="#eef2f7"/>
+<rect x="282" y="171" width="4" height="25" fill="#2563eb"/>
+<text x="294" y="183.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Vẫn kẹt: bấm F3 để khoá màn hình điện thoại, rồi mở khoá lại.</text>
+<rect x="282" y="204" width="536" height="25" rx="6" fill="#eef2f7"/>
+<rect x="282" y="204" width="4" height="25" fill="#2563eb"/>
+<text x="294" y="216.5" font-size="12" text-anchor="start" dominant-baseline="central" fill="#0f172a">Vẫn chưa hết: rút cáp USB ra và cắm lại.</text>
+<rect x="282" y="237" width="265" height="36" rx="6" fill="#2563eb"/>
+<text x="414.5" y="255" font-size="14" text-anchor="middle" dominant-baseline="central" fill="#ffffff">Đóng</text>
+</g>
+</svg>

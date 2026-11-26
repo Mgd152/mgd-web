@@ -4,6 +4,10 @@
 //! The state machine owns the history gesture: a move or resize is exactly one
 //! undo step, a click that never passes the threshold records nothing, and
 //! `cancel` (Esc / F8) puts the document back byte for byte.
+//!
+//! Precondition: while a `Drag` is alive nothing else may edit the document or
+//! the history (undo, redo, capture, wheel, dock edits). The editor finishes or
+//! cancels the drag first; `cancel` restores the document wholesale.
 
 use super::doc::{EditDoc, EditError, Kind};
 use super::history::{Gesture, History};
@@ -23,10 +27,7 @@ pub enum Axis {
 #[derive(Clone, PartialEq, Debug)]
 pub enum Drag {
     /// Pressed on a body; becomes `Move` after 4 logical px, else a select.
-    Pending {
-        id: CtrlId,
-        down: Pt,
-    },
+    Pending { id: CtrlId, down: Pt },
     Move {
         id: CtrlId,
         /// Window-px offset centre - pointer, taken when the drag started.
@@ -37,14 +38,18 @@ pub enum Drag {
         /// The document as it was before the first change (for `cancel`).
         before: Box<EditDoc>,
     },
+    /// Pressed on the resize handle. Like a body press it only becomes a
+    /// resize after 4 logical px (`offset` is `None` until then), and the size
+    /// keeps the offset between the grab point and the current value, so the
+    /// first move never jumps.
     Resize {
         id: CtrlId,
+        down: Pt,
+        offset: Option<f64>,
         before: Box<EditDoc>,
     },
     /// Palette ghost following the pointer.
-    Place {
-        kind: Kind,
-    },
+    Place { kind: Kind },
 }
 
 /// What the drawer needs after a pointer move.
@@ -68,25 +73,46 @@ pub enum DragEnd {
     Refused(EditError),
 }
 
-/// Joystick: distance / short side; look: max(|dx|, |dy|) / short side.
-/// Clamped to the profile's range. A button has no size: 0.
-pub fn resize_value(kind: Kind, centre: Pt, pointer: Pt, view: &EditView) -> f64 {
+/// Unclamped size for a pointer position; `None` for a non-finite pointer.
+fn raw_value(kind: Kind, centre: Pt, pointer: Pt, view: &EditView) -> Option<f64> {
     let short = view.short_px();
     let (dx, dy) = ((pointer.x - centre.x).abs(), (pointer.y - centre.y).abs());
+    if !(dx.is_finite() && dy.is_finite()) || short <= 0.0 {
+        return None;
+    }
     match kind {
-        Kind::Joystick => {
-            let v = if short > 0.0 {
-                (dx * dx + dy * dy).sqrt() / short
-            } else {
-                0.0
-            };
-            v.clamp(RADIUS_MIN, RADIUS_MAX)
-        }
-        Kind::Look => {
-            let v = if short > 0.0 { dx.max(dy) / short } else { 0.0 };
-            v.clamp(REACH_MIN, REACH_MAX)
-        }
-        Kind::Button => 0.0,
+        Kind::Joystick => Some((dx * dx + dy * dy).sqrt() / short),
+        Kind::Look => Some(dx.max(dy) / short),
+        Kind::Button => None,
+    }
+}
+
+fn range_of(kind: Kind) -> (f64, f64) {
+    match kind {
+        Kind::Joystick => (RADIUS_MIN, RADIUS_MAX),
+        Kind::Look => (REACH_MIN, REACH_MAX),
+        Kind::Button => (0.0, 0.0),
+    }
+}
+
+/// Joystick: distance / short side; look: max(|dx|, |dy|) / short side.
+/// Clamped to the profile's range (the range minimum for a non-finite
+/// pointer). A button has no size: 0.
+pub fn resize_value(kind: Kind, centre: Pt, pointer: Pt, view: &EditView) -> f64 {
+    let (lo, hi) = range_of(kind);
+    match raw_value(kind, centre, pointer, view) {
+        Some(v) => v.clamp(lo, hi),
+        None => lo,
+    }
+}
+
+/// The joystick radius / look reach the control has now.
+fn current_size(doc: &EditDoc, id: CtrlId) -> Option<f64> {
+    use crate::profile::Control;
+    match doc.control(id)? {
+        Control::Joystick { radius, .. } => Some(*radius),
+        Control::Look { reach, .. } => Some(*reach),
+        Control::Button { .. } => None,
     }
 }
 
@@ -106,18 +132,17 @@ impl Drag {
         hit: Hit,
         down: Pt,
         doc: &EditDoc,
-        hist: &mut History,
-        now_ms: u64,
+        _hist: &mut History,
+        _now_ms: u64,
     ) -> Option<Drag> {
         match hit {
             Hit::Body(id) => Some(Drag::Pending { id, down }),
-            Hit::Handle(id) => {
-                hist.begin(doc, Some(id), Gesture::Drag, now_ms);
-                Some(Drag::Resize {
-                    id,
-                    before: Box::new(doc.clone()),
-                })
-            }
+            Hit::Handle(id) => Some(Drag::Resize {
+                id,
+                down,
+                offset: None,
+                before: Box::new(doc.clone()),
+            }),
             Hit::Cap(_) | Hit::None => None,
         }
     }
@@ -158,6 +183,29 @@ impl Drag {
                 axis: None,
                 before: Box::new(doc.clone()),
             };
+        }
+        if let Drag::Resize {
+            id,
+            down,
+            offset: offset @ None,
+            ..
+        } = self
+        {
+            let id = *id;
+            let far = ((p.x - down.x).powi(2) + (p.y - down.y).powi(2)).sqrt()
+                >= view.lp(DRAG_THRESHOLD_LP);
+            if far
+                && let (Some(kind), Some(c), Some(cur)) = (
+                    doc.kind(id),
+                    centre_of(doc, view, id),
+                    current_size(doc, id),
+                )
+            {
+                let off = raw_value(kind, c, *down, view).map_or(0.0, |r| cur - r);
+                // Float noise from the handle's own geometry is not an offset.
+                *offset = Some(if off.abs() < 1e-9 { 0.0 } else { off });
+                hist.begin(doc, Some(id), Gesture::Drag, now_ms);
+            }
         }
         match self {
             Drag::Move {
@@ -214,12 +262,21 @@ impl Drag {
                     value: None,
                 }
             }
-            Drag::Resize { id, .. } => {
+            Drag::Resize {
+                id,
+                offset: Some(off),
+                ..
+            } => {
                 let id = *id;
+                let off = *off;
                 let (Some(kind), Some(c)) = (doc.kind(id), centre_of(doc, view, id)) else {
                     return DragUpdate::default();
                 };
-                let v = resize_value(kind, c, p, view);
+                let (lo, hi) = range_of(kind);
+                let v = match raw_value(kind, c, p, view) {
+                    Some(r) => (r + off).clamp(lo, hi),
+                    None => lo,
+                };
                 let _ = match kind {
                     Kind::Joystick => doc.set_radius(id, v),
                     Kind::Look => doc.set_reach(id, v),
@@ -230,6 +287,7 @@ impl Drag {
                     value: Some(v),
                 }
             }
+            Drag::Resize { offset: None, .. } => DragUpdate::default(),
             Drag::Pending { .. } | Drag::Place { .. } => DragUpdate::default(),
         }
     }
@@ -264,6 +322,8 @@ impl Drag {
                 hist.end(doc);
                 DragEnd::Moved(id)
             }
+            // A click on the handle changes nothing.
+            Drag::Resize { offset: None, .. } => DragEnd::Nothing,
             Drag::Resize { id, .. } => {
                 hist.end(doc);
                 DragEnd::Resized(id)
@@ -275,11 +335,16 @@ impl Drag {
     /// Esc / F8: undo whatever the drag changed and record nothing.
     pub fn cancel(self, doc: &mut EditDoc, hist: &mut History) {
         match self {
-            Drag::Move { before, .. } | Drag::Resize { before, .. } => {
+            Drag::Move { before, .. }
+            | Drag::Resize {
+                before,
+                offset: Some(_),
+                ..
+            } => {
                 *doc = *before;
                 hist.end(doc);
             }
-            Drag::Pending { .. } | Drag::Place { .. } => {}
+            Drag::Resize { offset: None, .. } | Drag::Pending { .. } | Drag::Place { .. } => {}
         }
     }
 }
@@ -433,6 +498,9 @@ mod tests {
         assert_eq!(resize_value(Kind::Look, c, pt(520.0, 100.0), &v), 0.3);
         assert_eq!(resize_value(Kind::Look, c, c, &v), REACH_MIN);
         assert_eq!(resize_value(Kind::Look, c, pt(0.0, 0.0), &v), REACH_MAX);
+        let nan = pt(f64::NAN, 3.0);
+        assert_eq!(resize_value(Kind::Joystick, c, nan, &v), RADIUS_MIN);
+        assert_eq!(resize_value(Kind::Look, c, nan, &v), REACH_MIN);
 
         // Through the handle, as one undo step, with the value for the label.
         let mut d = doc();
@@ -451,6 +519,52 @@ mod tests {
         assert_eq!(end, DragEnd::Resized(id));
         h.undo(&mut d);
         assert_eq!(d, before);
+        assert!(!h.can_undo());
+    }
+
+    #[test]
+    fn a_click_on_the_handle_off_centre_changes_nothing() {
+        let v = view();
+        for kind in [Kind::Joystick, Kind::Look] {
+            let mut d = doc();
+            let id = d.add(kind, pt(0.5, 0.5)).unwrap();
+            let before = d.clone();
+            let mut h = History::new(&d);
+            let hp = handle_pos(&d, &v, id).unwrap();
+            let at = pt(hp.x + 7.0, hp.y + 7.0);
+            assert_eq!(hit_test(&d, &v, Some(id), at), Hit::Handle(id));
+            let mut drag = Drag::from_hit(Hit::Handle(id), at, &d, &mut h, 0).unwrap();
+            drag.update(&mut d, &mut h, &v, pt(at.x + 3.0, at.y + 1.0), NONE, 1);
+            assert_eq!(d, before);
+            assert_eq!(
+                drag.finish(&mut d, &mut h, &v, at, NONE, 2),
+                DragEnd::Nothing
+            );
+            assert_eq!(d, before);
+            assert!(!h.can_undo() && !h.dirty());
+        }
+    }
+
+    #[test]
+    fn the_first_resize_move_does_not_jump() {
+        let v = view();
+        let mut d = doc();
+        let id = d.add(Kind::Joystick, pt(0.5, 0.5)).unwrap();
+        let mut h = History::new(&d);
+        let r0 = 0.11 * 500.0;
+        let hp = handle_pos(&d, &v, id).unwrap();
+        let at = pt(hp.x + 7.0, hp.y + 7.0); // off the handle's centre
+        let mut drag = Drag::from_hit(Hit::Handle(id), at, &d, &mut h, 0).unwrap();
+        // 10 px further out along the pointer's own direction from the centre.
+        let c = pt(500.0, 250.0);
+        let (dx, dy) = (at.x - c.x, at.y - c.y);
+        let len = (dx * dx + dy * dy).sqrt();
+        let to = pt(at.x + dx / len * 10.0, at.y + dy / len * 10.0);
+        let up = drag.update(&mut d, &mut h, &v, to, NONE, 1);
+        let want = (r0 + 10.0) / 500.0;
+        assert!((up.value.unwrap() - want).abs() < 1e-6, "{:?}", up.value);
+        drag.finish(&mut d, &mut h, &v, to, NONE, 2);
+        h.undo(&mut d).unwrap();
         assert!(!h.can_undo());
     }
 

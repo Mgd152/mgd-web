@@ -85,6 +85,11 @@ pub const HANDLE_SLOP_LP: f64 = 10.0;
 pub const CAP_W_LP: f64 = 36.0;
 pub const CAP_H_LP: f64 = 28.0;
 
+/// A joystick's key caps never sit closer to its centre than this (logical
+/// px), so a small ring keeps a grab zone at the centre (at least 12 lp wide
+/// radius) that always selects and moves it.
+pub const MIN_CAP_RING_LP: f64 = 30.0;
+
 /// Hit radius of a button disc in physical px.
 pub fn button_hit_radius(view: &EditView) -> f64 {
     view.lp(BUTTON_RADIUS_LP).max(BUTTON_MIN_HIT_PX)
@@ -106,26 +111,23 @@ fn dist(a: Pt, b: Pt) -> f64 {
 /// Position of the resize handle in window px: on the joystick ring at 45
 /// degrees (down-right), at the bottom-right corner of the look square.
 /// Buttons have none.
+/// When that spot is outside the picture it is pulled to the picture's edge,
+/// so the handle can always be reached.
 pub fn handle_pos(doc: &EditDoc, view: &EditView, id: CtrlId) -> Option<Pt> {
     let c = doc.control(id)?;
     let o = centre_px(c, view);
-    match c {
+    let d = match c {
         Control::Joystick { radius, .. } => {
-            let d = radius * view.short_px() * std::f64::consts::FRAC_1_SQRT_2;
-            Some(Pt {
-                x: o.x + d,
-                y: o.y + d,
-            })
+            radius * view.short_px() * std::f64::consts::FRAC_1_SQRT_2
         }
-        Control::Look { reach, .. } => {
-            let h = reach * view.short_px();
-            Some(Pt {
-                x: o.x + h,
-                y: o.y + h,
-            })
-        }
-        Control::Button { .. } => None,
-    }
+        Control::Look { reach, .. } => reach * view.short_px(),
+        Control::Button { .. } => return None,
+    };
+    let p = view.picture;
+    Some(Pt {
+        x: (o.x + d).clamp(p.x.min(p.x + p.w), p.x.max(p.x + p.w)),
+        y: (o.y + d).clamp(p.y.min(p.y + p.h), p.y.max(p.y + p.h)),
+    })
 }
 
 fn cap_at(view: &EditView, c: Pt) -> PxRect {
@@ -140,7 +142,9 @@ fn cap_at(view: &EditView, c: Pt) -> PxRect {
 }
 
 /// Key caps of one control, in window px. Joystick: four caps centred on the
-/// ring (up, down, left, right). Button: one cap directly below its disc.
+/// ring (up, down, left, right); a ring smaller than `MIN_CAP_RING_LP` keeps
+/// its caps at that distance so the centre stays grabbable. Button: one cap
+/// directly below its disc, or above it when below would leave the picture.
 /// Look: none.
 pub fn cap_rects(doc: &EditDoc, view: &EditView, id: CtrlId) -> Vec<(Slot, PxRect)> {
     let Some(c) = doc.control(id) else {
@@ -149,7 +153,7 @@ pub fn cap_rects(doc: &EditDoc, view: &EditView, id: CtrlId) -> Vec<(Slot, PxRec
     let o = centre_px(c, view);
     match c {
         Control::Joystick { radius, .. } => {
-            let r = radius * view.short_px();
+            let r = (radius * view.short_px()).max(view.lp(MIN_CAP_RING_LP));
             [
                 (Dir::Up, 0.0, -r),
                 (Dir::Down, 0.0, r),
@@ -172,7 +176,11 @@ pub fn cap_rects(doc: &EditDoc, view: &EditView, id: CtrlId) -> Vec<(Slot, PxRec
             .collect()
         }
         Control::Button { .. } => {
-            let below = view.lp(BUTTON_RADIUS_LP) + view.lp(CAP_H_LP) / 2.0;
+            let mut below = view.lp(BUTTON_RADIUS_LP) + view.lp(CAP_H_LP) / 2.0;
+            let bottom = view.picture.y + view.picture.h;
+            if o.y + below + view.lp(CAP_H_LP) / 2.0 > bottom {
+                below = -below;
+            }
             vec![(
                 Slot::Button(id),
                 cap_at(
@@ -225,9 +233,15 @@ fn body_hit(c: &Control, view: &EditView, p: Pt) -> Option<f64> {
 pub fn hit_test(doc: &EditDoc, view: &EditView, selected: Option<CtrlId>, p: Pt) -> Hit {
     if let Some(id) = selected
         && let Some(h) = handle_pos(doc, view, id)
-        && dist(h, p) <= view.lp(HANDLE_SLOP_LP)
+        && let Some(c) = doc.control(id)
     {
-        return Hit::Handle(id);
+        // The slop never swallows the control's centre.
+        let slop = view
+            .lp(HANDLE_SLOP_LP)
+            .min(0.7 * dist(h, centre_px(c, view)));
+        if dist(h, p) <= slop {
+            return Hit::Handle(id);
+        }
     }
     for id in doc.ids().iter().rev() {
         for (slot, r) in cap_rects(doc, view, *id).into_iter().rev() {
@@ -287,6 +301,7 @@ mod tests {
     use super::testing::*;
     use super::*;
     use crate::geom::{Rotation, View};
+    use crate::menu::RADIUS_MIN;
     use crate::menu::doc::Kind;
 
     fn with(doc: &mut EditDoc, kind: Kind, x: f64, y: f64) -> CtrlId {
@@ -303,9 +318,9 @@ mod tests {
         let h = handle_pos(&d, &v, id).unwrap();
         // A tiny ring: the handle overlaps the right and down caps.
         assert_eq!(hit_test(&d, &v, Some(id), h), Hit::Handle(id));
-        assert!(matches!(hit_test(&d, &v, None, h), Hit::Cap(_)));
-        // The down cap centre is inside the body disc: the cap wins.
-        let down = pt(500.0, 250.0 + 15.0);
+        assert_eq!(hit_test(&d, &v, None, h), Hit::Body(id));
+        // Caps keep MIN_CAP_RING_LP from the centre on a tiny ring.
+        let down = pt(500.0, 250.0 + 30.0);
         assert_eq!(
             hit_test(&d, &v, None, down),
             Hit::Cap(Slot::Dir(id, Dir::Down))
@@ -314,6 +329,61 @@ mod tests {
         d.set_radius(id, 0.2).unwrap();
         assert_eq!(hit_test(&d, &v, Some(id), pt(500.0, 250.0)), Hit::Body(id));
         assert_eq!(hit_test(&d, &v, Some(id), pt(900.0, 50.0)), Hit::None);
+    }
+
+    #[test]
+    fn a_small_joystick_keeps_a_grab_zone_and_all_its_caps() {
+        for (w, hgt, scale) in [
+            (1000.0, 500.0, 1.0),
+            (1000.0, 700.0, 1.5),
+            (1280.0, 720.0, 1.25),
+            (1920.0, 1080.0, 1.5),
+        ] {
+            let mut d = doc();
+            let id = with(&mut d, Kind::Joystick, 0.5, 0.5);
+            d.set_radius(id, RADIUS_MIN).unwrap();
+            let v = EditView {
+                window: (w, hgt),
+                picture: PxRect {
+                    x: 0.0,
+                    y: 0.0,
+                    w,
+                    h: hgt,
+                },
+                scale,
+            };
+            let o = v.to_px(pt(0.5, 0.5));
+            let r = RADIUS_MIN * v.short_px();
+            for sel in [None, Some(id)] {
+                assert_eq!(hit_test(&d, &v, sel, o), Hit::Body(id), "{w} {scale}");
+                assert_eq!(
+                    hit_test(&d, &v, sel, pt(o.x + r * 0.5, o.y - r * 0.5)),
+                    Hit::Body(id)
+                );
+            }
+            for (slot, rc) in cap_rects(&d, &v, id) {
+                let c = pt(rc.x + rc.w / 2.0, rc.y + rc.h / 2.0);
+                assert_eq!(hit_test(&d, &v, None, c), Hit::Cap(slot), "{w} {scale}");
+            }
+        }
+    }
+
+    #[test]
+    fn edge_controls_stay_reachable() {
+        let v = view();
+        let mut d = doc();
+        let b = with(&mut d, Kind::Button, 0.5, 1.0);
+        let (slot, r) = cap_rects(&d, &v, b)[0];
+        assert_eq!(slot, Slot::Button(b));
+        assert!(r.y >= 0.0 && r.y + r.h <= 500.0, "{r:?}");
+        let c = pt(r.x + r.w / 2.0, r.y + r.h / 2.0);
+        assert_eq!(hit_test(&d, &v, None, c), Hit::Cap(slot));
+        // A reach that pushes the corner out of the picture.
+        let look = with(&mut d, Kind::Look, 0.9, 0.9);
+        d.set_reach(look, 0.8).unwrap();
+        let hp = handle_pos(&d, &v, look).unwrap();
+        assert!(v.contains(hp), "{hp:?}");
+        assert_eq!(hit_test(&d, &v, Some(look), hp), Hit::Handle(look));
     }
 
     // test 20

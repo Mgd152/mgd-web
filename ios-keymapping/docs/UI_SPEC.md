@@ -1114,7 +1114,13 @@ pub fn in_edge_band(n: Pt) -> bool;
 
 Snap threshold 6 logical px per axis, independently; no grid. A click that
 never passes the 4 px threshold is a select, not a move, and records no undo
-step. Esc during a drag restores `start`.
+step. Esc during a drag restores `start`. The resize handle follows the same
+rule (4 px threshold, then the size keeps the offset between the grab point and
+the current value, so a click or the first move never changes it).
+
+Precondition: while a `Drag` is alive nothing else edits the document or the
+history. The editor finishes or cancels the drag before undo, redo, capture,
+wheel or dock edits (fuzz test 84 sends keys while a drag is held).
 
 ### 6.7 Capture (`capture.rs`)
 
@@ -1842,7 +1848,16 @@ additive; where the spec was silent or ambiguous:
    disc, so that a click on the disc selects/drags and a click on the cap
    rebinds (the spec's "click control = select, click key cap = capture" cannot
    both hold if the cap covers the disc). Look: no caps. The WP4 drawer must
-   draw the button's key label in that cap.
+   draw the button's key label in that cap. The cap goes above the disc when
+   below would leave the picture. **Open for lead approval before WP4 draws the
+   goldens:** this replaces 3.2's single 22 lp key cap with a disc plus a cap;
+   the alternative is that the first click selects and a click on an
+   already-selected button's cap starts the capture.
+   A joystick ring smaller than 30 lp keeps its caps 30 lp from the centre
+   (`MIN_CAP_RING_LP`), so the centre can always select and move it; the drawer
+   must use `cap_rects`. A resize handle outside the picture is pulled to its
+   edge. WP4: pass the configured helper keys (`UiPrefs`) to `lints`; v1
+   `key_advice` only knows the default `[` and `]`.
 6. **Resize handle.** Joystick: on the ring at 45 degrees down-right; look:
    bottom-right corner of the square; slop 10 logical px (`<=`).
    `resize_value` already clamps to `RADIUS_*` / `REACH_*`; a button returns 0.
@@ -1892,47 +1907,178 @@ additive; where the spec was silent or ambiguous:
    same). `MemFs` has directories implicit; failure injection is
    `fail_next(op)` (once) and `fail_nth(op, skip)`; it uses a `Cell` so
    `list`/`read` (which take `&self`) can fail too. Also `put/get/paths` for tests.
-2. **Problem texts.** `explain_error` (crate-private, in `store.rs`) maps a
-   `ProfileError` to a `ProblemMsg`, because `lint::explain` (WP2) was not
-   there when WP3 started. Unknown field / unknown variant (also a bad
-   `orientation`) is `NotUnderstood`; other JSON errors `NotReadable`;
-   `version` greater than 1 is `NewerVersion`, otherwise `BadVersion`. WP4 may
-   later swap it for `lint::explain` if the two agree.
+2. **Problem texts.** The store has no mapping of its own: `list`, `load`,
+   `save`, `import_text` and `write_draft` use `lint::explain_in` /
+   `lint::explain_json_error` (6.9), so the Hub row and the problem list always
+   agree. Additive `list_in(lang)` and `repair_ranges_in(text, lang)` write the
+   default control names (`Nút 1` / `Button 1`) in `lang`; `list()` and
+   `repair_ranges()` are the Vi wrappers. Errors from `load`/`save`/`import`
+   carry Vi default names (the quoted user labels are never translated).
 3. **`Msg::Repaired`** (+ `RepairField`) was added to `msg.rs` for the
    `repair_ranges` report (one line per clamped number, numbers formatted by
    language). `Lang` now derives serde (`"vi"`/`"en"`) for `UiPrefs`.
 4. **`repair_ranges`** returns `None` also when the text is already valid
-   (nothing to repair) and when nothing changed. Clamps: x, y to [0, 1]; radius
-   to [0.03, 0.5]; reach to [0.05, 1]; sensitivity to [0.05, 100]; release to
-   60000. Unknown fields, bad keys, a second look, a bad version, a too long
+   (nothing to repair) and when nothing changed. Only numbers that break the
+   SPEC rule are touched: x, y outside [0, 1] go to [0, 1]; radius, reach,
+   sensitivity that are not in (0, max] go to the editor minimum (0.03 / 0.05 /
+   0.05) when <= 0 or not finite, or to the max (0.5 / 1 / 100) when too big;
+   release over 60000 goes to 60000. A valid small value (radius 0.02) is left
+   as is. Report numbers show 2 to 6 decimals (huge ones in scientific form). Unknown fields, bad keys, a second look, a bad version, a too long
    name -> `None`.
 5. **Names and files.** `create`: N is the smallest N with no profile (broken
    ones included) named `Hồ sơ N`; the file is `slug.json`, then `slug-2.json`,
    `-3` ... (compared case-insensitively, so a hand-made `SUNG-2.json` counts).
-   `rename`: trims; empty or > 100 chars is `Invalid(NameTooLong)`; a name that
-   another profile has (case-insensitive) is `NameTaken`; the file name is kept
+   `rename`: trims; empty is `Invalid(NameEmpty)` (new `ProblemMsg::NameEmpty`),
+   > 100 chars `Invalid(NameTooLong)`; a name that another profile has
+   (case-insensitive) is `NameTaken`; if the directory cannot be listed,
+   `create`/`rename`/`duplicate`/`import_text`/`undelete` fail with `Fs` instead
+   of judging a name free; the file name is kept
    when it is already `slug` or `slug-N`, otherwise a new unique one; the new
-   file is written first, then the old file, its `.bak` and draft are
-   removed/moved (best effort). `duplicate`: `<name> (bản sao)`, `(bản sao 2)` ...,
+   file is written first, then the old file is removed (if that fails the new
+   file is removed again and the call is an error), then the `.bak` is moved
+   (best effort) and the draft, if any, is rewritten under the new file with
+   the new name. `duplicate`: `<name> (bản sao)`, `(bản sao 2)` ...,
    base shortened to keep 100 chars. All of them need a valid source profile.
 6. **File-name safety.** Every method taking `file` accepts only `*.json`
-   without `/ \ : * ? " < > |`, control characters or a leading dot;
+   without `/ \ : * ? " < > |`, control characters, a leading dot, a Windows
+   device name as stem (`CON.json`, `com1.json`) or a stem ending in a space or dot;
    anything else is `NotFound`. `list()` shows only such names.
 7. **`save`** backs up the old file (even a broken one) to `<file>.bak` before
    writing; if the `.bak` write fails the save fails and nothing changed.
-8. **Trash.** `delete` moves the file and its `.bak` to `.trash/` (a numeric
-   prefix keeps two deletes of the same name apart) and drops the draft.
-   `undelete` restores under the old name, or `slug-2` etc. if it is taken now.
+8. **Trash.** `delete` moves the file, its `.bak` and its draft (as
+   `<trash name>.draft`) to `.trash/` (a numeric prefix keeps two deletes of
+   the same name apart). `undelete` restores all three under the old file name,
+   or `slug-2` etc. if it is taken now, and renames the profile `Name (2)` if
+   its name was reused meanwhile.
 9. **`import_text`.** The file name comes from `hint` (a trailing `.json` is
-   ignored; slugified), else from the profile name. An unnamed profile is named
-   after the hint (else `Hồ sơ 1`). The stored text is the normalised
+   ignored; slugified), else from the profile name. Only the last path component of the hint counts
+   (`C:\\x\\a.json` -> `a`). An unnamed profile is named after the hint (else
+   the smallest free `Hồ sơ N`); a name already in use gets ` (2)`, ` (3)` ... The stored text is the normalised
    `to_json_pretty`, not the input bytes.
 10. **`write_draft`** refuses an invalid profile (`EditDoc` is always valid).
     `draft` of a damaged draft is `None`.
-11. **`UiPrefs`.** `from_text` (garbage, wrong types, unknown enum value ->
-    `UiPrefs::default()`), `to_text`, `load(&fs, path)`, `save(&mut fs, path)`;
+11. **`UiPrefs`.** `from_text` (not a JSON object -> `UiPrefs::default()`;
+    a field that is missing, has the wrong type or an unknown enum value falls
+    back to that field's default only; `last_sensitivity_change` must be two
+    finite numbers in (0, 100] else dropped, and `to_text` never writes one that
+    would be dropped), `to_text`, `load(&fs, path)`, `save(&mut fs, path)`;
     `PREFS_FILE = "keymap-ui.json"`. If either sensitivity key is not a known
     keyboard key, or both are the same, both reset to `[` and `]`.
+
+### Implementation notes (WP4, 2026-11-26)
+
+`scene.rs`, `layout.rs`, `guide.rs`, `editor.rs`, `shell.rs`, plus the
+captions file `ui_text.rs`, a `#[cfg(test)]` helper `testkit.rs` and the golden
+test `tests/menu_golden.rs` with 24 SVGs in `tests/data/menu/golden/`. All
+additive. Where the spec was ambiguous or silent:
+
+1. **Captions.** `Msg` had no variants for button captions, so `msg.rs` gained
+   `Msg::Ui(UiText)` (all Hub / dock / menu captions, one exhaustive match per
+   language in `ui_text.rs`) and `Msg::Verbatim(String)` (user data such as a
+   profile name; not translated). `Msg::all_samples` includes every `UiText`.
+2. **Extra public items** (none replaces a spec item): `Scene.scale` (needed for
+   font sizes), `WidgetKind::Heading`, `scene::{fits, max_chars, ellipsize,
+   palette}`, `layout::{dock_placement_with, wrap, Column, split, slider_t,
+   slider_step, slider_parts, widget_texts}`, `Editor::{set_overlay, set_lang,
+   mark_saved, open_with_draft, passes_to_upstream, pressed_mask, test_fingers,
+   test_full_message, next_deadline, selection, capturing, field_focused,
+   guide_step, hidden, file}`, `Shell::{store, store_mut, prefs, entries,
+   editor, active_file, hub_widgets, pressed_mask, passes_to_upstream}`,
+   `PlayKey`, `NATIVE_BASE`. `Env`/`Link` stay defined in `lint.rs` (WP2 note 2)
+   and are re-exported from `shell`.
+3. **`EditorOut`** is `Effect | Save | Leave | SaveAndPlay | Changed |
+   SetOverlay(Overlay) | GuideDone`. The shell performs `Save`; only on success
+   does it call `Editor::mark_saved`; a failed save toasts `Msg::SaveFailed`,
+   vetoes the following `Leave` and keeps the editor (and its draft) open.
+   Leaving (any way) drops the draft; `Không lưu` therefore discards it.
+4. **Overlay setting.** `Hiện phím khi chơi` is in the profile section of the
+   dock but lives in `UiPrefs`, not the profile (6.12): the editor reports a
+   pick as `SetOverlay`, the shell stores it, and calls `Editor::set_overlay`
+   before every event.
+5. **Dock placement.** The pure `dock_placement` has no memory, so the editor
+   uses `dock_placement_with(prev)` for the 8 % hysteresis. `grown` (side
+   layout) is derived from the facts the model has: `env.can_grow_window` and a
+   window that already has `DOCK_W` of room to the right of the picture; WP9
+   only has to grow the window. Entering Edit emits `ReserveRight(DOCK_W)` when
+   `can_grow_window`, leaving emits `ReserveRight(0.0)`. Test 52's "never covers
+   the selected body" is tested without hysteresis (a control within 8 % of the
+   middle can be covered while the card has not flipped yet, by design).
+   **Usability finding for the lead:** with nothing selected the card is on the
+   right (3.2), so a control on the right half cannot be clicked until the card
+   is collapsed (`–`), hidden (hold H), or the control is reached with Tab
+   (the card then flips). The goldens select such controls with Tab. A possible
+   fix without changing any API: while nothing is selected use the pointer as
+   the focus when it is over the picture.
+6. **Dock content.** Title, undo/redo and the footer (fingers counter, `Thử`,
+   `Xong`, note) are pinned; everything between scrolls with the wheel and is
+   culled per widget (a widget half out of the region is not offered). On a
+   590 px high picture only the first rows of the properties are visible.
+   Order: save prompt, revert prompt, capture banner and chips, fingers info,
+   guide card, palette, properties. The palette is two rows (the joystick
+   button full width, `Xoay camera` and `Nút` side by side).
+7. **Palette.** Pressing a palette button starts a `Drag::Place`; releasing over
+   the same button arms the kind (click, then click the picture); releasing over
+   the picture places it; releasing over the dock does nothing. While a palette
+   item is carried over the dock, the dock does not flip away from under the
+   pointer. A new button starts its key capture at once (2.3).
+8. **Test mode.** The dry-run `View` uses `env.panel` (a portrait phone size
+   if unknown) and `env.rotation`; when the profile orientation does not match
+   it uses R90 / R0 so the engine can activate (Test works without a phone or
+   with the wrong turn). Toggle key, the profile's panic key, `Esc`, `F8`, `F12`,
+   focus loss and `Quay lại sửa` leave Test. `RawMotion` and `Tick` feed the
+   engine. Held controls light up through `PressFill` (a ring for buttons and a
+   centre disc for a joystick, so key caps stay readable; the look box has no
+   fill; a re-centre flashes the box 250 ms). The "6th finger" message
+   (`TestFull`, 2 s) is drawn by `Shell::scene`; the red pulse of the
+   cap is not drawn. Finger dots are in `Editor::scene().dynamics` and in
+   `Shell::dots()`; `Shell::scene_version` is not bumped by `RawMotion`.
+9. **Key caps on the canvas** show `cap_text`: at most 5 characters (`M1`..`M5`
+   for mouse buttons, `Shift` for `Shift trái`, ellipsis otherwise); the dock's
+   key caps show the full label. This follows the WP2 decision (disc plus cap).
+10. **Hub.** Each profile is a `Row` (icon glyph `▣` / `⚠`, no drawn mini
+    preview yet) followed by its button row; the chosen row shows `CHƠI` or, when
+    `can_play` refuses (except `NoticeNotAccepted`, which `CHƠI` handles by
+    showing the notice first), the reason banner and the fix button in its place.
+    `Rename` in the `⋯` menu opens the editor on that profile (the name field is
+    the first property) because the Hub has no text field. `Xem cách sửa` shows
+    the single problem the store keeps (`Health::Broken`), not all of them;
+    `Sửa giúp` is WP8. Clicking a row only selects it; `Chọn` chooses; `CHƠI`,
+    `Enter` choose and play. Wheel scrolls the list by rows. The sensitivity-undo
+    banner shows only for the chosen profile. A toggle key pressed in Off with a
+    refusal gives a toast (no fix button; the Hub row has it).
+11. **`can_play` order:** `NoProfile` (also when the chosen file is gone),
+    `BrokenProfile` (chosen file broken), `NoticeNotAccepted`, `NotConnected`,
+    `Wifi`, `DisplayMode`, `ScrollBusy`, `Orientation`.
+12. **Play start.** `Effect::StartPlay` is returned by Off (toggle key) and by
+    the Hub (`CHƠI`, after the notice); the mode changes only on `PlayStarted`.
+    `Lưu & Chơi` saves, leaves Edit and then asks for Play in the same call, so
+    the effect is returned with the mode already `Hub`; test 83 checks that
+    `StartPlay` never comes out while the mode stays Edit/Test.
+13. **Native menu ids** are `>= 1000` (`NATIVE_BASE`); popups the model asked for
+    (`ShowMenu`) use small ids and are tracked, so `MenuPick` is unambiguous.
+14. **Guide.** Step 1 completes immediately when the picture exists and has the
+    right turn, so with a picture the card starts visibly at step 2 (the golden
+    for step 1 has no picture). Step 4 follows the button labelled `Bắn` (else
+    the first button). `Tiếp` on step 6 ends the guide. Skipping or finishing
+    stores `guide_done`; a profile made from a template starts the guide when
+    `guide_done` is false.
+15. **Text fitting.** The model estimates a character as `0.58 x font size`
+    (Body 14 lp: 34 characters in the 280 lp of a dock row, as the spec says).
+    Widget captions are tested against that budget in both languages
+    (`widget_texts`); dock check boxes use the Small font so that
+    `Bấm nhanh = chạm 1 lần (0,04 giây)` fits; label/field rows split 42/58;
+    two English captions are shorter than a literal translation
+    (`Sensitivity`, `Area size`). Painters also ellipsize user data.
+16. **Goldens** are compared byte for byte; `KEYMAP_UPDATE_GOLDEN=1 cargo test
+    --test menu_golden` rewrites them. I looked at every screen as a PNG
+    (headless Chrome on the SVG) while building them; they still need the
+    human review the spec asks for. They prove layout only (no Direct2D).
+17. **Fuzz 84.** Undo-all equals the opening profile only when at most 90
+    `Changed` events happened (history keeps 100 steps); at least 3 of the 20
+    seeds must be that light. Redo-all always equals the final profile.
+18. **`Tự ẩn`.** The shell bumps `scene_version` once on the first `Tick` after
+    5 s and stops reporting that deadline, so the app redraws once and then
+    skips the Direct2D pass.
 
 Cut line if time runs out: WP1-WP6 are the usable product (Hub, guided
 editing on the live picture, Test, Play with toast only and overlay `Tắt`).
