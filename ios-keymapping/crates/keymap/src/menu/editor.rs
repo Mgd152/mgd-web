@@ -418,7 +418,16 @@ impl Editor {
                 return Some(p);
             }
         }
-        let c = self.doc.control(self.sel?)?;
+        // With nothing selected the guide's target keeps the dock off the
+        // control the card asks the user to drag (3.2, amended).
+        let c = match self.sel {
+            Some(id) => self.doc.control(id)?,
+            None => {
+                let g = self.guide.as_ref()?;
+                let i = g.target(self.doc.profile())?;
+                self.doc.profile().controls.get(i)?
+            }
+        };
         Some(env.view.to_px(pt_of(c)))
     }
 
@@ -1980,7 +1989,7 @@ impl Editor {
         } else {
             t.held
                 .iter()
-                .map(|k| key_label(k, Lang::Vi))
+                .map(|k| key_label(k, self.lang))
                 .collect::<Vec<_>>()
                 .join(", ")
         };
@@ -2031,7 +2040,7 @@ impl Editor {
         if !env.has_picture {
             let w = p.w - 2.0 * m;
             let lines = line_count(
-                &Msg::NoPicture.text(Lang::Vi),
+                &Msg::NoPicture.text(self.lang),
                 w - v.lp(16.0),
                 Font::Small,
                 sc,
@@ -2114,7 +2123,7 @@ impl Editor {
         let mut col = Column::new(dock, sc);
         let title = col.row(TITLE_H - GAP);
         let name = if prof.name.trim().is_empty() {
-            Msg::NewProfileName(1).text(Lang::Vi)
+            Msg::NewProfileName(1).text(self.lang)
         } else {
             prof.name.clone()
         };
@@ -2179,7 +2188,7 @@ impl Editor {
         // Footer (pinned at the bottom): fingers row, buttons row, note.
         let note_lines = line_count(
             &Msg::Ui(UiText::MouseNotControlling)
-                .text(Lang::Vi)
+                .text(self.lang)
                 .max(Msg::Ui(UiText::MouseNotControlling).text(Lang::En)),
             col.w,
             Font::Small,
@@ -2419,7 +2428,7 @@ impl Editor {
         } else {
             self.doc
                 .key_of(slot)
-                .map(|k| key_label(k, Lang::Vi))
+                .map(|k| key_label(k, self.lang))
                 .unwrap_or_default()
         };
         let _ = lang_label;
@@ -2451,7 +2460,7 @@ impl Editor {
         WidgetKind::Field {
             edit: text,
             focused,
-            placeholder: Msg::Verbatim(self.doc.display_name(id, Lang::Vi).unwrap_or_default()),
+            placeholder: Msg::Verbatim(self.doc.display_name(id, self.lang).unwrap_or_default()),
         }
     }
 
@@ -2463,13 +2472,13 @@ impl Editor {
             min: lo,
             max: hi,
             log,
-            shown: fmt_num(v, 2, Lang::Vi),
+            shown: fmt_num(v, 2, self.lang),
         }
     }
 
     fn middle(&self, col: &mut Column, env: &Env, mid: &mut Vec<(Widget, Act)>) {
         let prof = self.doc.profile();
-        let lang = Lang::Vi;
+        let lang = self.lang;
         if self.save_prompt {
             Self::banner(col, mid, Msg::SavePrompt, Tone::Warn);
             let r = col.row(ROW_H);
