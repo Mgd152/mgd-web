@@ -618,11 +618,18 @@ impl<F: Fs> Shell<F> {
     }
 
     fn start_play(&mut self, now: u64, fx: &mut Vec<Effect>) {
-        // Only from Off or the Hub: a PlayStarted that arrives after the user
-        // already opened the editor (a click race) is dropped, so Play never
-        // runs with a live editor.
-        if !matches!(self.mode, Mode::Off | Mode::Hub) {
+        if self.mode == Mode::Play {
             return;
+        }
+        // A PlayStarted that races with a click on Sửa: the editor must not
+        // outlive the switch to Play. Its draft is kept for recovery.
+        if self.editor.is_some() {
+            self.write_draft();
+            self.editor = None;
+            self.draft_due = None;
+            self.screen = Screen::List;
+            fx.push(Effect::ReserveRight(0.0));
+            fx.push(Effect::ImeAllowed(false));
         }
         self.mode = Mode::Play;
         self.play_started = Some(now);
