@@ -10,7 +10,7 @@
     { "type": "look", "label": "Look", "x": 0.7, "y": 0.45, "sensitivity": 1.0, "invert_y": false, "reach": 0.25, "release_after_ms": 0 },
     { "type": "button", "label": "Hold A", "x": 0.82, "y": 0.8, "key": "Space", "mode": "hold" },
     { "type": "button", "label": "Hold B", "x": 0.68, "y": 0.88, "key": "MouseLeft", "mode": "hold" },
-    { "type": "button", "label": "Tap C", "x": 0.88, "y": 0.65, "key": "KeyJ", "mode": "tap" },
-    { "type": "button", "label": "Tap D", "x": 0.55, "y": 0.62, "key": "KeyK", "mode": "tap" }
+    { "type": "button", "label": "Hold C", "x": 0.55, "y": 0.62, "key": "KeyK", "mode": "hold" },
+    { "type": "button", "label": "Tap D", "x": 0.88, "y": 0.65, "key": "KeyJ", "mode": "tap" }
   ]
 }

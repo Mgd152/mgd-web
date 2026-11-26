@@ -28,9 +28,9 @@ Thư mục làm việc: `ios-keymapping/`.
      lúc này `profiles/` đã tồn tại nên test thực sự chạy, không bỏ qua).
    - `tests/sim_cli.rs`: 8 pass. `tests/vectors.rs`: 2 pass.
    - Tổng 80 test, 0 fail, 0 ignored. Doc-test: 0.
-2. `cargo test fuzz`: `engine::tests::fuzz_invariants ... ok` (24 seed x 5000 bước
-   theo mô tả của reviewer vòng 2; tôi chạy test này pass, không tự đếm lại số
-   seed).
+2. `cargo test fuzz`: `engine::tests::fuzz_invariants ... ok` (24 seed x 5000 bước,
+   xem `crates/keymap/src/engine.rs`, `fuzz_invariants`: `for seed in 0..24u64`,
+   `for step in 0..5000`).
 3. `cargo clippy --all-targets -- -D warnings`: kết thúc `Finished`, không cảnh
    báo (chạy lại sau khi `touch` để buộc kiểm tra lại).
 4. `cargo build --release` (Linux): thành công.
@@ -42,23 +42,26 @@ Thư mục làm việc: `ios-keymapping/`.
    - `OK: Touch test (portrait) (portrait, 6 controls)`
    - `OK: Touch test (landscape) (landscape, 6 controls)`
 8. `keymap-sim simulate` mỗi hồ sơ với script trong `profiles/` (exit 0):
-   - Portrait (`touch-test-portrait.sim.txt`): `# frames=15 dropped_presses=0
+   - Portrait (`touch-test-portrait.sim.txt`): `# frames=19 dropped_presses=1
      look_recenters=1 active=false contacts_down=0`. Quan sát được: bật bằng
      Backquote; joystick W+D tạo ngón 0 ở tâm rồi trượt; look tạo ngón 1;
-     Space và J (tap) tạo ngón 2 và 3 (tổng 4); ngón tap nhả đúng ở mốc 40 ms;
-     `move 500 0` vượt `reach` gây nhả rồi đặt lại ở tâm (1 re-center);
-     F8 in `# panic` và không còn ngón nào.
+     Space, MouseLeft, KeyK (hold) tạo ngón 2, 3, 4 (đủ 5 ngón kéo dài); KeyJ
+     (tap) là lần nhấn thứ 6 nên bị bỏ qua và đếm (`dropped_presses=1`); nhả lần
+     lượt từng ngón; `move 500 0` vượt `reach` gây nhả rồi đặt lại ở tâm (1
+     re-center); sau đó KeyJ chạm rồi nhả ở mốc 40 ms; F8 in `# panic` và không
+     còn ngón nào.
    - Landscape (`touch-test-landscape.sim.txt`, mặc định xoay R90):
-     `# frames=10 dropped_presses=0 look_recenters=0 active=false
-     contacts_down=0`; `focus-lost` nhả cả ba ngón trong một frame rồi
-     `# deactivated`.
+     `# frames=9 dropped_presses=0 look_recenters=0 active=false
+     contacts_down=0`; joystick, look, MouseLeft, KeyK (hold) và KeyJ (tap) cho 5
+     ngón; ngón tap nhả ở mốc 40 ms; `focus-lost` nhả cả bốn ngón còn lại
+     trong một frame (`100 T 0:U 1:U 2:U 3:U`) rồi `# deactivated`.
    Đây là mô phỏng logic, không phải thử trên điện thoại.
 9. Trình soạn: `node editor/tests/editor.test.mjs` (Chromium headless, `file://`,
    không mạng): `139/139 checks passed`, exit 0. Gồm: tạo từng loại điều khiển,
    kéo thả, gán phím (kể cả Tab/Space/chuột), xuất rồi `keymap-sim validate`,
    nhập hai hồ sơ mẫu và mọi vector hợp lệ/không hợp lệ (path lỗi đầu tiên phải
-   khớp `expected.json`), không request mạng, không lỗi console. Reviewer vòng 2
-   từng thấy 132/133 vì `profiles/` còn trống; nay đã đủ nên pass.
+   khớp `expected.json`), không request mạng, không lỗi console. Trước khi `profiles/` có đủ file, bản chạy của reviewer cho 132/133; nay đủ file
+   nên 139/139.
 10. Bản vá: sao chép bản clone upstream (chỉ đọc) vào thư mục tạm, xác nhận
     `HEAD = ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e`, chạy
     `git apply --check integration/mirrorly-keymap.patch` (in `CHECK_OK`) rồi
@@ -69,8 +72,9 @@ Thư mục làm việc: `ios-keymapping/`.
     +490 cũ; số +499/-8 ở đây là số tôi vừa đo.
     Không chạy cargo hay script nào trong cây upstream hoặc bản sao.
 
-Kết quả review trước đó (không phải do tôi chạy lại ở đây): reviewer đã duyệt
-crate, editor và integration; nêu rõ patch và PS1/workflow chưa từng được chạy.
+Không do tôi chạy: các kết quả review trước đó (132/133 của editor trước khi
+`profiles/` có đủ file, việc reviewer duyệt crate/editor/integration) chỉ được
+thuật lại từ báo cáo của reviewer; patch, PS1 và workflow chưa từng được chạy.
 
 ## 3. Chưa kiểm chứng (cần Windows, biên dịch bản vá, hoặc iPhone)
 
@@ -141,7 +145,8 @@ git checkout ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e
 git apply --check ../ios-keymapping/integration/mirrorly-keymap.patch
 ```
 
-Build thật trên Windows: xem README mục 5 (`apply-to-mirrorly.ps1 -Build`) hoặc
+Build thật trên Windows: xem README mục 5
+(`powershell -NoProfile -ExecutionPolicy Bypass -File .\apply-to-mirrorly.ps1 -Build`) hoặc
 chạy workflow `ios-keymapping`. Kiểm thử trên PC với iPhone: README mục 9 (danh
 sách chưa thực hiện) và mục 10 (đo độ trễ: trung vị, p95, FPS, cấu hình máy;
 F9/F10/`--timings-csv` của upstream; camera tốc độ cao).

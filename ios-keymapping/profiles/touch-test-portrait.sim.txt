@@ -1,15 +1,25 @@
 # Simulation script for touch-test-portrait.json (touch-test app, not a game).
+# Five sustained contacts: joystick + look + Space + MouseLeft + KeyK (hold).
+# KeyJ (tap) is then a sixth press and is ignored and counted.
 press Backquote
 release Backquote
 press KeyW
 press KeyD
 move 40 -25
 press Space
+press MouseLeft
+press KeyK
 press KeyJ
 wait 100
+release KeyJ
 release KeyW
 release KeyD
 release Space
+release MouseLeft
 move 500 0
+release KeyK
+# with a free slot, KeyJ is a 40 ms tap
+press KeyJ
+wait 100
 release KeyJ
 press F8

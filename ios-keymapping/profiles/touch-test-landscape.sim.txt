@@ -1,11 +1,11 @@
 # Simulation script for touch-test-landscape.json (touch-test app, not a game).
+# Focus loss while four contacts are held lifts all of them in one frame.
 press Backquote
 release Backquote
 press KeyA
 move 30 20
-press KeyK
-wait 100
 press MouseLeft
-release KeyA
-release MouseLeft
+press KeyK
+press KeyJ
+wait 100
 focus-lost

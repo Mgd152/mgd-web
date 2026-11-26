@@ -9,6 +9,9 @@ chạy trong trình duyệt (`editor/index.html`), cấu hình mẫu, và một 
 (patch)** cho [Mirrorly](https://github.com/AnasSAV/mirrorly) (MIT) để Mirrorly
 gửi nhiều điểm chạm cùng lúc tới iPhone.
 
+> Các liên kết tới `docs/BAO_CAO.md`, `docs/SPEC.md`, `integration/NOTES.md`
+> trỏ tới kho mã nguồn; chúng không có trong thư mục/ZIP portable đóng gói sẵn.
+
 > **Trạng thái trung thực:** phần thư viện `keymap`, trình soạn và công cụ mô
 > phỏng đã được chạy thử trong container Linux (xem
 > [`docs/BAO_CAO.md`](docs/BAO_CAO.md)). **Bản Mirrorly đã vá chưa từng được
@@ -95,7 +98,17 @@ Mã trong repo:
   Mode** (Cài đặt > Quyền riêng tư & Bảo mật > Chế độ nhà phát triển).
 - Để tự build: Rust (MSVC toolchain), Visual Studio 2022 Build Tools với
   workload C++, LLVM (libclang), Git, PowerShell. FFmpeg 9.0 LGPL shared sẽ được
-  tải bằng `packaging\get-ffmpeg.ps1` của Mirrorly.
+  tải bằng `packaging\get-ffmpeg.ps1` của Mirrorly. Cài bằng winget (lệnh theo
+  README của Mirrorly, chưa chạy ở đây):
+
+  ```powershell
+  winget install Rustlang.Rustup
+  winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+  winget install LLVM.LLVM
+  winget install Git.Git
+  ```
+
+  Script của upstream tự tìm `vcvars64`, không cần mở "Developer Command Prompt".
 
 ## 5. Áp dụng bản vá và build trên Windows
 
@@ -105,15 +118,20 @@ chạy thật đầu tiên là workflow CI.
 ```powershell
 cd ios-keymapping\integration
 # chỉ clone Mirrorly đúng commit ac70daa, chép crate keymap vào, áp bản vá
-.\apply-to-mirrorly.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\apply-to-mirrorly.ps1
 
 # hoặc kèm build: tải FFmpeg, chạy test, cargo build --release -p app,
 # rồi gom vào ios-keymapping\dist\Mirrorly-keymap\
-.\apply-to-mirrorly.ps1 -Build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\apply-to-mirrorly.ps1 -Build
 
 # thêm -Package nếu đã có cargo-about + Inno Setup 6 (chạy build-release.ps1 của upstream)
 # thêm -Force để xóa thư mục đích không rỗng; -Dest <thư mục> để đổi nơi đặt
 ```
+
+Chính sách thực thi PowerShell mặc định trên Windows (Restricted) và dấu
+mark-of-the-web của file tải về dạng ZIP sẽ chặn chạy trực tiếp `.\script.ps1`;
+dùng `-ExecutionPolicy Bypass` như trên, hoặc chạy `Unblock-File .\apply-to-mirrorly.ps1`
+trước. (Dựa trên hành vi Windows nói chung, chưa thử ở đây.)
 
 Bản vá chỉ sửa 7 file có sẵn của Mirrorly (`Cargo.toml`, `Cargo.lock`,
 `crates/input/{Cargo.toml,src/lib.rs}`, `crates/device/src/hid.rs`,
@@ -131,7 +149,10 @@ bản build Windows là chưa được kiểm chứng.**
 1. Đóng mọi cửa sổ Mirrorly đang chạy (Mirrorly là single-instance; nếu còn
    cửa sổ cũ, cờ `--keymap` bị bỏ qua).
 2. Cắm iPhone bằng USB, mở app kiểm thử cảm ứng trên điện thoại.
-3. Chạy: `Mirrorly.exe --keymap profiles\touch-test-portrait.json`
+3. Mở terminal trong `ios-keymapping\dist\Mirrorly-keymap\` (hoặc thư mục đã
+   giải nén của artifact `mirrorly-keymap-<sha>`), nơi có `Mirrorly.exe`, các DLL
+   FFmpeg, `keymap-sim.exe`, `profiles\` và `editor\`. Chạy:
+   `Mirrorly.exe --keymap profiles\touch-test-portrait.json`
    (hoặc `...landscape.json`; với ngang, bấm **F12** để xoay khung nhìn cho
    khớp, hướng hồ sơ phải khớp hướng khung nhìn).
 4. Bấm **`` ` ``** (Backquote) để bật/tắt keymap. Khi bật, tiêu đề cửa sổ hiện
@@ -165,7 +186,8 @@ khi đang chạy script cuộn/đo độ trễ F9.
     { "type": "look", "label": "Look", "x": 0.7, "y": 0.45, "sensitivity": 1.0,
       "invert_y": false, "reach": 0.25, "release_after_ms": 0 },
     { "type": "button", "label": "Hold A", "x": 0.82, "y": 0.8, "key": "Space", "mode": "hold" },
-    { "type": "button", "label": "Tap C", "x": 0.88, "y": 0.65, "key": "KeyJ", "mode": "tap" }
+    { "type": "button", "label": "Hold C", "x": 0.55, "y": 0.62, "key": "KeyK", "mode": "hold" },
+    { "type": "button", "label": "Tap D", "x": 0.88, "y": 0.65, "key": "KeyJ", "mode": "tap" }
   ]
 }
 ```
@@ -224,10 +246,12 @@ chạm), không dùng game cạnh tranh. Ghi kết quả pass/fail cho từng m�
    khi chưa kết nối -> bị từ chối với toast.
 2. Chạm đơn: chuột (khi chưa bật keymap) nhấp/kéo vẫn như upstream.
 3. Bật keymap: tiêu đề "Keymap ON"; nhấn `` ` `` lần nữa tắt, mọi ngón nhả.
-4. Multi-touch 1..5 điểm đồng thời: joystick + look + 3 nút = 5 ngón; app test
-   phải hiện đủ 1, 2, 3, 4, 5 điểm. Đây là **kiểm chứng đầu tiên** của
+4. Multi-touch 1..5 điểm đồng thời: hồ sơ mẫu có 3 nút `hold` (Space, MouseLeft, KeyK), nên giữ W + kéo chuột (look)
+   + Space + MouseLeft + KeyK = 5 ngón kéo dài; app test phải hiện đủ 1, 2, 3, 4,
+   5 điểm. Đây là **kiểm chứng đầu tiên** của
    `send_multitouch` trên điện thoại; nếu iOS bỏ qua/trộn ngón, ghi lại và báo.
-5. Nhấn nút thứ 6: bị bỏ qua, các ngón khác không đổi.
+5. Khi đang giữ 5 ngón như mục 4, nhấn `KeyJ` (nút `tap`, lần nhấn thứ 6): bị bỏ
+   qua, các ngón khác không đổi; sau khi nhả bớt một ngón, `KeyJ` chạm ~40 ms.
 6. Joystick: 4 hướng + chéo (độ lệch bằng nhau), hai phím ngược nhau (ngón ở
    tâm, không nhả), nhả hết phím (ngón nhả).
 7. Look: kéo chuột -> ngón trượt; kéo quá `reach` -> nhả và đặt lại ở tâm, không

@@ -17,7 +17,7 @@ It is designed to be applied to, and to run inside, the following software.
 
 2. idevice (vendored inside Mirrorly, vendor/idevice, with Mirrorly's patches)
    https://github.com/jkcoxson/idevice
-   Copyright (c) Jackson Coxson (jkcoxson)
+   Copyright 2026 Jackson Coxson
    MIT License.
    Our patch only calls its existing multi-touch API
    (UniversalHidServiceClient::send_multitouch); it does not change it.
@@ -27,6 +27,10 @@ It is designed to be applied to, and to run inside, the following software.
    (LGPL variant, fetched by Mirrorly's packaging/get-ffmpeg.ps1). They stay
    under FFmpeg's own license terms, as in upstream Mirrorly. This repository
    does not contain FFmpeg.
+
+License texts that Mirrorly's packaging/licenses directory provides (including
+GPL-3.0.txt) and that the portable folder copies apply to the components
+Mirrorly names there, not to this project's own files, which are MIT.
 
 Not affiliated with, endorsed by or sponsored by Apple Inc., Garena, or the
 author of Mirrorly. "iPhone", "iOS" and other names belong to their owners.
