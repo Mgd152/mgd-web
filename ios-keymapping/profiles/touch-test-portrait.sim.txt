@@ -22,4 +22,4 @@ release KeyK
 press KeyJ
 wait 100
 release KeyJ
-press F8
+press Escape

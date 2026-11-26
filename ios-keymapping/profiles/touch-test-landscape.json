@@ -4,7 +4,7 @@
   "app": "multi-touch test app",
   "orientation": "landscape",
   "toggle_key": "Backquote",
-  "panic_key": "F8",
+  "panic_key": "Escape",
   "controls": [
     { "type": "joystick", "label": "Move", "x": 0.15, "y": 0.7, "radius": 0.15, "up": "KeyW", "down": "KeyS", "left": "KeyA", "right": "KeyD" },
     { "type": "look", "label": "Look", "x": 0.65, "y": 0.45, "sensitivity": 1.0, "invert_y": false, "reach": 0.25, "release_after_ms": 0 },
