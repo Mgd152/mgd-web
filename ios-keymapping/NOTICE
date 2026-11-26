@@ -1,0 +1,32 @@
+ios-keymapping - third-party notices
+=====================================
+
+This project (the `keymap` crate, the editor, the sample profiles, the
+integration patch and scripts) is MIT licensed, see LICENSE.
+
+It is designed to be applied to, and to run inside, the following software.
+
+1. Mirrorly
+   https://github.com/AnasSAV/mirrorly
+   Copyright (c) 2026 AnasSAV
+   MIT License.
+   integration/mirrorly-keymap.patch is a modification of Mirrorly commit
+   ac70daa58ee5f24a067e80b6d0ffbcec4c735f1e. Anyone who distributes a binary
+   built from the patched source must keep Mirrorly's LICENSE and its
+   third-party license files (packaging/licenses/*.txt).
+
+2. idevice (vendored inside Mirrorly, vendor/idevice, with Mirrorly's patches)
+   https://github.com/jkcoxson/idevice
+   Copyright (c) Jackson Coxson (jkcoxson)
+   MIT License.
+   Our patch only calls its existing multi-touch API
+   (UniversalHidServiceClient::send_multitouch); it does not change it.
+
+3. FFmpeg
+   Binaries built from the patched Mirrorly bundle FFmpeg shared libraries
+   (LGPL variant, fetched by Mirrorly's packaging/get-ffmpeg.ps1). They stay
+   under FFmpeg's own license terms, as in upstream Mirrorly. This repository
+   does not contain FFmpeg.
+
+Not affiliated with, endorsed by or sponsored by Apple Inc., Garena, or the
+author of Mirrorly. "iPhone", "iOS" and other names belong to their owners.

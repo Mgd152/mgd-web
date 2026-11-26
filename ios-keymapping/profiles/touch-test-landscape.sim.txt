@@ -1,0 +1,11 @@
+# Simulation script for touch-test-landscape.json (touch-test app, not a game).
+press Backquote
+release Backquote
+press KeyA
+move 30 20
+press KeyK
+wait 100
+press MouseLeft
+release KeyA
+release MouseLeft
+focus-lost

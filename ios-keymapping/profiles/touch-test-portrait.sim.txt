@@ -1,0 +1,15 @@
+# Simulation script for touch-test-portrait.json (touch-test app, not a game).
+press Backquote
+release Backquote
+press KeyW
+press KeyD
+move 40 -25
+press Space
+press KeyJ
+wait 100
+release KeyW
+release KeyD
+release Space
+move 500 0
+release KeyJ
+press F8
