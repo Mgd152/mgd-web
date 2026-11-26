@@ -174,7 +174,8 @@ Việc sửa này chưa được chạy lại, nên artifact chưa được xác
    "Keymap ON"; nếu hồ sơ có điều khiển `look`, con trỏ bị nhốt trong cửa sổ
    và ẩn. Hồ sơ được **đọc lại mỗi lần bật**, nên sửa trong editor rồi bật lại
    là có hiệu lực, không cần khởi động lại.
-5. **F8 = phím dừng khẩn cấp**: nhả toàn bộ điểm chạm và tắt keymap ngay.
+5. **Phím dừng khẩn cấp** (hồ sơ mẫu dùng **Esc**, mặc định của định dạng là F8):
+   nhả toàn bộ điểm chạm và tắt keymap ngay. Đổi bằng `panic_key` trong hồ sơ.
 6. Tự động nhả hết và tắt keymap khi: mất focus cửa sổ, mất kết nối/rút USB,
    đổi hướng/kích thước màn hình, thoát app.
 
@@ -272,7 +273,7 @@ chạm), không dùng game cạnh tranh. Ghi kết quả pass/fail cho từng m�
 7. Look: kéo chuột -> ngón trượt; kéo quá `reach` -> nhả và đặt lại ở tâm, không
    có chạm thừa; thử `release_after_ms` > 0.
 8. `tap` vs `hold`: tap nhả sau ~40 ms dù giữ phím, không lặp; hold theo phím.
-9. F8 (panic) khi đang giữ nhiều phím + kéo chuột: mọi ngón nhả, keymap tắt.
+9. Phím dừng (Esc trong hồ sơ mẫu) khi đang giữ nhiều phím + kéo chuột: mọi ngón nhả, keymap tắt.
 10. Mất focus (Alt+Tab, bấm cửa sổ khác) khi đang giữ phím: nhả hết, tắt.
 11. Rút cáp USB khi đang giữ: app không treo, engine reset; cắm lại hoạt động.
     Ghi lại điện thoại có kẹt ngón nào không (hành vi iOS chưa rõ).
