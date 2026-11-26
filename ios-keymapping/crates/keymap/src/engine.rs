@@ -196,6 +196,8 @@ pub struct Engine {
     look_idx: Option<usize>,
     /// Time of the last lift, for [`LOOK_REST_MS`].
     last_lift: Option<u64>,
+    /// Ids lifted by the last lift (bit per id), for [`Engine::alloc_look`].
+    lifted_mask: u8,
     stats: Stats,
 }
 
@@ -240,6 +242,7 @@ impl Engine {
             toggle_held: false,
             look_idx,
             last_lift: None,
+            lifted_mask: 0,
             stats: Stats::default(),
         })
     }
@@ -583,7 +586,7 @@ impl Engine {
             }
             return None;
         }
-        let n = self.alloc();
+        let n = self.alloc_look();
         if let Ctl::Look {
             id,
             land_at,
@@ -689,7 +692,7 @@ impl Engine {
         let (n, offset) = match cur_id {
             Some(n) => (n, cur_off),
             None => {
-                let Some(n) = self.alloc() else {
+                let Some(n) = self.alloc_look() else {
                     self.stats.dropped_presses += 1;
                     return;
                 };
@@ -810,6 +813,15 @@ impl Engine {
         self.slots.iter().position(|s| s.is_none()).map(|i| i as u8)
     }
 
+    /// Like `alloc`, but avoids the ids of the last lift when another is free:
+    /// iOS took a re-landed look on the same id for the old finger sliding
+    /// back, so the camera jumped back (seen 2026-11-26).
+    fn alloc_look(&self) -> Option<u8> {
+        (0..MAX_CONTACTS as u8)
+            .find(|&i| self.slots[usize::from(i)].is_none() && self.lifted_mask & (1 << i) == 0)
+            .or_else(|| self.alloc())
+    }
+
     fn down(&mut self, id: u8, pos: (u16, u16)) -> Frame {
         self.slots[usize::from(id)] = Some(pos);
         self.build(&[], true)
@@ -833,6 +845,7 @@ impl Engine {
             return None;
         }
         self.last_lift = Some(self.now);
+        self.lifted_mask = ids.iter().fold(0, |m, i| m | (1 << i));
         Some(self.build(&ids, true))
     }
 
@@ -1255,7 +1268,8 @@ mod tests {
         assert_eq!(e.next_deadline(), Some(1 + LOOK_REST_MS));
         let f = e.tick(1 + LOOK_REST_MS);
         assert_eq!(f.len(), 1);
-        assert_eq!(f[0].contacts(), &[c(0, true, anchor)]);
+        // Lands on a different id than the one just lifted.
+        assert_eq!(f[0].contacts(), &[c(1, true, anchor)]);
         assert!(f[0].has_transition());
         assert_eq!(e.next_deadline(), None);
         // ...so the next motion only moves it.
@@ -1753,6 +1767,8 @@ mod tests {
     /// Replays emitted frames and checks invariants I1-I6.
     struct Model {
         down: [Option<(u16, u16)>; MAX_CONTACTS],
+        /// Ids lifted by the last frame that lifted any (a look may skip them).
+        lifted: u8,
     }
 
     impl Model {
@@ -1787,9 +1803,15 @@ mod tests {
                         None => {
                             transition = true;
                             new_down += 1;
-                            // A newly-down contact takes the lowest free id.
+                            // A newly-down contact takes the lowest free id, or
+                            // (a look) the lowest free id not just lifted.
+                            let lowest = |skip: u8| {
+                                (0..MAX_CONTACTS)
+                                    .find(|&i| self.down[i].is_none() && skip & (1 << i) == 0)
+                            };
+                            let id = Some(usize::from(k.id));
                             assert!(
-                                self.down[..usize::from(k.id)].iter().all(Option::is_some),
+                                id == lowest(0) || id == lowest(self.lifted),
                                 "new contact {} is not the lowest free id: {cs:?}",
                                 k.id
                             );
@@ -1805,6 +1827,13 @@ mod tests {
             assert_eq!(f.has_transition(), transition, "I5 flag {cs:?}");
             if !transition {
                 assert!(moved, "I6 frame without change {cs:?}");
+            }
+            let lifted = cs
+                .iter()
+                .filter(|k| !k.touching)
+                .fold(0u8, |m, k| m | (1 << k.id));
+            if lifted != 0 {
+                self.lifted = lifted;
             }
             for k in cs {
                 self.down[usize::from(k.id)] = k.touching.then_some((k.x, k.y));
@@ -1881,6 +1910,7 @@ mod tests {
             e.set_view(view(Rotation::R0));
             let mut model = Model {
                 down: [None; MAX_CONTACTS],
+                lifted: 0,
             };
             let mut now = 0u64;
             for step in 0..5000 {
