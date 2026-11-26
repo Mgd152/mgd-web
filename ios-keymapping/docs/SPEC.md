@@ -432,6 +432,9 @@ length 1 unless zero):
 
 1. First `MouseMotion` with no look contact: `[T: n↓ at anchor (x, y)]`,
    offset = 0; then continue with step 2 using this event's delta.
+   If the contact was created by this very event and `o'` exceeds the reach,
+   `offset` is clamped per axis to `±reach` with no lift/re-down and no
+   `look_recenters` increment (no phantom tap at the anchor).
 2. `step = (dx, dy · (invert_y ? −1 : 1)) · sensitivity / 1000`;
    `o' = offset + step`.
    - If `|o'.x| ≤ reach` and `|o'.y| ≤ reach`: `offset = o'`; `[M]` if the HID

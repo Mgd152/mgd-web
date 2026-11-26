@@ -1,0 +1,743 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 5871072..8295c11 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -167,6 +167,7 @@ dependencies = [
+  "device",
+  "display",
+  "input",
++ "keymap",
+  "png",
+  "tracing",
+  "tracing-subscriber",
+@@ -1247,6 +1248,7 @@ dependencies = [
+ name = "input"
+ version = "0.1.0"
+ dependencies = [
++ "keymap",
+  "winit",
+ ]
+ 
+@@ -1356,6 +1358,14 @@ dependencies = [
+  "wasm-bindgen",
+ ]
+ 
++[[package]]
++name = "keymap"
++version = "0.1.0"
++dependencies = [
++ "serde",
++ "serde_json",
++]
++
+ [[package]]
+ name = "lazy_static"
+ version = "1.5.1"
+diff --git a/Cargo.toml b/Cargo.toml
+index 6723f16..f1d11a6 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -82,6 +82,7 @@ windows = { version = "=0.62.2", features = [
+ ] }
+ 
+ input = { path = "crates/input" }
++keymap = { path = "crates/keymap" }
+ device = { path = "crates/device" }
+ video = { path = "crates/video" }
+ display = { path = "crates/display" }
+diff --git a/crates/app/Cargo.toml b/crates/app/Cargo.toml
+index df9feae..42e9f99 100644
+--- a/crates/app/Cargo.toml
++++ b/crates/app/Cargo.toml
+@@ -15,6 +15,7 @@ path = "src/main.rs"
+ device.workspace = true
+ video.workspace = true
+ input.workspace = true
++keymap.workspace = true
+ display.workspace = true
+ winit.workspace = true
+ windows.workspace = true
+diff --git a/crates/app/src/main.rs b/crates/app/src/main.rs
+index 254d71e..44dde27 100644
+--- a/crates/app/src/main.rs
++++ b/crates/app/src/main.rs
+@@ -105,6 +105,9 @@ struct Args {
+     /// itself (the iPad's resolution, e.g. 2360x1640).
+     #[arg(long = "setup-display", hide = true, value_name = "WxH")]
+     setup_display: Option<String>,
++    /// Keymap profile (JSON) for keyboard/mouse control; see ios-keymapping.
++    #[arg(long, value_name = "FILE")]
++    keymap: Option<std::path::PathBuf>,
+ }
+ 
+ #[derive(Debug, Clone, Copy, ValueEnum)]
+@@ -270,6 +273,18 @@ struct App {
+     /// (screenshots read the picture back).
+     gpu: Option<(windows::Win32::Graphics::Direct3D11::ID3D11Device, windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext, Arc<D3dLock>)>,
+     threads: Vec<std::thread::JoinHandle<()>>,
++    /// Keyboard/mouse keymapping (`--keymap`); `None` = upstream behaviour.
++    keymap: Option<KeymapHost>,
++}
++
++/// The keymap engine and what the app needs around it.
++struct KeymapHost {
++    /// The profile file; re-read on every activation.
++    path: std::path::PathBuf,
++    /// `None` while the profile has not loaded (yet, or a load failed).
++    engine: Option<keymap::Engine>,
++    /// The cursor was confined and hidden for mouse-look.
++    grabbed: bool,
+ }
+ 
+ impl App {
+@@ -289,6 +304,13 @@ impl App {
+             if self.recording.is_some() {
+                 t.push_str(" · Recording");
+             }
++            if let Some(k) = &self.keymap {
++                match &k.engine {
++                    Some(e) if e.is_active() => t.push_str(" · Keymap ON"),
++                    Some(e) => t.push_str(&format!(" · Keymap ({})", e.profile().toggle_key)),
++                    None => t.push_str(" · Keymap (no profile)"),
++                }
++            }
+             w.set_title(&t);
+         }
+     }
+@@ -419,10 +441,244 @@ impl App {
+         *decoder_kf.lock().unwrap() = Some(handle.keyframes.clone());
+         *self.shared.hid_stats.lock().unwrap() = Some(handle.hid_stats.clone());
+         self.device = Some(handle);
++        self.keymap_startup_load();
+         self.set_title();
+         Ok(())
+     }
+ 
++    // ---- keymap (ios-keymapping) ------------------------------------------
++    // Everything below is reached only when `--keymap` was given.
++
++    /// Read, parse and validate a profile file.
++    fn keymap_load(path: &std::path::Path) -> Result<keymap::Engine, String> {
++        let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
++        let profile = keymap::Profile::from_json(&text).map_err(|e| e.to_string())?;
++        keymap::Engine::new(profile).map_err(|e| e.to_string())
++    }
++
++    /// Load the profile once at startup; a failure is reported but not fatal.
++    fn keymap_startup_load(&mut self) {
++        let Some(path) = self.keymap.as_ref().map(|k| k.path.clone()) else { return };
++        match Self::keymap_load(&path) {
++            Ok(engine) => {
++                tracing::info!("keymap profile loaded: {}", path.display());
++                if let Some(k) = self.keymap.as_mut() {
++                    k.engine = Some(engine);
++                }
++            }
++            Err(msg) => {
++                tracing::error!("keymap profile {}: {msg}", path.display());
++                self.toast(format!("Keymap profile error: {msg}"), 8.0);
++            }
++        }
++    }
++
++    fn keymap_active(&self) -> bool {
++        self.keymap.as_ref().and_then(|k| k.engine.as_ref()).is_some_and(|e| e.is_active())
++    }
++
++    /// The picture as the engine sees it: the phone's portrait panel and how
++    /// the window turns it.
++    fn keymap_view(&self) -> keymap::View {
++        let v = self.shared.view.lock().unwrap();
++        let rotation = match v.rotation {
++            input::geom::Rotation::R0 => keymap::Rotation::R0,
++            input::geom::Rotation::R90 => keymap::Rotation::R90,
++            input::geom::Rotation::R180 => keymap::Rotation::R180,
++            input::geom::Rotation::R270 => keymap::Rotation::R270,
++        };
++        keymap::View::from_panel(v.screen.0 as f64, v.screen.1 as f64, rotation)
++    }
++
++    fn keymap_send(&self, frames: &[keymap::Frame]) {
++        for f in frames {
++            self.send(HidEvent::MultiTouch(*f));
++        }
++    }
++
++    /// Tell the engine the screen size / rotation (it lifts its fingers when
++    /// they changed, and leaves active mode if the orientation no longer fits).
++    fn keymap_sync_view(&mut self) {
++        if self.keymap.is_none() {
++            return;
++        }
++        let view = self.keymap_view();
++        let (frames, was_active, now_active) = match self.keymap.as_mut().and_then(|k| k.engine.as_mut()) {
++            Some(e) => {
++                let was = e.is_active();
++                let frames = e.set_view(view);
++                (frames, was, e.is_active())
++            }
++            None => return,
++        };
++        self.keymap_send(&frames);
++        if was_active && !now_active {
++            self.keymap_after_stop();
++            self.toast("Keymap off: the picture was rotated", 4.0);
++        }
++    }
++
++    /// Leave active mode (idempotent): lift every keymap finger.
++    fn keymap_stop(&mut self) {
++        let (frame, was_active) = match self.keymap.as_mut().and_then(|k| k.engine.as_mut()) {
++            Some(e) => {
++                let was = e.is_active();
++                (e.deactivate(), was)
++            }
++            None => return,
++        };
++        if let Some(f) = frame {
++            self.send(HidEvent::MultiTouch(f));
++        }
++        if was_active {
++            self.keymap_after_stop();
++        }
++    }
++
++    /// Give the cursor back after active mode.
++    fn keymap_after_stop(&mut self) {
++        let was_grabbed = self.keymap.as_mut().is_some_and(|k| std::mem::take(&mut k.grabbed));
++        if was_grabbed && let Some(w) = &self.window {
++            let _ = w.set_cursor_grab(winit::window::CursorGrabMode::None);
++            w.set_cursor_visible(true);
++        }
++        self.set_title();
++        self.update_hover();
++    }
++
++    /// Checks before the toggle key may switch the keymap on. Reloads the
++    /// profile file so edits made in the editor apply without a restart.
++    /// Returns false (after a toast) if it must not activate.
++    fn keymap_gate(&mut self) -> bool {
++        let disconnected = self.shared.chrome.lock().unwrap().disconnected;
++        if self.link.is_none() || disconnected {
++            self.toast("Keymap: connect your iPhone first", 3.0);
++            return false;
++        }
++        if self.link == Some("Wi-Fi") && std::env::var_os("MIRROR_KEYMAP_WIFI").is_none() {
++            self.toast("Keymap needs a USB connection (iOS ignores multi-touch over Wi-Fi)", 5.0);
++            return false;
++        }
++        if self.display.is_some() {
++            self.toast("Keymap is not available while the iPad display is on", 4.0);
++            return false;
++        }
++        if Instant::now() < self.scroll_busy_until {
++            self.toast("Keymap: wait a moment, a scroll is still running", 2.0);
++            return false;
++        }
++        let Some(path) = self.keymap.as_ref().map(|k| k.path.clone()) else { return false };
++        match Self::keymap_load(&path) {
++            Ok(engine) => {
++                if let Some(k) = self.keymap.as_mut() {
++                    k.engine = Some(engine);
++                }
++            }
++            Err(msg) => {
++                tracing::error!("keymap profile {}: {msg}", path.display());
++                self.toast(format!("Keymap profile error: {msg}"), 8.0);
++                return false;
++            }
++        }
++        // Mirrorly's own finger and phone keys must not be held while the
++        // keymap uses the touchscreen.
++        self.release_all();
++        self.keymap_sync_view();
++        true
++    }
++
++    /// A keyboard key (winit `KeyCode` Debug name). Returns true if the
++    /// keymap used it and the normal key handling must not see it.
++    fn keymap_key(&mut self, name: &str, down: bool) -> bool {
++        if self.keymap.is_none() {
++            return false;
++        }
++        if down && !self.keymap_active() {
++            // Without a loaded profile the default toggle key retries the load.
++            let toggle = match self.keymap.as_ref().and_then(|k| k.engine.as_ref()) {
++                Some(e) => e.profile().toggle_key.clone(),
++                None => "Backquote".to_string(),
++            };
++            if name == toggle {
++                if !self.keymap_gate() {
++                    return true;
++                }
++                let loaded_toggle = self
++                    .keymap
++                    .as_ref()
++                    .and_then(|k| k.engine.as_ref())
++                    .map(|e| e.profile().toggle_key.clone())
++                    .unwrap_or_default();
++                if loaded_toggle != name {
++                    self.set_title();
++                    self.toast(format!("Keymap profile loaded: press {loaded_toggle} to start"), 4.0);
++                    return true;
++                }
++            }
++        }
++        let input = if down { keymap::Input::Press(name) } else { keymap::Input::Release(name) };
++        self.keymap_input(input)
++    }
++
++    /// Feed one input to the engine, send its frames, react to its event.
++    /// Returns whether the engine consumed the input.
++    fn keymap_input(&mut self, input: keymap::Input<'_>) -> bool {
++        let now_ms = now_us() / 1000;
++        let (out, has_look, toggle, panic_key) = match self.keymap.as_mut().and_then(|k| k.engine.as_mut()) {
++            Some(e) => {
++                let out = e.handle(input, now_ms);
++                let p = e.profile();
++                (out, p.has_look(), p.toggle_key.clone(), p.panic_key.clone())
++            }
++            None => return false,
++        };
++        self.keymap_send(&out.frames);
++        match out.event {
++            Some(keymap::EngineEvent::Activated) => {
++                if has_look && let Some(w) = &self.window {
++                    // Windows supports Confined, not Locked; raw mouse motion
++                    // keeps arriving through `device_event` either way.
++                    if let Err(e) = w.set_cursor_grab(winit::window::CursorGrabMode::Confined) {
++                        tracing::warn!("keymap: cannot confine the cursor: {e}");
++                    }
++                    w.set_cursor_visible(false);
++                    if let Some(k) = self.keymap.as_mut() {
++                        k.grabbed = true;
++                    }
++                }
++                self.set_bar(false);
++                self.set_title();
++                self.toast(format!("Keymap on: {toggle} to leave, {panic_key} to stop"), 4.0);
++            }
++            Some(keymap::EngineEvent::Deactivated) => {
++                self.keymap_after_stop();
++                self.toast("Keymap off", 2.0);
++            }
++            Some(keymap::EngineEvent::Panic) => {
++                self.keymap_after_stop();
++                self.toast("Keymap stopped (panic key)", 3.0);
++            }
++            Some(keymap::EngineEvent::ActivateFailed(msg)) => {
++                self.toast(format!("Keymap: {msg}"), 5.0);
++            }
++            None => {}
++        }
++        out.consumed
++    }
++
++    /// Run the engine's timers (tap lifts, look idle lift). Returns when it
++    /// next wants to be woken.
++    fn keymap_tick(&mut self) -> Option<Instant> {
++        let now_ms = now_us() / 1000;
++        let (frames, deadline) = {
++            let e = self.keymap.as_mut()?.engine.as_mut()?;
++            let frames = e.tick(now_ms);
++            (frames, e.next_deadline())
++        };
++        self.keymap_send(&frames);
++        deadline.map(|d| epoch().instant + Duration::from_millis(d))
++    }
++
+     /// Size the window to the picture's aspect at the current size level.
+     fn apply_size(&mut self) {
+         let Some(w) = self.window.clone() else { return };
+@@ -1070,6 +1326,7 @@ impl App {
+     }
+ 
+     fn quit(&mut self, el: &ActiveEventLoop) {
++        self.keymap_stop();
+         if let Some(rec) = self.recording.take() {
+             // Finish the file before the process ends.
+             self.shared.recording.lock().unwrap().take();
+@@ -1097,6 +1354,7 @@ impl App {
+         self.release_all();
+         self.apply_size();
+         self.slot.request_redraw();
++        self.keymap_sync_view();
+     }
+ 
+     fn toggle_fullscreen(&mut self) {
+@@ -1117,6 +1375,10 @@ impl App {
+     /// presented (results in the overlay and the log). Point it at
+     /// something that visibly reacts to a touch, e.g. a Calculator key.
+     fn start_probe(&self) {
++        if self.keymap_active() {
++            tracing::info!("latency probe: not while the keymap is active");
++            return;
++        }
+         let (m, _) = self.mapper();
+         let Some(p) = m.to_panel(self.cursor.0, self.cursor.1, false) else {
+             tracing::warn!("latency probe: put the mouse over the phone picture first");
+@@ -1327,12 +1589,27 @@ impl ApplicationHandler<UserEvent> for App {
+             Some(Opening::Tapped(..)) => Some(now + Duration::from_millis(10)),
+             _ => (self.display.is_some() && (!self.display_hidden || self.opening.is_some())).then(|| now + DISPLAY_POLL),
+         };
+-        el.set_control_flow(match [self.hide_bar_at, self.toast_until, frame, display_poll].into_iter().flatten().min() {
++        let keymap_wake = self.keymap_tick();
++        el.set_control_flow(match [self.hide_bar_at, self.toast_until, frame, display_poll, keymap_wake].into_iter().flatten().min() {
+             Some(t) => ControlFlow::WaitUntil(t),
+             None => ControlFlow::Wait,
+         });
+     }
+ 
++    /// Raw mouse motion for mouse-look, only while the keymap is active.
++    fn device_event(
++        &mut self,
++        _el: &ActiveEventLoop,
++        _id: winit::event::DeviceId,
++        event: winit::event::DeviceEvent,
++    ) {
++        if let winit::event::DeviceEvent::MouseMotion { delta } = event
++            && self.keymap_active()
++        {
++            self.keymap_input(keymap::Input::MouseMotion { dx: delta.0, dy: delta.1 });
++        }
++    }
++
+     fn resumed(&mut self, el: &ActiveEventLoop) {
+         if self.window.is_none()
+             && let Err(e) = self.start(el)
+@@ -1441,6 +1718,7 @@ impl ApplicationHandler<UserEvent> for App {
+                 if screen_changed {
+                     self.apply_size();
+                 }
++                self.keymap_sync_view();
+                 let link = match info.transport {
+                     device::Transport::Usb => "USB",
+                     device::Transport::Wifi => "Wi-Fi",
+@@ -1459,6 +1737,9 @@ impl ApplicationHandler<UserEvent> for App {
+                 }
+             }
+             DeviceEvent::Disconnected(_) => {
++                // The fingers cannot be lifted over a dead link, but the
++                // engine's state and the cursor grab must still reset.
++                self.keymap_stop();
+                 // The stream ended: finish the recording with what it has.
+                 self.stop_recording();
+                 *self.shared.transport.lock().unwrap() = None;
+@@ -1492,7 +1773,10 @@ impl ApplicationHandler<UserEvent> for App {
+                 self.sync_bar();
+                 self.slot.request_redraw();
+             }
+-            WindowEvent::Focused(false) => self.release_all(),
++            WindowEvent::Focused(false) => {
++                self.keymap_stop();
++                self.release_all();
++            }
+             // Our own shelf being dragged out passes over the window first:
+             // those files came from the iPhone and must not go back.
+             WindowEvent::HoveredFile(path) if is_from_iphone(&path) => {}
+@@ -1517,7 +1801,9 @@ impl ApplicationHandler<UserEvent> for App {
+             WindowEvent::ModifiersChanged(m) => self.modifiers = m.state(),
+             WindowEvent::CursorEntered { .. } => {
+                 self.cursor_inside = true;
+-                self.update_hover();
++                if !self.keymap_active() {
++                    self.update_hover();
++                }
+             }
+             WindowEvent::CursorLeft { .. } => {
+                 self.cursor_inside = false;
+@@ -1526,10 +1812,17 @@ impl ApplicationHandler<UserEvent> for App {
+                 {
+                     self.send(ev);
+                 }
+-                self.update_hover();
++                if !self.keymap_active() {
++                    self.update_hover();
++                }
+             }
+             WindowEvent::CursorMoved { position, .. } => {
+                 self.cursor = (position.x, position.y);
++                // Active keymap: the mouse drives the look control through
++                // raw motion; the pointer position means nothing.
++                if self.keymap_active() {
++                    return;
++                }
+                 self.cursor_inside = true;
+                 if self.gesture.active() {
+                     let (m, _) = self.mapper();
+@@ -1547,6 +1840,9 @@ impl ApplicationHandler<UserEvent> for App {
+                 self.update_hover();
+             }
+             WindowEvent::MouseWheel { delta, .. } => {
++                if self.keymap_active() {
++                    return;
++                }
+                 let notches = match delta {
+                     MouseScrollDelta::LineDelta(_, y) => y as f64,
+                     MouseScrollDelta::PixelDelta(p) => p.y / 120.0,
+@@ -1560,6 +1856,19 @@ impl ApplicationHandler<UserEvent> for App {
+                 }
+             }
+             WindowEvent::MouseInput { state, button, .. } => {
++                if self.keymap_active() {
++                    let name = match button {
++                        MouseButton::Left => "MouseLeft",
++                        MouseButton::Right => "MouseRight",
++                        MouseButton::Middle => "MouseMiddle",
++                        MouseButton::Back => "MouseBack",
++                        MouseButton::Forward => "MouseForward",
++                        MouseButton::Other(_) => return,
++                    };
++                    let down = state == ElementState::Pressed;
++                    self.keymap_key(name, down);
++                    return;
++                }
+                 let (m, bottom) = self.mapper();
+                 match (button, state) {
+                     (MouseButton::Left, ElementState::Pressed) => {
+@@ -1609,7 +1918,22 @@ impl ApplicationHandler<UserEvent> for App {
+             WindowEvent::KeyboardInput { event, .. } => {
+                 let PhysicalKey::Code(code) = event.physical_key else { return };
+                 let down = event.state == ElementState::Pressed;
+-                let ctrl = self.modifiers.control_key();
++                if self.keymap.is_some() {
++                    // The keymap sees every key first; OS auto-repeat is
++                    // never forwarded to it.
++                    if event.repeat {
++                        if self.keymap_active() {
++                            return;
++                        }
++                    } else if self.keymap_key(&format!("{code:?}"), down) {
++                        return;
++                    }
++                }
++                // While the keymap is active only the F-key shortcuts work:
++                // no Ctrl+digit (a profile may bind Ctrl), no F9 probe, and
++                // nothing is typed on the phone.
++                let active = self.keymap_active();
++                let ctrl = self.modifiers.control_key() && !active;
+                 // Mac-style shortcuts (Ctrl stands in for Command), plus F-keys.
+                 let shortcut: Option<&str> = match code {
+                     KeyCode::Digit1 if ctrl => Some("home"),
+@@ -1622,7 +1946,7 @@ impl ApplicationHandler<UserEvent> for App {
+                     KeyCode::F5 => Some("volup"),
+                     KeyCode::F6 => Some("screenshot"),
+                     KeyCode::F7 => Some("record"),
+-                    KeyCode::F9 => Some("probe"),
++                    KeyCode::F9 if !active => Some("probe"),
+                     KeyCode::F10 => Some("stats"),
+                     KeyCode::F11 => Some("fullscreen"),
+                     KeyCode::F12 if self.modifiers.shift_key() => Some("rotate-ccw"),
+@@ -1659,6 +1983,9 @@ impl ApplicationHandler<UserEvent> for App {
+                     }
+                     return;
+                 }
++                if active {
++                    return;
++                }
+                 // iOS repeats held keys itself, like with a hardware keyboard.
+                 if event.repeat {
+                     return;
+@@ -1873,6 +2200,7 @@ fn main() -> Result<()> {
+     tracing::info!("Mirrorly {} starting", env!("CARGO_PKG_VERSION"));
+ 
+     let event_loop = EventLoop::<UserEvent>::with_user_event().build().context("event loop")?;
++    let keymap = args.keymap.clone().map(|path| KeymapHost { path, engine: None, grabbed: false });
+     let mut app = App {
+         args,
+         proxy: event_loop.create_proxy(),
+@@ -1912,6 +2240,7 @@ fn main() -> Result<()> {
+         recording: None,
+         gpu: None,
+         threads: Vec::new(),
++        keymap,
+     };
+     event_loop.run_app(&mut app)?;
+     app.slot.quit();
+diff --git a/crates/device/src/hid.rs b/crates/device/src/hid.rs
+index b3e4040..5c2d7aa 100644
+--- a/crates/device/src/hid.rs
++++ b/crates/device/src/hid.rs
+@@ -20,7 +20,8 @@ use idevice::{
+     ReadWrite,
+     core_device::{
+         ButtonState, DigitizerEdge, DigitizerEventType, DigitizerTarget, IndigoHidClient,
+-        TOUCHSCREEN_STATE_CONTACT, TOUCHSCREEN_STATE_RELEASE, UniversalHidServiceClient,
++        TOUCHSCREEN_STATE_CONTACT, TOUCHSCREEN_STATE_RELEASE, TouchscreenContact,
++        UniversalHidServiceClient,
+     },
+ };
+ use input::{EdgePhase, HidEvent, Side};
+@@ -48,6 +49,8 @@ enum Op {
+     Edge { phase: DigitizerEventType, x: f64, y: f64, edge: DigitizerEdge },
+     Button { page: u64, usage: u64, down: bool },
+     Key { usage: u16, down: bool },
++    /// Keymap multi-touch snapshot: one UHS report with up to five contacts.
++    Multi(input::keymap::Frame),
+ }
+ 
+ /// Scheduler entry; ordered by due time, then insertion order.
+@@ -162,6 +165,10 @@ fn superseded(touching: bool, ev: &HidEvent, next: Option<&HidEvent>) -> bool {
+             HidEvent::Edge { phase: EdgePhase::Move, .. },
+             Some(HidEvent::Edge { phase: EdgePhase::Move | EdgePhase::End, .. }),
+         ) => true,
++        // Every keymap frame is a full snapshot of all contacts, so a pure
++        // move frame is redundant once a newer frame is queued behind it.
++        // A frame with a touch-down or lift is never dropped.
++        (HidEvent::MultiTouch(f), Some(HidEvent::MultiTouch(_))) => f.droppable(),
+         _ => false,
+     }
+ }
+@@ -190,6 +197,7 @@ fn expand(ev: HidEvent) -> Vec<(Duration, Op)> {
+         }
+         HidEvent::AppSwitcher { side, travel } => app_switcher_script(side, travel),
+         HidEvent::Scroll { x, y, dx, dy } => scroll_script(x, y, dx, dy),
++        HidEvent::MultiTouch(f) => vec![(now, Op::Multi(f))],
+     }
+ }
+ 
+@@ -272,6 +280,17 @@ async fn exec(uhs: &mut Uhs, indigo: &mut Indigo, op: Op) -> Result<()> {
+             let st = if down { ButtonState::Down } else { ButtonState::Up };
+             indigo.send_keyboard(usage as u64, st).await?;
+         }
++        Op::Multi(frame) => {
++            // Always the UHS touchscreen report, whatever `touch_path` is:
++            // Indigo has no multi-contact path here.
++            let cs = frame.contacts();
++            let mut buf = [TouchscreenContact { identity: 0, touching: false, x: 0, y: 0 }; 5];
++            let n = cs.len().min(buf.len());
++            for (slot, c) in buf.iter_mut().zip(cs) {
++                *slot = TouchscreenContact { identity: c.id, touching: c.touching, x: c.x, y: c.y };
++            }
++            uhs.send_multitouch(&buf[..n], None).await?;
++        }
+     }
+     Ok(())
+ }
+@@ -280,6 +299,44 @@ async fn exec(uhs: &mut Uhs, indigo: &mut Indigo, op: Op) -> Result<()> {
+ mod tests {
+     use super::*;
+     use input::Button;
++    use input::keymap::{Contact, Frame};
++
++    fn frame(contacts: &[(u8, bool, u16, u16)], transition: bool) -> HidEvent {
++        let cs: Vec<Contact> = contacts
++            .iter()
++            .map(|&(id, touching, x, y)| Contact { id, touching, x, y })
++            .collect();
++        HidEvent::MultiTouch(Frame::from_contacts(&cs, transition).expect("valid frame"))
++    }
++
++    #[test]
++    fn multitouch_move_frames_coalesce_but_transitions_never() {
++        let down = frame(&[(0, true, 10, 10)], true);
++        let mv = frame(&[(0, true, 20, 20)], false);
++        let mv2 = frame(&[(0, true, 30, 30)], false);
++        let up = frame(&[(0, false, 30, 30)], true);
++        assert!(superseded(false, &mv, Some(&mv2)), "pure move behind a newer frame");
++        assert!(superseded(false, &mv, Some(&up)), "pure move behind a lift");
++        assert!(!superseded(false, &down, Some(&mv)), "touch-down is never dropped");
++        assert!(!superseded(false, &up, Some(&mv)), "lift is never dropped");
++        assert!(!superseded(false, &mv, None), "nothing queued behind it");
++        let single = HidEvent::Touch { x: 1, y: 1 };
++        assert!(!superseded(true, &mv, Some(&single)), "other event kinds are not frames");
++        assert!(!superseded(true, &single, Some(&mv)));
++    }
++
++    #[test]
++    fn multitouch_expands_to_one_immediate_op() {
++        let ev = frame(&[(0, true, 1, 2), (3, true, 4, 5)], true);
++        let ops = expand(ev);
++        assert_eq!(ops.len(), 1);
++        assert_eq!(ops[0].0, Duration::ZERO);
++        assert!(matches!(ops[0].1, Op::Multi(f) if f.contacts().len() == 2));
++        // Never rerouted to Indigo, whichever path ordinary touches use.
++        let mut down = false;
++        assert!(matches!(route_touch(ops[0].1, TouchPath::Indigo, &mut down), Op::Multi(_)));
++        assert!(!down);
++    }
+ 
+     #[test]
+     fn moves_coalesce_only_behind_newer_samples() {
+diff --git a/crates/input/Cargo.toml b/crates/input/Cargo.toml
+index 6fa44a3..c90638e 100644
+--- a/crates/input/Cargo.toml
++++ b/crates/input/Cargo.toml
+@@ -8,3 +8,4 @@ description = "Window input -> normalized phone touch / HID events"
+ 
+ [dependencies]
+ winit.workspace = true
++keymap.workspace = true
+diff --git a/crates/input/src/lib.rs b/crates/input/src/lib.rs
+index b97a906..eb0bb51 100644
+--- a/crates/input/src/lib.rs
++++ b/crates/input/src/lib.rs
+@@ -8,6 +8,10 @@ pub mod geom;
+ pub mod gesture;
+ pub mod keys;
+ 
++/// The keyboard/mouse keymapping engine, re-exported so `device` can name
++/// its frame type without a direct dependency.
++pub use keymap;
++
+ /// One thing to deliver to the phone. Coordinates are the phone panel's
+ /// native (portrait) space normalized to 0..=65535.
+ #[derive(Debug, Clone, Copy, PartialEq)]
+@@ -31,6 +35,8 @@ pub enum HidEvent {
+     /// (dx, dy), in panel units (0..1), held still before lifting so the
+     /// content scrolls without flinging.
+     Scroll { x: u16, y: u16, dx: f64, dy: f64 },
++    /// Multi-touch snapshot from the keymap engine (UHS touchscreen report).
++    MultiTouch(keymap::Frame),
+ }
+ 
+ /// An edge of the phone panel (its native portrait space).
+@@ -110,3 +116,48 @@ impl Button {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod keymap_tests {
++    use winit::keyboard::KeyCode;
++
++    /// Every key name the keymap crate accepts must be exactly the `Debug`
++    /// name of a winit `KeyCode` variant: the app feeds `format!("{code:?}")`
++    /// to the engine.
++    #[test]
++    fn keymap_key_names_match_winit() {
++        macro_rules! check {
++            ($($name:ident),* $(,)?) => {{
++                let mut n = 0usize;
++                $(
++                    assert_eq!(format!("{:?}", KeyCode::$name), stringify!($name));
++                    assert!(
++                        keymap::keys::is_known_key(stringify!($name)),
++                        "{} is not in keymap::keys::KEY_NAMES",
++                        stringify!($name)
++                    );
++                    n += 1;
++                )*
++                n
++            }};
++        }
++        let n = check!(
++            KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH,
++            KeyI, KeyJ, KeyK, KeyL, KeyM, KeyN, KeyO, KeyP,
++            KeyQ, KeyR, KeyS, KeyT, KeyU, KeyV, KeyW, KeyX,
++            KeyY, KeyZ, Digit0, Digit1, Digit2, Digit3, Digit4, Digit5,
++            Digit6, Digit7, Digit8, Digit9, F1, F2, F3, F4,
++            F5, F6, F7, F8, F9, F10, F11, F12,
++            F13, F14, F15, F16, F17, F18, F19, F20,
++            F21, F22, F23, F24, Space, Tab, Enter, Escape,
++            Backspace, CapsLock, ContextMenu, ShiftLeft, ShiftRight, ControlLeft, ControlRight, AltLeft,
++            AltRight, SuperLeft, SuperRight, Backquote, Minus, Equal, BracketLeft, BracketRight,
++            Backslash, Semicolon, Quote, Comma, Period, Slash, IntlBackslash, ArrowUp,
++            ArrowDown, ArrowLeft, ArrowRight, Insert, Delete, Home, End, PageUp,
++            PageDown, NumLock, Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5,
++            Numpad6, Numpad7, Numpad8, Numpad9, NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide,
++            NumpadDecimal, NumpadEnter, ScrollLock, Pause,
++        );
++        assert_eq!(n, keymap::keys::KEY_NAMES.len());
++    }
++}

@@ -12,12 +12,15 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+body{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{flex:none}
 header{padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
 h1{font-size:18px;margin:0 0 6px}
 h2{font-size:15px;margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}
 .scope{background:var(--warn-bg);border:1px solid var(--warn-line);padding:6px 10px;border-radius:6px;font-size:13px}
-main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;padding:12px 16px}
-@media (max-width:900px){main{grid-template-columns:1fr}}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:minmax(0,1fr);gap:12px;padding:10px 16px;flex:1;min-height:0}
+main>section{display:flex;flex-direction:column;min-height:0;min-width:0}
+@media (max-width:900px){body{height:auto;overflow:auto;display:block}main{display:block}.wrap{height:70vh!important}}
 .toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center}
 button,select,input,textarea{font:inherit;color:inherit}
 button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
@@ -29,14 +32,17 @@ button.danger{color:var(--err)}
 input[type=text],input[type=number],select,textarea{width:100%;background:#fff;border:1px solid var(--line);border-radius:5px;padding:4px 6px}
 input[type=number]{max-width:130px}
 input[aria-invalid=true],select[aria-invalid=true]{border-color:var(--err);background:#fff6f5}
-.wrap{display:flex;justify-content:center;align-items:center;height:calc(100vh - 170px);min-height:380px;background:#dfe3e8;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.wrap{display:flex;justify-content:center;align-items:center;flex:1;min-height:200px;background:#dfe3e8;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .stage{position:relative;background:#222 repeating-linear-gradient(45deg,#2a2f36 0 12px,#252a30 12px 24px);border:1px solid #000;touch-action:none;user-select:none}
 .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 .stage svg{position:absolute;inset:0;width:100%;height:100%}
 .stage.drop{outline:4px dashed var(--accent)}
 .ph{position:absolute;left:0;right:0;top:50%;text-align:center;color:#b8c0c8;font-size:13px;pointer-events:none;transform:translateY(-50%);padding:0 20px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
-@media (max-width:900px){.panel{max-height:none}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pscroll{flex:1;min-height:0;overflow:auto;padding:4px 12px 8px}
+.pfoot{flex:none;border-top:1px solid var(--line);padding:6px 12px;background:#f8f9fa}
+.pfoot .toolbar{margin:4px 0 0}
+.pfoot #vstatus{font-size:13px}
 .row{margin:6px 0}
 .row>label,.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .inline{display:flex;gap:6px;align-items:center}
@@ -94,6 +100,7 @@ textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:1
   </section>
 
   <aside class="panel" aria-label="Thuộc tính">
+   <div class="pscroll">
     <h2 style="margin-top:0">Hồ sơ</h2>
     <div class="row"><label for="pf_name">Tên</label><input type="text" id="pf_name" data-pf="name"><div class="err" data-err="name"></div></div>
     <div class="row"><label for="pf_app">Ứng dụng / game (ghi chú)</label><input type="text" id="pf_app" data-pf="app"><div class="err" data-err="app"></div></div>
@@ -101,8 +108,8 @@ textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:1
       <select id="pf_orientation" data-pf="orientation"><option value="portrait">Dọc (portrait)</option><option value="landscape">Ngang (landscape)</option></select>
       <div class="err" data-err="orientation"></div></div>
     <div class="grid2">
-      <div class="row"><span class="lbl">Phím bật/tắt keymap</span><button type="button" class="keybtn" data-kt="p:toggle_key" id="kb_toggle"></button><div class="err" data-err="toggle_key"></div></div>
-      <div class="row"><span class="lbl">Phím dừng khẩn cấp</span><button type="button" class="keybtn" data-kt="p:panic_key" id="kb_panic"></button><div class="err" data-err="panic_key"></div></div>
+      <div class="row"><span class="lbl" id="lbl_toggle">Phím bật/tắt keymap</span><button type="button" aria-labelledby="lbl_toggle kb_toggle" class="keybtn" data-kt="p:toggle_key" id="kb_toggle"></button><div class="err" data-err="toggle_key"></div></div>
+      <div class="row"><span class="lbl" id="lbl_panic">Phím dừng khẩn cấp</span><button type="button" aria-labelledby="lbl_panic kb_panic" class="keybtn" data-kt="p:panic_key" id="kb_panic"></button><div class="err" data-err="panic_key"></div></div>
     </div>
 
     <h2>Điều khiển</h2>
@@ -110,21 +117,25 @@ textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:1
     <div class="err" data-err="controls"></div>
     <div id="ctlPanel"></div>
 
-    <h2>Kiểm tra hợp lệ</h2>
-    <div id="vstatus" role="status" aria-live="polite"></div>
+    <h2>Lỗi cần sửa</h2>
+    <div class="toolbar" id="verFix" hidden><button type="button" id="btnVer1">Đặt version = 1</button></div>
     <ul class="summary" id="vlist"></ul>
 
-    <h2>Nhập / xuất JSON</h2>
-    <div class="toolbar">
-      <button type="button" id="btnDownload" class="primary">Tải xuống .json</button>
-      <button type="button" id="btnCopy">Sao chép</button>
-      <button type="button" id="btnNew">Hồ sơ mới</button>
-    </div>
+    <h2>Nhập JSON</h2>
+    <div class="toolbar"><button type="button" id="btnNew">Hồ sơ mới</button></div>
     <div class="row"><label for="jsonFile">Nhập từ tệp .json</label><input type="file" id="jsonFile" accept=".json,application/json"></div>
     <div class="row"><label for="jsonOut">JSON (xem trước / dán để nhập)</label>
       <textarea id="jsonOut" spellcheck="false"></textarea></div>
     <div class="toolbar"><button type="button" id="btnPaste">Nhập từ văn bản trong ô trên</button></div>
     <div id="importMsg" class="small" role="status" aria-live="polite"></div>
+   </div>
+   <div class="pfoot">
+    <div id="vstatus" role="status" aria-live="polite"></div>
+    <div class="toolbar">
+      <button type="button" id="btnDownload" class="primary">Tải xuống .json</button>
+      <button type="button" id="btnCopy">Sao chép</button>
+    </div>
+   </div>
   </aside>
 </main>
 <div id="capbar" role="alert"><span id="capmsg"></span><button type="button" id="capcancel" data-cancel>Hủy</button></div>
@@ -213,13 +224,13 @@ function problems(p) {
     if (!isKnownKey(k)) add(path, k ? `phím không hợp lệ "${k}"` : 'chưa gán phím (unknown key "")');
     else if (isMouse(k)) add(path, `phải là phím bàn phím, hiện là "${k}"`);
   };
-  if (p.version !== 1) add('version', `phải bằng 1, hiện là ${p.version}`);
+  if (p.version !== 1) add('version', `phải bằng 1, hiện là ${p.version} (editor chỉ hỗ trợ version 1; hãy sửa trong tệp JSON hoặc bấm “Đặt version = 1”)`);
   len('name', p.name, MAX_NAME);
   len('app', p.app, MAX_NAME);
   kbd('toggle_key', p.toggle_key);
   kbd('panic_key', p.panic_key);
   if (p.controls.length > MAX_CONTROLS) add('controls', `tối đa ${MAX_CONTROLS} điều khiển, hiện là ${p.controls.length}`);
-  let firstLook = -1;
+  let firstLook = -1; const extraLooks = [];
   p.controls.forEach((c, i) => {
     const f = n => `controls[${i}].${n}`;
     len(f('label'), c.label, MAX_LABEL);
@@ -232,12 +243,12 @@ function problems(p) {
       range(f('reach'), c.reach, 1);
       if (!(Number.isInteger(c.release_after_ms) && c.release_after_ms >= 0 && c.release_after_ms <= MAX_RELEASE))
         add(f('release_after_ms'), `phải là số nguyên trong 0..${MAX_RELEASE}, hiện là ${fmt(c.release_after_ms)}`);
-      if (firstLook >= 0) add(`controls[${i}]`, 'chỉ được có một điều khiển look (only one look control is allowed)');
-      else firstLook = i;
+      if (firstLook >= 0) extraLooks.push(i); else firstLook = i;
     } else if (c.type === 'button') {
       key(f('key'), c.key);
     }
   });
+  for (const i of extraLooks) add(`controls[${i}]`, 'chỉ được có một điều khiển look (only one look control is allowed)');
   const seen = [];
   for (const [path, k] of boundKeys(p)) {
     if (!isKnownKey(k)) continue;
@@ -275,6 +286,8 @@ function parseProfile(text) {
   try { o = JSON.parse(text); } catch (e) { return { fatal: 'JSON không hợp lệ: ' + e.message }; }
   const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
   const bad = m => ({ fatal: m });
+  // serde rejects floats for integer fields, JSON.parse cannot tell 1.0 from 1: check the raw text
+  if (/"(version|release_after_ms)"\s*:\s*-?\d+(\.\d*|[eE][+-]?\d+)/.test(text)) return bad('"version" / "release_after_ms" phải là số nguyên viết không có phần thập phân hay số mũ (ví dụ 1, không phải 1.0)');
   if (!isObj(o)) return bad('Gốc phải là một đối tượng JSON');
   const top = ['version','name','app','orientation','toggle_key','panic_key','controls'];
   for (const k of Object.keys(o)) if (!top.includes(k)) return bad(`Trường không xác định "${k}"`);
@@ -301,9 +314,10 @@ function parseProfile(text) {
       const ok = t === 'string' ? typeof v === 'string' : t === 'number' ? typeof v === 'number' : t === 'boolean' ? typeof v === 'boolean'
         : t === 'uint' ? (Number.isInteger(v) && v >= 0) : (v === 'hold' || v === 'tap');
       if (!ok) return bad(`controls[${i}].${k}: sai kiểu dữ liệu`);
+      if (t === 'number' && !Number.isFinite(v)) return bad(`controls[${i}].${k}: số không hữu hạn`);
     }
     const ctl = mkControl(c.type);
-    for (const k of Object.keys(c)) if (k !== 'type') ctl[k] = c[k];
+    for (const k of Object.keys(c)) if (k !== 'type') ctl[k] = FIELD_TYPE[k] === 'number' ? r4(c[k]) : c[k];
     p.controls.push(ctl);
   }
   return { profile: p };
@@ -334,32 +348,33 @@ function renderStage() {
   const showImg = state.img && imgMatches();
   bg.hidden = !showImg;
   if (showImg) bg.src = state.img.url;
-  $('#ph').hidden = !!showImg;
+  $('#ph').hidden = !!showImg || state.profile.controls.length > 0;
   svg.setAttribute('viewBox', `0 0 ${SW} ${SH}`);
   const short = Math.min(SW, SH);
   let h = '';
   const order = state.profile.controls.slice().sort((a, b) => (a._id === state.sel) - (b._id === state.sel));
   for (const c of order) {
     const i = ctlIndex(c._id), sel = c._id === state.sel;
-    const cx = c.x * SW, cy = c.y * SH;
+    const nf = (v, d) => Number.isFinite(v) ? v : d;
+    const cx = nf(c.x, 0.5) * SW, cy = nf(c.y, 0.5) * SH;
     const col = c.type === 'joystick' ? 'var(--joy)' : c.type === 'look' ? 'var(--look)' : 'var(--btn)';
     const stroke = sel ? '#ffb000' : '#fff';
     let g = `<g data-ctl="${c._id}" tabindex="0" role="button" aria-label="${esc(c.type)} ${i + 1} ${esc(c.label)}" style="cursor:move">`;
     if (c.type === 'joystick') {
-      const R = c.radius * short;
+      const R = nf(c.radius, 0.12) * short;
       g += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${col}" fill-opacity=".35" stroke="${stroke}" stroke-width="${sel ? 3 : 2}" stroke-dasharray="6 4"/>`;
       g += `<circle cx="${cx}" cy="${cy}" r="5" fill="#fff"/>`;
       const t = (dx, dy, k) => `<text x="${cx + dx}" y="${cy + dy}" fill="#fff" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(keyLabel(k))}</text>`;
       g += t(0, -R * 0.62, c.up) + t(0, R * 0.62, c.down) + t(-R * 0.62, 0, c.left) + t(R * 0.62, 0, c.right);
       g += `</g>`;
-      if (sel) g += `<circle data-handle="${c._id}" cx="${cx + R}" cy="${cy}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:ew-resize"/>`;
+      if (sel) { const hx = clamp(cx + R > SW - 10 ? cx - R : cx + R, 10, SW - 10); g += `<circle data-handle="${c._id}" cx="${hx}" cy="${clamp(cy, 10, SH - 10)}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:ew-resize"/>`; }
     } else if (c.type === 'look') {
-      const R = c.reach * short;
+      const R = nf(c.reach, 0.3) * short;
       g += `<rect x="${cx - R}" y="${cy - R}" width="${2 * R}" height="${2 * R}" fill="${col}" fill-opacity=".25" stroke="${stroke}" stroke-width="${sel ? 3 : 2}" stroke-dasharray="6 4"/>`;
       g += `<path d="M${cx - 12} ${cy}H${cx + 12}M${cx} ${cy - 12}V${cy + 12}" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="5" fill="#fff"/>`;
       g += `<text x="${cx}" y="${cy - 18}" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(c.label || 'Camera')}</text>`;
       g += `</g>`;
-      if (sel) g += `<circle data-handle="${c._id}" cx="${cx + R}" cy="${cy + R}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:nwse-resize"/>`;
+      if (sel) { const hx = clamp(cx + R > SW - 10 ? cx - R : cx + R, 10, SW - 10), hy = clamp(cy + R > SH - 10 ? cy - R : cy + R, 10, SH - 10); g += `<circle data-handle="${c._id}" cx="${hx}" cy="${hy}" r="8" fill="#ffb000" stroke="#000" stroke-width="1.5" style="cursor:nwse-resize"/>`; }
     } else {
       g += `<circle cx="${cx}" cy="${cy}" r="22" fill="${col}" fill-opacity=".55" stroke="${stroke}" stroke-width="${sel ? 3 : 2}"/>`;
       g += `<text x="${cx}" y="${cy}" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#000" stroke-width="3">${esc(keyLabel(c.key))}</text>`;
@@ -638,15 +653,18 @@ window.addEventListener('keydown', e => {
   applyKey(code);
 }, true);
 window.addEventListener('keyup', e => { if (capturing) { e.preventDefault(); e.stopPropagation(); } }, true);
+let swallowUntil = 0;  // after a mouse bind, swallow the rest of that click (mouseup/click/auxclick/contextmenu)
 function swallowMouse(e) {
-  if (!capturing) return;
+  const pending = performance.now() < swallowUntil;
+  if (!capturing && !pending) return;
   if (e.target.closest && e.target.closest('#capbar')) return;
   e.preventDefault(); e.stopPropagation();
 }
 window.addEventListener('mousedown', e => {
-  if (!capturing) return;
+  if (!capturing) { swallowUntil = 0; return; }
   if (e.target.closest && e.target.closest('#capbar')) return;
   e.preventDefault(); e.stopPropagation();
+  swallowUntil = performance.now() + 500;
   const name = MOUSE_BY_BUTTON[e.button];
   if (!name) { $('#capmsg').textContent = 'Nút chuột này không được hỗ trợ.'; return; }
   if (capturing.escPending) { clearTimeout(escTimer); capturing.escPending = false; }
@@ -672,7 +690,9 @@ function updateErrors() {
   else { st.className = 'status-ok'; st.textContent = 'Hồ sơ hợp lệ.'; }
   $('#vlist').innerHTML = lastProblems.map(p => `<li data-vpath="${esc(p.path)}"><code>${esc(p.path)}</code>: ${esc(p.message)}</li>`).join('');
   $('#btnDownload').disabled = $('#btnCopy').disabled = lastProblems.length > 0;
+  $('#verFix').hidden = state.profile.version === 1;
 }
+$('#btnVer1').onclick = () => { state.profile.version = 1; refresh({ keepPanel: true }); };
 $('#vlist').addEventListener('click', e => {
   const li = e.target.closest('[data-vpath]'); if (!li) return;
   const m = /^controls\[(\d+)\]/.exec(li.dataset.vpath);

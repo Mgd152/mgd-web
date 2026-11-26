@@ -362,8 +362,8 @@ impl Engine {
             if self.toggle_held {
                 return;
             }
-            self.toggle_held = true;
-            if self.active {
+            let was_active = self.active;
+            if was_active {
                 out.frames.extend(self.deactivate());
                 out.event = Some(EngineEvent::Deactivated);
             } else {
@@ -372,6 +372,8 @@ impl Engine {
                     Err(e) => EngineEvent::ActivateFailed(e.to_string()),
                 });
             }
+            // Latch after (de)activation: those reset the latch, this press stays held.
+            self.toggle_held = true;
             return;
         }
         if !self.active {
@@ -504,7 +506,7 @@ impl Engine {
             let now = self.now;
             if let Ctl::Btn { id, deadline } = &mut self.ctl[ci] {
                 *id = Some(n);
-                *deadline = (mode == ButtonMode::Tap).then(|| now + TAP_HOLD_MS);
+                *deadline = (mode == ButtonMode::Tap).then(|| now.saturating_add(TAP_HOLD_MS));
             }
         } else if let (ButtonMode::Hold, Some(n)) = (mode, id) {
             out.extend(self.lift(&[n]));
@@ -535,6 +537,7 @@ impl Engine {
             _ => return,
         };
         let anchor = self.to_hid(ax, ay);
+        let fresh = cur_id.is_none();
         let (n, offset) = match cur_id {
             Some(n) => (n, cur_off),
             None => {
@@ -551,6 +554,12 @@ impl Engine {
         let next = (offset.0 + step.0, offset.1 + step.1);
         let (id, new_offset) = if next.0.abs() <= reach && next.1.abs() <= reach {
             (n, next)
+        } else if fresh {
+            // Contact created by this very event: clamp, no phantom lift/re-down.
+            (
+                n,
+                (next.0.clamp(-reach, reach), next.1.clamp(-reach, reach)),
+            )
         } else {
             out.extend(self.lift(&[n]));
             self.stats.look_recenters += 1;
@@ -596,6 +605,7 @@ impl Engine {
             *c = Ctl::fresh(spec);
         }
         self.held.clear();
+        self.toggle_held = false;
     }
 
     fn deadlines(&self) -> Vec<(u64, u8)> {
@@ -619,7 +629,7 @@ impl Engine {
                         release_after_ms, ..
                     },
                 ) if *release_after_ms > 0 => {
-                    v.push((last_ms + u64::from(*release_after_ms), *n));
+                    v.push((last_ms.saturating_add(u64::from(*release_after_ms)), *n));
                 }
                 _ => {}
             }
@@ -1029,11 +1039,63 @@ mod tests {
     fn look_huge_step_is_clamped_to_reach() {
         let mut e = active(&profile_json("portrait", LOOK), Rotation::R0);
         let o = mv(&mut e, 100_000.0, 0.0, 0);
-        // down, lift (immediate re-center), down, move to clamped edge.
-        assert!(o.frames.len() >= 3);
+        // down at anchor, then move to the clamped edge; no phantom re-center.
+        assert_eq!(o.frames.len(), 2);
+        assert_eq!(e.stats().look_recenters, 0);
         let (ux, _) = view(Rotation::R0).short_side_units(1.0);
         let last = o.frames.last().unwrap().contacts()[0];
         assert_eq!(last.x, pic_hid(Rotation::R0, 0.7 + 0.1 * ux, 0.5).0);
+    }
+
+    const EDGE_LOOK: &str = r#"{"type":"look","x":1.0,"y":1.0,"sensitivity":1.0,"reach":0.1}"#;
+
+    #[test]
+    fn no_move_frame_when_hid_position_unchanged() {
+        // (a) sub-unit motion after the contact is down.
+        let mut e = active(&profile_json("portrait", LOOK), Rotation::R0);
+        mv(&mut e, 10.0, 0.0, 0);
+        assert!(mv(&mut e, 1e-6, 0.0, 1).frames.is_empty());
+        // (b) look anchored at the right edge pushed further right (clamped).
+        let mut e = active(&profile_json("portrait", EDGE_LOOK), Rotation::R0);
+        mv(&mut e, 0.0, 1.0, 0); // contact down
+        mv(&mut e, 50.0, 0.0, 1);
+        assert!(mv(&mut e, 20.0, 0.0, 2).frames.is_empty());
+        // (c) joystick at the left edge: `left` clamps to the center, so only the
+        // touch-down is emitted; adding `right` (cancel) changes nothing either.
+        let edge_joy = r#"{"type":"joystick","x":0.0,"y":0.5,"radius":0.1,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"}"#;
+        let mut e = active(&profile_json("portrait", edge_joy), Rotation::R0);
+        assert_eq!(press(&mut e, "KeyA", 0).frames.len(), 1);
+        assert!(press(&mut e, "KeyD", 1).frames.is_empty());
+        assert!(release(&mut e, "KeyD", 2).frames.is_empty());
+        assert_eq!(press(&mut e, "KeyW", 3).frames.len(), 1); // up-left: y moves
+    }
+
+    #[test]
+    fn extreme_now_ms_does_not_overflow() {
+        let mut e = active(&profile_json("portrait", BTN_TAP), Rotation::R0);
+        let o = press(&mut e, "KeyJ", u64::MAX);
+        assert_eq!(o.frames.len(), 1);
+        assert_eq!(e.next_deadline(), Some(u64::MAX));
+        let look = r#"{"type":"look","x":0.5,"y":0.5,"reach":0.5,"release_after_ms":50}"#;
+        let mut e = active(&profile_json("portrait", look), Rotation::R0);
+        mv(&mut e, 0.1, 0.0, u64::MAX - 10);
+        assert_eq!(e.next_deadline(), Some(u64::MAX));
+        assert_eq!(e.tick(u64::MAX).len(), 1);
+    }
+
+    #[test]
+    fn toggle_latch_is_cleared_by_deactivate_and_focus_loss() {
+        let mut e = engine(&profile_json("portrait", BTN_HOLD), Rotation::R0);
+        let o = press(&mut e, "Backquote", 0);
+        assert_eq!(o.event, Some(EngineEvent::Activated));
+        // The release never arrives (focus lost), then the app deactivates.
+        e.deactivate();
+        let o = press(&mut e, "Backquote", 10);
+        assert_eq!(o.event, Some(EngineEvent::Activated));
+        // Same for release_all: the next press toggles (active -> inactive).
+        e.release_all();
+        let o = press(&mut e, "Backquote", 20);
+        assert_eq!(o.event, Some(EngineEvent::Deactivated));
     }
 
     #[test]
@@ -1485,6 +1547,21 @@ mod tests {
         "KeyZ",
     ];
 
+    /// Controls pinned to screen corners so clamping makes moves no-ops.
+    fn fuzz_edge_profile() -> Profile {
+        let json = r#"{"version":1,"orientation":"portrait","controls":[
+            {"type":"joystick","x":0.0,"y":0.0,"radius":0.12,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"},
+            {"type":"look","x":1.0,"y":1.0,"sensitivity":3.0,"reach":0.05,"release_after_ms":120},
+            {"type":"button","x":1.0,"y":0.8,"key":"Space"},
+            {"type":"button","x":0.85,"y":0.6,"key":"KeyJ","mode":"tap"},
+            {"type":"button","x":0.75,"y":0.7,"key":"KeyK"},
+            {"type":"button","x":0.65,"y":0.8,"key":"KeyL","mode":"tap"},
+            {"type":"button","x":0.55,"y":0.8,"key":"KeyU"},
+            {"type":"button","x":0.95,"y":0.5,"key":"KeyI"},
+            {"type":"button","x":0.95,"y":0.4,"key":"MouseLeft"}]}"#;
+        Profile::from_json(json).unwrap()
+    }
+
     fn fuzz_profile() -> Profile {
         let json = r#"{"version":1,"orientation":"portrait","controls":[
             {"type":"joystick","x":0.2,"y":0.75,"radius":0.12,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"},
@@ -1501,9 +1578,20 @@ mod tests {
 
     #[test]
     fn fuzz_invariants() {
+        let mut total_dropped = 0u64;
+        let mut total_recenters = 0u64;
         for seed in 0..24u64 {
             let mut rng = Lcg(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xABCD);
-            let mut e = Engine::new(fuzz_profile()).unwrap();
+            // Odd seeds use corner-anchored controls; every 4th seed is press-heavy
+            // so that all contact slots fill up and presses get dropped.
+            let edge = seed % 2 == 1;
+            let press_heavy = seed % 4 >= 2;
+            let mut e = Engine::new(if edge {
+                fuzz_edge_profile()
+            } else {
+                fuzz_profile()
+            })
+            .unwrap();
             e.set_view(view(Rotation::R0));
             let mut model = Model {
                 down: [None; MAX_CONTACTS],
@@ -1521,7 +1609,8 @@ mod tests {
                 match rng.below(100) {
                     0..=44 => {
                         let k = FUZZ_KEYS[rng.below(FUZZ_KEYS.len() as u64) as usize];
-                        let o = if rng.below(2) == 0 {
+                        let press_p = if press_heavy { 9 } else { 5 };
+                        let o = if rng.below(10) < press_p {
                             e.handle(Input::Press(k), now)
                         } else {
                             e.handle(Input::Release(k), now)
@@ -1533,6 +1622,8 @@ mod tests {
                             0 => (f64::NAN, 1.0),
                             1 => (0.0, 0.0),
                             2 => (rng.f(5000.0), rng.f(5000.0)),
+                            3..=9 => (rng.f(1e-3), rng.f(1e-3)),
+                            10..=14 => (rng.f(30.0).abs(), rng.f(30.0).abs()),
                             _ => (rng.f(30.0), rng.f(30.0)),
                         };
                         frames = e.handle(Input::MouseMotion { dx, dy }, now).frames;
@@ -1548,7 +1639,11 @@ mod tests {
                         frames = o.frames;
                         explicit_inactive = true;
                     }
-                    81..=83 => frames.extend(e.release_all()),
+                    81..=83 => {
+                        frames.extend(e.release_all());
+                        assert_eq!(e.contacts_down(), 0, "I7 release_all seed {seed}");
+                        assert_eq!(e.is_active(), was_active, "release_all keeps state");
+                    }
                     84..=85 => {
                         frames.extend(e.deactivate());
                         explicit_inactive = true;
@@ -1582,8 +1677,12 @@ mod tests {
                 e.stats().frames > 300,
                 "seed {seed}: fuzz barely emitted frames"
             );
+            total_dropped += e.stats().dropped_presses;
+            total_recenters += e.stats().look_recenters;
             frames_after_release(&mut e, &mut model);
         }
+        assert!(total_dropped > 0, "fuzz never exhausted slots");
+        assert!(total_recenters > 0, "fuzz never re-centered the look");
     }
 
     fn frames_after_release(e: &mut Engine, model: &mut Model) {

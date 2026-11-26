@@ -14,13 +14,20 @@ const { chromium } = playwright;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..', '..');
 const html = pathToFileURL(path.join(root, 'editor', 'index.html')).href;
-const sim = ['target/release/keymap-sim', 'target/debug/keymap-sim', 'target/release/keymap-sim.exe']
+// Always rebuild so parity is checked against the current Rust rules; fail if the binary is older than the sources.
+const build = spawnSync('cargo', ['build', '--release', '-p', 'keymap', '--bin', 'keymap-sim'], { cwd: root, encoding: 'utf8' });
+console.log('cargo build --release -p keymap --bin keymap-sim -> exit ' + build.status);
+const sim = ['target/release/keymap-sim', 'target/release/keymap-sim.exe']
   .map(p => path.join(root, p)).find(p => fs.existsSync(p));
+const srcDir = path.join(root, 'crates/keymap/src');
+const newestSrc = Math.max(...fs.readdirSync(srcDir, { recursive: true }).filter(f => f.endsWith('.rs')).map(f => fs.statSync(path.join(srcDir, f)).mtimeMs));
+const simFresh = !!sim && fs.statSync(sim).mtimeMs >= newestSrc;
 const shot = process.env.EDITOR_SHOT || path.join(os.tmpdir(), 'editor.png');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'editor-test-'));
 
 let failures = 0, checks = 0;
 const ok = (cond, msg) => { checks++; if (!cond) { failures++; console.log('FAIL: ' + msg); } else console.log('ok:   ' + msg); };
+ok(build.status === 0 && simFresh, 'keymap-sim is built and not older than crates/keymap/src/*.rs');
 const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), `${msg} (got ${JSON.stringify(a)}${JSON.stringify(a) === JSON.stringify(b) ? '' : ', want ' + JSON.stringify(b)})`);
 
 function validate(text, label) {
@@ -32,17 +39,18 @@ function validate(text, label) {
   return r.status === 0;
 }
 function normalize(j) {
+  const r4 = v => Math.round(v * 10000) / 10000;
   const o = { version: j.version, name: j.name ?? '', app: j.app ?? '', orientation: j.orientation, toggle_key: j.toggle_key ?? 'Backquote', panic_key: j.panic_key ?? 'F8', controls: [] };
   for (const c of j.controls ?? []) {
-    if (c.type === 'joystick') o.controls.push({ type: 'joystick', label: c.label ?? '', x: c.x, y: c.y, radius: c.radius, up: c.up, down: c.down, left: c.left, right: c.right });
-    if (c.type === 'look') o.controls.push({ type: 'look', label: c.label ?? '', x: c.x, y: c.y, sensitivity: c.sensitivity ?? 1, invert_y: c.invert_y ?? false, reach: c.reach ?? 0.3, release_after_ms: c.release_after_ms ?? 0 });
-    if (c.type === 'button') o.controls.push({ type: 'button', label: c.label ?? '', x: c.x, y: c.y, key: c.key, mode: c.mode ?? 'hold' });
+    if (c.type === 'joystick') o.controls.push({ type: 'joystick', label: c.label ?? '', x: r4(c.x), y: r4(c.y), radius: c.radius, up: c.up, down: c.down, left: c.left, right: c.right });
+    if (c.type === 'look') o.controls.push({ type: 'look', label: c.label ?? '', x: r4(c.x), y: r4(c.y), sensitivity: c.sensitivity ?? 1, invert_y: c.invert_y ?? false, reach: c.reach ?? 0.3, release_after_ms: c.release_after_ms ?? 0 });
+    if (c.type === 'button') o.controls.push({ type: 'button', label: c.label ?? '', x: r4(c.x), y: r4(c.y), key: c.key, mode: c.mode ?? 'hold' });
   }
   return o;
 }
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1300, height: 900 }, acceptDownloads: true });
+const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
 const page = await ctx.newPage();
 const consoleErrors = [], badRequests = [];
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
@@ -91,12 +99,12 @@ ok((await page.textContent('#vlist')).includes('controls[3].key'), 'summary name
 // drag joystick + resize
 await page.evaluate(() => document.querySelector('[data-ctl="1"]').dispatchEvent(new Event('x')));
 const box = async sel => { const b = await page.locator(sel).first().boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
-const stageBox = await page.locator('#stage').boundingBox();
+const stageBox = await page.locator('#svg').boundingBox();
 const jPos = await box('[data-ctl="1"] circle >> nth=1');   // centre dot
 await page.mouse.move(jPos.x, jPos.y); await page.mouse.down();
 await page.mouse.move(jPos.x + 40, jPos.y - 60, { steps: 5 }); await page.mouse.up();
 const j = await page.evaluate(() => KeymapEditor.state.profile.controls[0]);
-ok(Math.abs(j.x - ((jPos.x + 40 - stageBox.x) / stageBox.width)) < 0.01 && Math.abs(j.y - ((jPos.y - 60 - stageBox.y) / stageBox.height)) < 0.01, `joystick dragged to (${j.x}, ${j.y})`);
+ok(Math.abs(j.x - ((jPos.x + 40 - stageBox.x) / stageBox.width)) < 0.002 && Math.abs(j.y - ((jPos.y - 60 - stageBox.y) / stageBox.height)) < 0.002, `joystick dragged to (${j.x}, ${j.y})`);
 const h0 = await page.evaluate(() => KeymapEditor.state.profile.controls[0].radius);
 const hp = await page.locator('[data-handle="1"]').boundingBox();
 await page.mouse.move(hp.x + hp.width / 2, hp.y + hp.height / 2); await page.mouse.down();
@@ -130,10 +138,24 @@ ok((await page.textContent('#ctlPanel [data-err="controls[3].key"]')).includes('
 await bind('#ctlPanel [data-kt^="c:4:key"]', () => page.mouse.click(5, 5, { button: 'middle' }));
 eq(await page.evaluate(() => KeymapEditor.state.profile.controls[3].key), 'MouseMiddle', 'middle mouse button captured');
 await page.selectOption('#f_mode', 'tap');
+await page.click('[data-pick="3"]');
 await bind('#ctlPanel [data-kt^="c:3:key"]', () => page.keyboard.press('MetaLeft'));
 eq(await page.evaluate(() => KeymapEditor.state.profile.controls[2].key), 'SuperLeft', 'MetaLeft -> SuperLeft');
+await page.evaluate(() => { window.__ctx = []; window.addEventListener('contextmenu', e => window.__ctx.push(e.defaultPrevented), true); window.__clicks = 0; window.addEventListener('auxclick', e => { if (!e.defaultPrevented) window.__clicks++; }, true); });
 await bind('#ctlPanel [data-kt^="c:3:key"]', () => page.mouse.click(5, 5, { button: 'right' }));
 eq(await page.evaluate(() => KeymapEditor.state.profile.controls[2].key), 'MouseRight', 'right mouse -> MouseRight');
+ok((await page.evaluate(() => window.__ctx)).length > 0 && (await page.evaluate(() => window.__ctx)).every(v => v), 'contextmenu after right-click bind is defaultPrevented');
+// left click bind over a real button must not also activate it
+await bind('#ctlPanel [data-kt^="c:3:key"]', () => page.click('#addJoystick'));
+eq(await page.evaluate(() => KeymapEditor.state.profile.controls[2].key), 'MouseLeft', 'left-click over + Joystick binds MouseLeft');
+eq(await page.evaluate(() => KeymapEditor.state.profile.controls.length), 4, 'the click that bound the key did not add a joystick');
+await bind('#ctlPanel [data-kt^="c:3:key"]', () => page.mouse.click(5, 5, { button: 'right' }));
+eq(await page.evaluate(() => KeymapEditor.state.profile.controls[2].key), 'MouseRight', 'rebind MouseRight');
+await page.click('#addJoystick'); // normal clicks work again right after
+eq(await page.evaluate(() => KeymapEditor.state.profile.controls.length), 5, 'normal click works after capture');
+await page.click('#btnDel');
+eq(await page.evaluate(() => KeymapEditor.state.profile.controls.length), 4, 'extra joystick removed');
+await page.click('[data-pick="3"]');
 // toggle/panic: mouse refused, key accepted
 await bind('#kb_toggle', () => page.mouse.click(5, 5, { button: 'left' }));
 ok(await page.isVisible('#capbar') && (await page.textContent('#capmsg')).includes('bàn phím'), 'mouse refused for toggle key');
@@ -188,6 +210,7 @@ eq(await page.evaluate(() => KeymapEditor.state.profile.controls.length), 4, 'de
 // ---- clipboard / copy ----
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
 await page.click('#btnCopy');
+await page.waitForFunction(() => document.querySelector('#importMsg').textContent.length > 0, null, { timeout: 5000 }).catch(() => {});
 ok((await page.textContent('#importMsg')).length > 0, 'copy reports a result: ' + (await page.textContent('#importMsg')));
 
 // ---- landscape image sets orientation ----
@@ -210,7 +233,7 @@ const lists = [
 ];
 for (const [tag, dir] of lists) {
   const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort() : [];
-  ok(files.length > 0, `${tag}: ${files.length} json files found`);
+  ok(tag === 'profiles' ? files.length >= 2 : files.length > 0, `${tag}: ${files.length} json files found`);
   for (const f of files) {
     await page.evaluate(() => { document.querySelector('#importMsg').textContent = ''; });
     await importFile(path.join(dir, f));
@@ -235,6 +258,55 @@ if (fs.existsSync(invDir)) {
 await page.fill('#jsonOut', '{"version":1,"orientation":"portrait","controls":[{"type":"button","x":0.5,"y":0.5,"key":"KeyJ"}]}');
 await page.click('#btnPaste');
 eq(await page.evaluate(() => KeymapEditor.state.profile.controls.length), 1, 'paste import loads profile');
+
+// ---- resize handles stay reachable ----
+const cid = i => page.evaluate(i => KeymapEditor.state.profile.controls[i]._id, i);
+const hit = async i => page.evaluate(id => {
+  const h = document.querySelector(`[data-handle="${id}"]`); if (!h) return 'none';
+  const r = h.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+  return e === h ? 'handle' : (e && e.id) || e.tagName;
+}, await cid(i));
+async function dragHandle(i, dx, dy) {
+  const id = await cid(i);
+  const b = await page.locator(`[data-handle="${id}"]`).boundingBox(); const x = b.x + b.width / 2, y = b.y + b.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y + dy, { steps: 4 }); await page.mouse.up();
+}
+await page.click('#btnNew');
+await page.click('#addLook');
+eq(await hit(0), 'handle', 'default look handle is hittable');
+const r0 = await page.evaluate(() => KeymapEditor.state.profile.controls[0].reach);
+await dragHandle(0, -20, -20);
+ok((await page.evaluate(() => KeymapEditor.state.profile.controls[0].reach)) !== r0, 'default look handle resizes');
+for (const [x, y] of [[0.95, 0.5], [0.5, 0.97], [0.97, 0.97]]) {
+  await page.fill('#f_x', String(x)); await page.fill('#f_y', String(y)); await page.fill('#f_reach', '0.3');
+  eq(await hit(0), 'handle', `look at (${x}, ${y}) handle is hittable`);
+}
+await page.fill('#f_x', '0.95'); await page.fill('#f_y', '0.5');
+const r1 = await page.evaluate(() => KeymapEditor.state.profile.controls[0].reach);
+await dragHandle(0, -25, 0);
+ok((await page.evaluate(() => KeymapEditor.state.profile.controls[0].reach)) !== r1, 'edge look handle resizes');
+await page.click('#addJoystick'); await page.fill('#f_x', '0.97'); await page.fill('#f_radius', '0.2');
+eq(await hit(1), 'handle', 'joystick at right edge handle is hittable');
+// emptying a number field must not break rendering
+await page.fill('#f_radius', ''); await page.fill('#f_x', '');
+ok((await page.textContent('#vstatus')).includes('lỗi'), 'empty number fields are reported as errors');
+eq(await page.evaluate(() => document.querySelector('#jsonOut').value.includes('NaN')), false, 'no NaN text in preview');
+// layout at 1366x768: no page scroll, status + export buttons visible
+const lay = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight, st: document.querySelector('#vstatus').getBoundingClientRect().bottom, bt: document.querySelector('#btnDownload').getBoundingClientRect().bottom }));
+ok(lay.sh <= lay.ih && lay.st <= lay.ih && lay.bt <= lay.ih, `no page scroll at 1366x768, status/export visible (${JSON.stringify(lay)})`);
+// numeric import rounding + strictness
+await page.fill('#jsonOut', '{"version":1,"orientation":"portrait","controls":[{"type":"joystick","x":0.5,"y":0.5,"radius":0.00001,"up":"KeyW","down":"KeyS","left":"KeyA","right":"KeyD"}]}');
+await page.click('#btnPaste');
+ok((await page.textContent('#vstatus')).includes('lỗi') && (await page.textContent('#vlist')).includes('controls[0].radius'), 'radius 0.00001 (exports as 0) is flagged at import');
+for (const [txt, what] of [['{"version":1.0,"orientation":"portrait"}', 'version 1.0'], ['{"version":1,"orientation":"portrait","controls":[{"type":"look","x":0.5,"y":0.5,"release_after_ms":1e2}]}', 'release_after_ms 1e2'], ['{"version":1,"orientation":"portrait","controls":[{"type":"look","x":1e999,"y":0.5}]}', 'x 1e999']]) {
+  await page.fill('#jsonOut', txt); await page.click('#btnPaste');
+  ok((await page.textContent('#importMsg')).startsWith('Không nhập được'), `import rejects ${what}`);
+}
+await page.fill('#jsonOut', '{"version":2,"orientation":"portrait"}'); await page.click('#btnPaste');
+ok(await page.isVisible('#btnVer1'), 'version != 1 offers "Đặt version = 1"');
+await page.click('#btnVer1');
+ok((await page.textContent('#vstatus')).includes('hợp lệ'), 'version fixed in UI');
+eq(await page.evaluate(() => ['kb_toggle', 'kb_panic'].map(i => !!document.getElementById(i).getAttribute('aria-labelledby'))), [true, true], 'key buttons have aria-labelledby');
 
 // ---- no network, no console errors ----
 eq(badRequests, [], 'no network requests');

@@ -1,4 +1,5 @@
 {
+  "array-root.json": "<json>",
   "bad-orientation.json": "<json>",
   "bad-version.json": "version",
   "duplicate-in-joystick.json": "controls[0].down",
@@ -13,6 +14,7 @@
   "reach-too-big.json": "controls[0].reach",
   "reach-zero.json": "controls[0].reach",
   "release-too-long.json": "controls[0].release_after_ms",
+  "second-look-then-bad-x.json": "controls[2].x",
   "second-look.json": "controls[1]",
   "sensitivity-zero.json": "controls[0].sensitivity",
   "toggle-equals-panic.json": "panic_key",

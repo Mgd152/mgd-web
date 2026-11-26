@@ -185,6 +185,13 @@ impl Profile {
     /// Parse and validate. A leading UTF-8 BOM is accepted.
     pub fn from_json(text: &str) -> Result<Profile, ProfileError> {
         let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+        // serde would accept a positional JSON array as a struct; require an object.
+        if !text.trim_start().starts_with('{') {
+            // Real syntax errors are reported first, then non-objects are rejected.
+            serde_json::from_str::<serde_json::Value>(text)
+                .map_err(|e| ProfileError::Json(e.to_string()))?;
+            return Err(ProfileError::Json("profile must be a JSON object".into()));
+        }
         let p: Profile =
             serde_json::from_str(text).map_err(|e| ProfileError::Json(e.to_string()))?;
         p.validate()?;
@@ -262,6 +269,7 @@ impl Profile {
             ));
         }
         let mut first_look: Option<usize> = None;
+        let mut extra_looks: Vec<usize> = Vec::new();
         for (i, c) in self.controls.iter().enumerate() {
             let p = |f: &str| format!("controls[{i}].{f}");
             match c {
@@ -305,10 +313,7 @@ impl Profile {
                         ));
                     }
                     if first_look.is_some() {
-                        out.push(problem(
-                            format!("controls[{i}]"),
-                            "only one look control is allowed",
-                        ));
+                        extra_looks.push(i);
                     } else {
                         first_look = Some(i);
                     }
@@ -322,6 +327,12 @@ impl Profile {
                     check_key(&mut out, p("key"), key);
                 }
             }
+        }
+        for i in extra_looks {
+            out.push(problem(
+                format!("controls[{i}]"),
+                "only one look control is allowed",
+            ));
         }
         let mut seen: Vec<(String, &str)> = Vec::new();
         for (path, key) in self.bound_keys() {
@@ -628,7 +639,7 @@ mod tests {
     fn problems_come_in_spec_order() {
         let j = r#"{"version":3,"orientation":"portrait","toggle_key":"Zzz","panic_key":"F8",
             "controls":[{"type":"look","x":2,"y":0.5,"reach":0},{"type":"look","x":0.5,"y":0.5},
-            {"type":"button","x":0.5,"y":0.5,"key":"F8"}]}"#;
+            {"type":"button","x":2,"y":0.5,"key":"F8"}]}"#;
         let p: Profile = serde_json::from_str(j).unwrap();
         let paths: Vec<String> = p.problems().into_iter().map(|p| p.path).collect();
         assert_eq!(
@@ -638,6 +649,7 @@ mod tests {
                 "toggle_key",
                 "controls[0].x",
                 "controls[0].reach",
+                "controls[2].x",
                 "controls[1]",
                 "controls[2].key"
             ]
