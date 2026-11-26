@@ -1044,7 +1044,7 @@ mod tests {
             .collect();
         assert!(pool.len() >= 80 && pool.len() < 84, "pool = {}", pool.len());
         let mut p = template(Template::Empty(Orientation::Landscape));
-        for four in pool.chunks_exact(4).take(20) {
+        for four in pool.as_chunks::<4>().0.iter().take(20) {
             p.controls.push(Control::Joystick {
                 label: String::new(),
                 x: 0.5,
