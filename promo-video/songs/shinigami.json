@@ -1,0 +1,23 @@
+{
+  "slug": "shinigami",
+  "track": "assets/shinigami/track.mp3",
+  "cover": "assets/shinigami/cover.jpg",
+  "notes": "From the Drive folder. Owner asked me to score this one myself, strictly (no easy 9s): the score comes from measurements of the clip (how hard the drop lands, bass weight, steadiness of the groove), not from listening. Drop measured by me.",
+  "atmos": 1.4,
+  "sway": 1,
+  "energy": 1.3,
+  "glitch": false,
+  "cta": "send me your funk",
+  "bg_dim": 0.6,
+  "particles": "ash",
+  "target": 20.0,
+  "title": "SHINIGAMI (SLOWED)",
+  "artist": "Draven Godrics",
+  "start": 22.52,
+  "drop_at": 30.52,
+  "bpm": 85.7,
+  "leaf_colors": "#3a0010,#ff3a4a,#ffc0c8",
+  "pal": "#12020a,#a8102a,#ff3a4a,#fff0f2",
+  "story": "0.9:5.0,4.4:5.6,8.0:7.0",
+  "score": 7.0
+}
